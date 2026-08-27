@@ -22,6 +22,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env() 
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
+DB_BACKEND = env('DB_BACKEND', default='neon')
+DATABASE_URL = env(f'DATABASE_URL_{DB_BACKEND.upper()}')
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
