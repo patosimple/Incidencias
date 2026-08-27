@@ -16,7 +16,14 @@
 - ✅ Migraciones aplicadas
 - ✅ Admin funcionando en `/admin/`
 - ✅ Esqueleto IA en `ai/providers.py`, `ai/tasks.py`, `ai/models.py`
-- ❌ Pendiente: `urls.py`, `forms.py`, `views.py`, templates, HTMX/Tailwind
+- ✅ `core/urls.py` y `config/urls.py`: listado, creación, detalle, tomar ticket, cambiar estado, comentar, login/logout
+- ✅ `core/forms.py`: `TicketForm`, `ComentarioForm`, `AdjuntoForm`/`AdjuntoFormSet`
+- ✅ `core/views.py`: `TicketListView`, `TicketCreateView`, `TicketDetailView`, `tomar_ticket`, `cambiar_estado_ticket`, `agregar_comentario` (permisos por rol aplicados)
+- ✅ `core/management/commands/seed_datos.py`: carga sistemas y catálogo ModeloIA
+- ✅ `core/templates/core/base.html`: layout general (sidebar, header, badges), Tailwind CDN
+- ✅ `core/templates/core/ticket_list.html`: versión mínima funcional
+- ❌ Pendiente: `ticket_form.html`, `ticket_detail.html`, `login.html` (dan TemplateDoesNotExist)
+- ❌ Pendiente: migrar Tailwind a build compilado, HTMX partials
 
 ## Modelo de datos (no modificar sin confirmar)
 | Modelo | Clave |
@@ -45,7 +52,10 @@ config/
 core/
   models.py        # Modelos completos (258 líneas)
   admin.py         # Admin completo con inlines
-  views.py         # Vacío
+  views.py         # CBVs/FBVs con permisos por rol
+  forms.py         # TicketForm, ComentarioForm, AdjuntoForm/AdjuntoFormSet
+  urls.py          # Rutas app (listado, creación, detalle, acciones, login/logout)
+  management/commands/seed_datos.py  # Carga sistemas y ModeloIA
 ai/
   providers.py     # AIProvider abstracto + Groq/Gemini/OpenRouter (NotImplementedError)
   tasks.py         # Huey task generar_analisis_ticket (Fase 2)
@@ -70,12 +80,10 @@ python manage.py shell
 ```
 
 ## Próximos pasos (Fase 1)
-1. `urls.py` - rutas app (login, tickets, etc.)
-2. `forms.py` - forms para Ticket, Comentario, Adjunto, Usuario
-3. `views.py` - CBVs/FBVs con permisos por rol
-4. Templates base + partials HTMX
-5. Tailwind config + estilos
-6. Login/logout + middleware de autenticación
+1. Templates: `ticket_form.html`, `ticket_detail.html`, `login.html` (referencia Figma)
+2. HTMX partials para interacciones (tomar ticket, cambiar estado, comentar)
+3. Tailwind config + build compilado (reemplazar CDN)
+4. `settings.HUEY` para activar cola de tareas
 
 ## Notas para próxima sesión
 - No tocar modelos ni admin (están cerrados)
