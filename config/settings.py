@@ -22,8 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env() 
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
-DB_BACKEND = env('DB_BACKEND', default='neon')
-DATABASE_URL = env(f'DATABASE_URL_{DB_BACKEND.upper()}')
+DATABASE_URL = env('DATABASE_URL')
 
 
 # Quick-start development settings - unsuitable for production
@@ -87,7 +86,7 @@ DATABASES = {
     # 'default': {
     #     'ENGINE': 'django.db.backends.sqlite3',
     #     'NAME': BASE_DIR / 'db.sqlite3',
-     'default': env.db('DATABASE_URL')     
+     'default': env.db_url('DATABASE_URL')     
 }
 
 
