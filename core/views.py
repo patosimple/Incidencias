@@ -23,7 +23,9 @@ class TicketListView(LoginRequiredMixin, ListView):
         usuario = self.request.user
         qs = Ticket.objects.select_related("sistema", "solicitante")
 
-        if usuario.rol == RolUsuario.SOLICITANTE:
+        if usuario.is_superuser:
+            pass  # superuser ve todos los tickets sin restricción
+        elif usuario.rol == RolUsuario.SOLICITANTE:
             qs = qs.filter(solicitante=usuario)
         else:
             # Desarrollador (o Coordinador a futuro): ve tickets de sus sistemas
@@ -42,6 +44,11 @@ class TicketListView(LoginRequiredMixin, ListView):
             qs = qs.filter(titulo__icontains=q)
 
         return qs
+
+    def get_template_names(self):
+        if self.request.headers.get("HX-Request"):
+            return ["core/partials/ticket_table.html"]
+        return ["core/ticket_list.html"]
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
