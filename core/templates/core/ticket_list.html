@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="flex items-center justify-between mb-6">
-    <h1 class="text-lg font-semibold text-gray-800">Mis Tickets</h1>
+    <h1 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Mis Tickets</h1>
     <a href="{% url 'ticket_create' %}"
        class="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium px-4 py-2 rounded transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -19,14 +19,14 @@
       hx-target="#tabla-tickets"
       hx-trigger="change from:select, keyup changed delay:400ms from:input[name=q]"
       hx-push-url="true"
-      class="flex flex-wrap gap-3 mb-6 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+      class="flex flex-wrap gap-3 mb-6 p-4 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm">
 
     <input type="text" name="q" value="{{ request.GET.q }}"
            placeholder="Buscar por titulo..."
-           class="flex-1 min-w-[180px] text-sm border border-gray-300 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500">
+           class="flex-1 min-w-[180px] text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500">
 
     <select name="sistema"
-            class="text-sm border border-gray-300 rounded px-3 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-teal-500">
+            class="text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500">
         <option value="">Todos los sistemas</option>
         {% for s in sistemas_disponibles %}
         <option value="{{ s.pk }}" {% if request.GET.sistema == s.pk|stringformat:"s" %}selected{% endif %}>
@@ -36,7 +36,7 @@
     </select>
 
     <select name="estado"
-            class="text-sm border border-gray-300 rounded px-3 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-teal-500">
+            class="text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500">
         <option value="">Todos los estados</option>
         {% for valor, etiqueta in estados_disponibles %}
         <option value="{{ valor }}" {% if request.GET.estado == valor %}selected{% endif %}>
@@ -49,7 +49,7 @@
 
     {% if request.GET.q or request.GET.sistema or request.GET.estado %}
     <a href="{% url 'ticket_list' %}"
-       class="text-sm text-gray-500 hover:text-gray-700 self-center underline">
+       class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 self-center underline">
         Limpiar
     </a>
     {% endif %}

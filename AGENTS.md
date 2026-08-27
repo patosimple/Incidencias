@@ -20,9 +20,9 @@
 - ✅ `core/forms.py`: `TicketForm`, `ComentarioForm`, `AdjuntoForm`/`AdjuntoFormSet`
 - ✅ `core/views.py`: `TicketListView`, `TicketCreateView`, `TicketDetailView`, `tomar_ticket`, `cambiar_estado_ticket`, `agregar_comentario` (permisos por rol aplicados)
 - ✅ `core/management/commands/seed_datos.py`: seed aplicado (Sistemas: BALANCES, FINANCIAMIENTO; ModeloIA: Groq/Gemini/OpenRouter; ConfiguracionIA activa: Groq)
-- ✅ `core/templates/core/base.html`: layout general (sidebar, header, badges), Tailwind CDN + HTMX
-- ✅ `core/templates/core/ticket_list.html`: tabla con filtros HTMX (sin recarga), badges de estado, paginacion, empty state
-- ✅ `core/templates/core/partials/ticket_table.html`: partial HTMX (tabla + paginacion), target `#tabla-tickets`
+- ✅ `core/templates/core/base.html`: layout general (sidebar, header, badges), Tailwind CDN + HTMX, **dark mode con toggle sol/luna** (ver notas)
+- ✅ `core/templates/core/ticket_list.html`: tabla con filtros HTMX (sin recarga), badges de estado, paginacion, empty state, clases `dark:` aplicadas
+- ✅ `core/templates/core/partials/ticket_table.html`: partial HTMX (tabla + paginacion), target `#tabla-tickets`, clases `dark:` aplicadas
 - ✅ `TicketListView.get_template_names()`: devuelve partial si `HX-Request` header presente
 - ✅ `TicketListView.get_queryset()`: superuser ve todos los tickets sin filtro de rol/sistema
 - ❌ Pendiente: `ticket_form.html`, `ticket_detail.html`, `login.html` (dan TemplateDoesNotExist)
@@ -66,7 +66,7 @@ core/
   urls.py          # Rutas app (listado, creacion, detalle, acciones, login/logout)
   management/commands/seed_datos.py  # Carga sistemas y ModeloIA
   templates/core/
-    base.html                        # Layout con Tailwind CDN + HTMX 1.9.10
+    base.html                        # Layout con Tailwind CDN + HTMX 1.9.10 + dark mode toggle
     ticket_list.html                 # Lista con filtros HTMX + include partial
     partials/ticket_table.html       # Partial: tabla + paginacion (target #tabla-tickets)
 ai/
@@ -98,8 +98,9 @@ En `settings.py`: `DATABASES = {'default': env.db_url('DATABASE_URL')}`
 2. ⚠️ Agregar `hx-get`/`hx-trigger` individuales a los selects de sistema y estado en ticket_list
 3. Templates: `ticket_form.html`, `ticket_detail.html`, `login.html` (referencia Figma)
 4. HTMX partials para interacciones en detalle (tomar ticket, cambiar estado, comentar)
-5. Tailwind config + build compilado (reemplazar CDN)
-6. `settings.HUEY` para activar cola de tareas
+5. **Menu desplegable en el icono de usuario** (header): opcion "Cambiar password" + mover ahi el boton "Salir", ambos con iconos amigables
+6. Tailwind config + build compilado (reemplazar CDN)
+7. `settings.HUEY` para activar cola de tareas
 
 ## Notas para proxima sesion
 - No tocar modelos ni admin (estan cerrados)
@@ -107,3 +108,6 @@ En `settings.py`: `DATABASES = {'default': env.db_url('DATABASE_URL')}`
 - Huey ya configurado en tasks.py, falta settings.HUEY
 - `ai/models.py` vacio intencionalmente (modelos IA en core)
 - El carrusel multiMCP tuvo problemas en sesion anterior: Groq/Cerebras con modelos deprecados, Kimi/SambaNova sin saldo, NVIDIA con funcion no encontrada, Gemini modelo deprecado. Revisar IDs de modelos.
+- **Dark mode**: Templates futuros (`ticket_form.html`, `ticket_detail.html`, `login.html`) deben crearse con clases `dark:` listas. Toggle implementado en `base.html` con `localStorage` + `prefers-color-scheme`, transición suave (`transition-colors duration-200` en body), iconos SVG inline sol/luna. Paleta de fondo dark: sidebar `slate-900`, fondo `#172233` (tono intermedio), tarjetas/inputs `slate-800`/`slate-700`. Light: fondo `gray-100`, tarjetas `white`.
+  - **Comportamiento del toggle**: default SIEMPRE light en primera visita (ignora pref del OS); el toggle guarda la eleccion en `localStorage` (`theme` = `'dark'`/`'light'`) y la aplica en futuras cargas. Script init: agregar clase `dark` solo si `localStorage.theme === 'dark'`. Toggle (vanilla JS, no HTMX): `document.documentElement.classList.toggle('dark')` + guardar valor.
+- **Links/titulos teal en modo light**: usar `text-teal-700 hover:text-teal-900` (NO `text-teal-400`, contrasta mal sobre fondo claro), con `dark:text-teal-400 dark:hover:text-teal-300` en modo oscuro. Ejemplo en el titulo del ticket en `partials/ticket_table.html`.
