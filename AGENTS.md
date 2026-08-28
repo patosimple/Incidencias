@@ -111,3 +111,51 @@ En `settings.py`: `DATABASES = {'default': env.db_url('DATABASE_URL')}`
 - **Dark mode**: Templates futuros (`ticket_form.html`, `ticket_detail.html`, `login.html`) deben crearse con clases `dark:` listas. Toggle implementado en `base.html` con `localStorage` + `prefers-color-scheme`, transición suave (`transition-colors duration-200` en body), iconos SVG inline sol/luna. Paleta de fondo dark: sidebar `slate-900`, fondo `#172233` (tono intermedio), tarjetas/inputs `slate-800`/`slate-700`. Light: fondo `gray-100`, tarjetas `white`.
   - **Comportamiento del toggle**: default SIEMPRE light en primera visita (ignora pref del OS); el toggle guarda la eleccion en `localStorage` (`theme` = `'dark'`/`'light'`) y la aplica en futuras cargas. Script init: agregar clase `dark` solo si `localStorage.theme === 'dark'`. Toggle (vanilla JS, no HTMX): `document.documentElement.classList.toggle('dark')` + guardar valor.
 - **Links/titulos teal en modo light**: usar `text-teal-700 hover:text-teal-900` (NO `text-teal-400`, contrasta mal sobre fondo claro), con `dark:text-teal-400 dark:hover:text-teal-300` en modo oscuro. Ejemplo en el titulo del ticket en `partials/ticket_table.html`.
+
+---
+
+## ✅ PLAN: Filtrado client-side (demo) con switch a server-side (produccion)
+
+**Estado: APROBADO — pendiente de implementar.** Objetivo: reproducir el feel de Angular Material (`mat-table` + `filterPredicate`): filtrado **instantaneo en el navegador** (0 round-trips a Neon) para la demo del curso. Diseñado con **feature-flag** para volver a server-side en produccion sin reescribir.
+
+### Arquitectura: feature-flag
+- Flag en `config/settings.py`: `MODO_FILTRO_CLIENTE = True` (para la demo) / `False` (produccion).
+- Se pasa al contexto (context processor o directo en la vista) y se expone como `MODO_FILTRO_CLIENTE` en los templates.
+- `True` → client-side; `False` → vuelve a funcionar HTMX server-side usando el `get_queryset()` que YA EXISTE y NO se borra.
+
+### Pasos de implementacion
+
+**1. `core/views.py — TicketListView.get_queryset()` (NO borrar filtros server)**
+- Si `MODO_FILTRO_CLIENTE` es True: aplicar **solo** el filtro de visibilidad por rol (superuser/solicitante/desarrollador, ya en `views.py:26-32`) y **NO** los filtros `sistema`/`estado`/`q` (`views.py:34-44`) → el navegador recibe todo el dataset del usuario.
+- Si False: comportamiento actual completo (filtros + paginacion server-side).
+- `paginate_by`: subir a un valor alto (ej. 500) en modo cliente para traer todo; en modo server mantener 20.
+- Pasar `MODO_FILTRO_CLIENTE` al contexto.
+
+**2. `core/templates/core/partials/ticket_table.html` — preparar filas**
+- Agregar a cada `<tr>`: `data-sistema="{{ ticket.sistema_id }}"` y `data-estado="{{ ticket.estado }}"`.
+- Inofensivo para el modo server (un `<tr>` sin JS client-side no hace nada).
+
+**3. `core/templates/core/ticket_list.html — switch del form**
+- Envolver el comportamiento HTMX del form (`hx-get`/`hx-trigger`/`hx-target`, lineas 17-20) en `{% if not MODO_FILTRO_CLIENTE %}`: al volver a `False` se reactiva solo.
+- Los 3 controles (`q`, `sistema`, `estado`) mantienen `name`/valores actuales; solo se agregan `data-*` para el JS.
+- Agregar contador `<span id="filtro-contador">` ("mostrando X de Y tickets").
+
+**4. JS client-side (block `{% block extra_js %}` en ticket_list o base)**
+- Solo se incluye si `MODO_FILTRO_CLIENTE` (`{% if %}`).
+- Escucha: `input` en `[name=q]` (debounce ~300ms) + `change` en `[name=sistema]` y `[name=estado]`.
+- Por fila, match 3 niveles: sistema = select (o vacio = todos), estado = select (o vacio = todos), titulo contiene `q` (case-insensitive).
+- Ocultar/mostrar filas con `style.display`; actualizar contador.
+
+**5. Paginacion (demo)**
+- Ocultar la paginacion server-side en modo cliente (los pocos tickets se muestran todos, como Angular Material). Mantener el markup envuelto en `{% if page_obj.has_other_pages and not MODO_FILTRO_CLIENTE %}`.
+
+**6. Migracion a produccion (futuro, sin reescribir)**
+- Poner `MODO_FILTRO_CLIENTE = False`. El form recupera `hx-get`, el queryset vuelve a filtrar/paginar en server, el JS client-side deja de cargar. Volumen alto (>~miles por usuario) → server-side.
+
+### Verificacion
+- `runserver` → login → listado. Probar `q`, `sistema`, `estado`, combinaciones → instantaneo.
+- Voltear flag a `False` → confirmar que HTMX server-side sigue funcionando. Revisar `page_obj`/paginacion en ambos modos.
+
+### Recordatorios
+- Encoding templates: PowerShell `[System.IO.File]::WriteAllText(..., UTF8)`, NUNCA `Set-Content`.
+- Los selects de sistema y estado usan la MISMA metodologia client-side que `q` (los 3 disparan el filtrado en el navegador sin recargar).
