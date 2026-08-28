@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
@@ -17,7 +18,16 @@ class TicketListView(LoginRequiredMixin, ListView):
     model = Ticket
     template_name = "core/ticket_list.html"
     context_object_name = "tickets"
-    paginate_by = 20
+
+    @property
+    def _modo_cliente(self):
+        return getattr(settings, "MODO_FILTRO_CLIENTE", False)
+
+    def get_paginate_by(self, queryset):
+        # En modo cliente traemos todo el dataset del usuario (una sola pagina)
+        if self._modo_cliente:
+            return 500
+        return 20
 
     def get_queryset(self):
         usuario = self.request.user
@@ -31,17 +41,20 @@ class TicketListView(LoginRequiredMixin, ListView):
             # Desarrollador (o Coordinador a futuro): ve tickets de sus sistemas
             qs = qs.filter(sistema__in=_sistemas_visibles(usuario))
 
-        sistema_id = self.request.GET.get("sistema")
-        if sistema_id:
-            qs = qs.filter(sistema_id=sistema_id)
+        # En modo cliente los filtros son del navegador (JS); el server solo
+        # aplica la visibilidad por rol para entregar todo el dataset.
+        if not self._modo_cliente:
+            sistema_id = self.request.GET.get("sistema")
+            if sistema_id:
+                qs = qs.filter(sistema_id=sistema_id)
 
-        estado = self.request.GET.get("estado")
-        if estado:
-            qs = qs.filter(estado=estado)
+            estado = self.request.GET.get("estado")
+            if estado:
+                qs = qs.filter(estado=estado)
 
-        q = self.request.GET.get("q")
-        if q:
-            qs = qs.filter(titulo__icontains=q)
+            q = self.request.GET.get("q")
+            if q:
+                qs = qs.filter(titulo__icontains=q)
 
         return qs
 
@@ -53,8 +66,9 @@ class TicketListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         usuario = self.request.user
-        if usuario.rol == RolUsuario.SOLICITANTE:
-            ctx["sistemas_disponibles"] = _sistemas_visibles(usuario)
+        # Superuser ve todos los sistemas en el filtro (mismo bypass que get_queryset)
+        if usuario.is_superuser:
+            ctx["sistemas_disponibles"] = Sistema.objects.all()
         else:
             ctx["sistemas_disponibles"] = _sistemas_visibles(usuario)
         ctx["estados_disponibles"] = EstadoTicket.choices

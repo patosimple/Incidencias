@@ -15,10 +15,10 @@
 
 {# Filtros #}
 <form method="get" action="{% url 'ticket_list' %}"
-      hx-get="{% url 'ticket_list' %}"
+      {% if not MODO_FILTRO_CLIENTE %}hx-get="{% url 'ticket_list' %}"
       hx-target="#tabla-tickets"
-      hx-trigger="change from:select, keyup changed delay:400ms from:input[name=q]"
-      hx-push-url="true"
+      hx-trigger="change from:select, keyup changed delay:200ms from:input[name=q]"
+      hx-push-url="true"{% endif %}
       class="flex flex-wrap gap-3 mb-6 p-4 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm">
 
     <input type="text" name="q" value="{{ request.GET.q }}"
@@ -46,15 +46,68 @@
     </select>
 
 
+    {% if not MODO_FILTRO_CLIENTE %}
+        {% if request.GET.q or request.GET.sistema or request.GET.estado %}
+        <a href="{% url 'ticket_list' %}"
+           class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 self-center underline">
+            Limpiar
+        </a>
+        {% endif %}
+    {% endif %}
 
-    {% if request.GET.q or request.GET.sistema or request.GET.estado %}
-    <a href="{% url 'ticket_list' %}"
-       class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 self-center underline">
-        Limpiar
-    </a>
+    {% if MODO_FILTRO_CLIENTE %}
+    <span id="filtro-contador" class="self-center text-sm text-gray-500 dark:text-gray-400"></span>
     {% endif %}
 </form>
-
 {% include "core/partials/ticket_table.html" %}
 
+{% endblock %}
+
+{% block extra_js %}
+{% if MODO_FILTRO_CLIENTE %}
+<script>
+(function () {
+    var qInput = document.querySelector('input[name="q"]');
+    var sistemaSelect = document.querySelector('select[name="sistema"]');
+    var estadoSelect = document.querySelector('select[name="estado"]');
+    var filas = Array.prototype.slice.call(document.querySelectorAll('#tabla-tickets tbody tr'));
+    var contador = document.getElementById('filtro-contador');
+
+    function filtrar() {
+        var q = (qInput ? qInput.value : '').trim().toLowerCase();
+        var sistema = sistemaSelect ? sistemaSelect.value : '';
+        var estado = estadoSelect ? estadoSelect.value : '';
+        var visibles = 0;
+
+        filas.forEach(function (fila) {
+            var ok = true;
+            if (sistema && fila.getAttribute('data-sistema') !== sistema) ok = false;
+            if (ok && estado && fila.getAttribute('data-estado') !== estado) ok = false;
+            if (ok && q) {
+                var titulo = fila.querySelector('.font-medium');
+                if (!titulo || titulo.textContent.toLowerCase().indexOf(q) === -1) ok = false;
+            }
+            fila.style.display = ok ? '' : 'none';
+            if (ok) visibles++;
+        });
+
+        if (contador) {
+            contador.textContent = 'Mostrando ' + visibles + ' de ' + filas.length + ' tickets';
+        }
+    }
+
+    var timer = null;
+    if (qInput) {
+        qInput.addEventListener('input', function () {
+            clearTimeout(timer);
+            timer = setTimeout(filtrar, 200);
+        });
+    }
+    if (sistemaSelect) sistemaSelect.addEventListener('change', filtrar);
+    if (estadoSelect) estadoSelect.addEventListener('change', filtrar);
+
+    filtrar();
+})();
+</script>
+{% endif %}
 {% endblock %}

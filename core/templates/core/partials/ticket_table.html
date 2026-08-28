@@ -16,7 +16,7 @@
         </thead>
         <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
             {% for ticket in tickets %}
-            <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+            <tr data-sistema="{{ ticket.sistema_id }}" data-estado="{{ ticket.estado }}" class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
                 <td class="px-4 py-3 text-gray-400 dark:text-gray-500 font-mono">#{{ ticket.pk }}</td>
                 <td class="px-4 py-3">
                     <a href="{% url 'ticket_detail' pk=ticket.pk %}"
@@ -48,7 +48,7 @@
     </table>
 </div>
 
-{% if page_obj.has_other_pages %}
+{% if page_obj.has_other_pages and not MODO_FILTRO_CLIENTE %}
 <div class="flex items-center justify-center gap-2 mt-6 text-sm">
     {% if page_obj.has_previous %}
     <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.sistema %}sistema={{ request.GET.sistema }}&{% endif %}{% if request.GET.estado %}estado={{ request.GET.estado }}&{% endif %}page={{ page_obj.previous_page_number }}"

@@ -72,6 +72,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'core.context_processors.modo_filtro_cliente',
             ],
         },
     },
@@ -133,3 +134,9 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Feature-flag: filtrado client-side (demo) vs server-side (produccion)
+# True  -> el navegador recibe todo el dataset del usuario y filtra en JS
+# False -> vuelve a filtrar/paginar en el servidor (HTMX)
+# Default True si no esta definido en el .env
+MODO_FILTRO_CLIENTE = env.bool('MODO_FILTRO_CLIENTE', default=True)

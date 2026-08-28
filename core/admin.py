@@ -7,13 +7,22 @@ from .models import (
 )
 
 
+class UsuarioSistemaInline(admin.TabularInline):
+    model = UsuarioSistema
+    extra = 1
+    verbose_name = "Acceso a sistema"
+    verbose_name_plural = "Accesos a sistemas"
+
+
 @admin.register(Usuario)
 class UsuarioAdmin(UserAdmin):
     # Alta de usuarios y gestión de contraseñas ya vienen resueltas por
-    # UserAdmin (hasheo seguro incluido). Se agrega el campo `rol` propio.
+    # UserAdmin (hasheo seguro incluido). Se agrega el campo `rol` propio y
+    # el inline de accesos a sistemas (relación N a N vía UsuarioSistema).
     fieldsets = UserAdmin.fieldsets + (
         ("Rol de negocio", {"fields": ("rol",)}),
     )
+    inlines = [UsuarioSistemaInline]
     list_display = ("username", "email", "rol", "is_staff", "is_active")
     list_filter = ("rol", "is_staff", "is_active")
 
