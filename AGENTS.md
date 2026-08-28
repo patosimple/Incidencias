@@ -19,17 +19,20 @@
 - ✅ `core/urls.py` y `config/urls.py`: listado, creacion, detalle, tomar ticket, cambiar estado, comentar, login/logout
 - ✅ `core/forms.py`: `TicketForm`, `ComentarioForm`, `AdjuntoForm`/`AdjuntoFormSet`
 - ✅ `core/views.py`: `TicketListView`, `TicketCreateView`, `TicketDetailView`, `tomar_ticket`, `cambiar_estado_ticket`, `agregar_comentario` (permisos por rol aplicados)
-- ✅ `core/management/commands/seed_datos.py`: seed aplicado (Sistemas: BALANCES, FINANCIAMIENTO; ModeloIA: Groq/Gemini/OpenRouter; ConfiguracionIA activa: Groq)
-- ✅ `core/templates/core/base.html`: layout general (sidebar, header, badges), Tailwind CDN + HTMX, **dark mode con toggle sol/luna** (ver notas)
-- ✅ `core/templates/core/ticket_list.html`: tabla con filtros HTMX (sin recarga), badges de estado, paginacion, empty state, clases `dark:` aplicadas
-- ✅ `core/templates/core/partials/ticket_table.html`: partial HTMX (tabla + paginacion), target `#tabla-tickets`, clases `dark:` aplicadas
+- ✅ `core/management/commands/seed_init.py`: seed base aplicado (Sistemas: BALANCES, FINANCIAMIENTO; ModeloIA: Groq/Gemini/OpenRouter; ConfiguracionIA activa: Groq)
+- ✅ `core/management/commands/seed_tickets.py`: seed demo (5 solicitantes espanol + N tickets lorem, contables)
+- ✅ `core/templates/core/base.html`: layout general (sidebar, header, badges), Tailwind CDN + HTMX, **dark mode con toggle sol/luna**, `{% block extra_js %}` al final
+- ✅ `core/templates/core/ticket_list.html`: tabla con **filtrado client-side switcheable** (ver PLAN abajo), badges de estado, empty state, clases `dark:` aplicadas
+- ✅ `core/templates/core/partials/ticket_table.html`: partial (tabla + paginacion), target `#tabla-tickets`, cada `<tr>` con `data-sistema`/`data-estado`
 - ✅ `TicketListView.get_template_names()`: devuelve partial si `HX-Request` header presente
-- ✅ `TicketListView.get_queryset()`: superuser ve todos los tickets sin filtro de rol/sistema
+- ✅ `TicketListView.get_queryset()`: superuser ve todos los tickets sin filtro de rol/sistema; en modo cliente aplica SOLO visibilidad por rol (+ `paginate_by=500`), en modo server filtra/pagina
+- ✅ **Bug filtro de sistemas resuelto**: `get_context_data()` — superuser ve `Sistema.objects.all()` en el dropdown (consistente con bypass de `get_queryset`); no-superuser ve `_sistemas_visibles()`
+- ✅ `core/context_processors.py` (nuevo): expone `MODO_FILTRO_CLIENTE` en todos los templates (leído de settings)
+- ✅ **Admin**: `UsuarioSistemaInline` (tabular) dentro de `UsuarioAdmin` para asignar sistemas desde el form del usuario. Duplicados los valida el formset nativo antes de guardar (con `unique_together` de BD como respaldo)
+- ✅ **Flag desde .env**: `MODO_FILTRO_CLIENTE` = `env.bool(...)` en `settings.py`, default `True`. Definido en `.env`. Debounce 200ms client y server
 - ❌ Pendiente: `ticket_form.html`, `ticket_detail.html`, `login.html` (dan TemplateDoesNotExist)
 - ❌ Pendiente: migrar Tailwind a build compilado
 - ❌ Pendiente: `settings.HUEY` para activar cola de tareas
-- ⚠️ Bug conocido: filtro de sistemas no muestra opciones (investigar `sistemas_disponibles` en context)
-- ⚠️ Pendiente: agregar `hx-get`/`hx-trigger` a los 2 selects del filtro (sistema y estado) para que disparen individualmente sin depender del form
 
 ## Modelo de datos (no modificar sin confirmar)
 | Modelo | Clave |
@@ -52,6 +55,7 @@
 - Permisos por rol: Solicitante ve sus tickets + analisis Conceptual; Desarrollador ve tickets de sus sistemas + ambos analisis
 - **Encoding**: SIEMPRE escribir templates con `[System.IO.File]::WriteAllText(..., UTF8)` en PowerShell. Nunca usar `Set-Content` (produce Windows-1252 y rompe Django con UnicodeDecodeError)
 - Correr manage.py con `.\venv\Scripts\python.exe manage.py <comando>` (el activate.bat no persiste en PowerShell)
+- **Antes de commitear**: preguntar SIEMPRE al usuario si quiere actualizar `AGENTS.md` (el usuario no lo pide solo; el agente debe ofrecerlo). Se trabaja en varias maquinas y este archivo es el contexto compartido.
 
 ## Archivos clave
 ```
@@ -60,14 +64,16 @@ config/
   urls.py          # Solo admin por ahora
 core/
   models.py        # Modelos completos (258 lineas)
-  admin.py         # Admin completo con inlines
-  views.py         # CBVs/FBVs con permisos por rol + bypass superuser + get_template_names HTMX
+  admin.py         # Admin completo con inlines (UsuarioSistemaInline en UsuarioAdmin)
+  views.py         # CBVs/FBVs con permisos por rol + bypass superuser + get_template_names HTMX + modo cliente/server
   forms.py         # TicketForm, ComentarioForm, AdjuntoForm/AdjuntoFormSet
+  context_processors.py  # Expone MODO_FILTRO_CLIENTE a templates
   urls.py          # Rutas app (listado, creacion, detalle, acciones, login/logout)
-  management/commands/seed_datos.py  # Carga sistemas y ModeloIA
+  management/commands/seed_init.py     # Carga sistemas y ModeloIA
+  management/commands/seed_tickets.py  # Seed demo: solicitantes + tickets lorem
   templates/core/
-    base.html                        # Layout con Tailwind CDN + HTMX 1.9.10 + dark mode toggle
-    ticket_list.html                 # Lista con filtros HTMX + include partial
+    base.html                        # Layout con Tailwind CDN + HTMX 1.9.10 + dark mode + block extra_js
+    ticket_list.html                 # Lista con filtros client-side switcheable + JS + include partial
     partials/ticket_table.html       # Partial: tabla + paginacion (target #tabla-tickets)
 ai/
   providers.py     # AIProvider abstracto + Groq/Gemini/OpenRouter (NotImplementedError)
@@ -80,8 +86,12 @@ ai/
 # Solo una activa, comentar/descomentar:
 DATABASE_URL=postgresql://neondb_owner:...@ep-...neon.tech/incidencias?sslmode=require
 # DATABASE_URL=postgresql://postgres@localhost/incidencias
+
+# Filtrado client-side (demo) vs server-side (produccion)
+MODO_FILTRO_CLIENTE=True
 ```
 En `settings.py`: `DATABASES = {'default': env.db_url('DATABASE_URL')}`
+- `MODO_FILTRO_CLIENTE` = `env.bool('MODO_FILTRO_CLIENTE', default=True)` — cambiar a False y reiniciar el proceso para server-side.
 
 ## Comandos utiles
 ```bash
@@ -90,12 +100,15 @@ En `settings.py`: `DATABASES = {'default': env.db_url('DATABASE_URL')}`
 .\venv\Scripts\python.exe manage.py makemigrations
 .\venv\Scripts\python.exe manage.py migrate
 .\venv\Scripts\python.exe manage.py shell
-.\venv\Scripts\python.exe manage.py seed_datos
+.\venv\Scripts\python.exe manage.py seed_init      # sistemas + catalogos IA (base)
+.\venv\Scripts\python.exe manage.py seed_tickets    # solicitantes + tickets demo (opcional --reset, --tickets N)
+# seed_tickets --reset borra SOLO los tickets de los 5 solicitantes del seed + esos 5 usuarios (no toca otros usuarios)
+# on_delete de Ticket.solicitante -> Usuario es PROTECT: no se puede borrar un usuario con tickets asociados
 ```
 
 ## Proximos pasos (Fase 1)
-1. ⚠️ Bug: investigar por que `sistemas_disponibles` no muestra opciones en el filtro de ticket_list
-2. ⚠️ Agregar `hx-get`/`hx-trigger` individuales a los selects de sistema y estado en ticket_list
+1. ✅ Bug filtro de sistemas resuelto (superuser ve todos en dropdown vía `is_superuser` en `get_context_data`)
+2. ✅ Filtrado client-side implementado (PLAN abajo) — con switch a server-side vía flag `.env`
 3. Templates: `ticket_form.html`, `ticket_detail.html`, `login.html` (referencia Figma)
 4. HTMX partials para interacciones en detalle (tomar ticket, cambiar estado, comentar)
 5. **Menu desplegable en el icono de usuario** (header): opcion "Cambiar password" + mover ahi el boton "Salir", ambos con iconos amigables
@@ -107,6 +120,8 @@ En `settings.py`: `DATABASES = {'default': env.db_url('DATABASE_URL')}`
 - Fase 2 **no** se implementa hasta cerrar Fase 1 completo
 - Huey ya configurado en tasks.py, falta settings.HUEY
 - `ai/models.py` vacio intencionalmente (modelos IA en core)
+- **Settings y .env**: `DATABASE_URL` y `MODO_FILTRO_CLIENTE` se leen SOLO al arrancar el proceso. Cambiarlos (en `.env` o `settings.py`) requiere reiniciar/redeploy (Gunicorn/Render). No cambian en caliente.
+- **Accesos a sistemas en admin**: `UsuarioSistemaInline` dentro de `UsuarioAdmin`. Duplicados los valida el formset nativo de Django antes de guardar (el `unique_together` de BD es respaldo). No hace falta `related_name` en `UsuarioSistema` por ahora.
 - El carrusel multiMCP tuvo problemas en sesion anterior: Groq/Cerebras con modelos deprecados, Kimi/SambaNova sin saldo, NVIDIA con funcion no encontrada, Gemini modelo deprecado. Revisar IDs de modelos.
 - **Dark mode**: Templates futuros (`ticket_form.html`, `ticket_detail.html`, `login.html`) deben crearse con clases `dark:` listas. Toggle implementado en `base.html` con `localStorage` + `prefers-color-scheme`, transición suave (`transition-colors duration-200` en body), iconos SVG inline sol/luna. Paleta de fondo dark: sidebar `slate-900`, fondo `#172233` (tono intermedio), tarjetas/inputs `slate-800`/`slate-700`. Light: fondo `gray-100`, tarjetas `white`.
   - **Comportamiento del toggle**: default SIEMPRE light en primera visita (ignora pref del OS); el toggle guarda la eleccion en `localStorage` (`theme` = `'dark'`/`'light'`) y la aplica en futuras cargas. Script init: agregar clase `dark` solo si `localStorage.theme === 'dark'`. Toggle (vanilla JS, no HTMX): `document.documentElement.classList.toggle('dark')` + guardar valor.
@@ -116,46 +131,42 @@ En `settings.py`: `DATABASES = {'default': env.db_url('DATABASE_URL')}`
 
 ## ✅ PLAN: Filtrado client-side (demo) con switch a server-side (produccion)
 
-**Estado: APROBADO — pendiente de implementar.** Objetivo: reproducir el feel de Angular Material (`mat-table` + `filterPredicate`): filtrado **instantaneo en el navegador** (0 round-trips a Neon) para la demo del curso. Diseñado con **feature-flag** para volver a server-side en produccion sin reescribir.
+**Estado: IMPLEMENTADO (commit `bf80dd2`).** Objetivo: reproducir el feel de Angular Material (`mat-table` + `filterPredicate`): filtrado **instantaneo en el navegador** (0 round-trips a Neon) para la demo del curso. Diseñado con **feature-flag** para volver a server-side en produccion sin reescribir.
 
 ### Arquitectura: feature-flag
-- Flag en `config/settings.py`: `MODO_FILTRO_CLIENTE = True` (para la demo) / `False` (produccion).
-- Se pasa al contexto (context processor o directo en la vista) y se expone como `MODO_FILTRO_CLIENTE` en los templates.
-- `True` → client-side; `False` → vuelve a funcionar HTMX server-side usando el `get_queryset()` que YA EXISTE y NO se borra.
+- Flag en `config/settings.py`: `MODO_FILTRO_CLIENTE = env.bool('MODO_FILTRO_CLIENTE', default=True)` — leído de `.env`. `True` (demo) / `False` (produccion).
+- `core/context_processors.py` lo expone como `MODO_FILTRO_CLIENTE` en todos los templates.
+- `True` → client-side; `False` → vuelve a funcionar HTMX server-side usando el `get_queryset()` que se conservo.
+- Debounce configurado a **200ms** tanto en client (JS) como en server (HTMX).
+- Para produccion: cambiar a `MODO_FILTRO_CLIENTE=False` en `.env` (o `settings.py`) y reiniciar el proceso.
 
-### Pasos de implementacion
+### Pasos de implementacion (resuelto)
 
-**1. `core/views.py — TicketListView.get_queryset()` (NO borrar filtros server)**
-- Si `MODO_FILTRO_CLIENTE` es True: aplicar **solo** el filtro de visibilidad por rol (superuser/solicitante/desarrollador, ya en `views.py:26-32`) y **NO** los filtros `sistema`/`estado`/`q` (`views.py:34-44`) → el navegador recibe todo el dataset del usuario.
-- Si False: comportamiento actual completo (filtros + paginacion server-side).
-- `paginate_by`: subir a un valor alto (ej. 500) en modo cliente para traer todo; en modo server mantener 20.
-- Pasar `MODO_FILTRO_CLIENTE` al contexto.
+**1. `core/views.py — TicketListView.get_queryset()`** ✅
+- Modo cliente: aplica SOLO visibilidad por rol (superuser/solicitante/desarrollador) y via `get_paginate_by()` sube a 500 (trae todo).
+- Modo server (flag False): comportamiento completo (filtros sistema/estado/q + paginacion 20).
 
-**2. `core/templates/core/partials/ticket_table.html` — preparar filas**
-- Agregar a cada `<tr>`: `data-sistema="{{ ticket.sistema_id }}"` y `data-estado="{{ ticket.estado }}"`.
-- Inofensivo para el modo server (un `<tr>` sin JS client-side no hace nada).
+**2. `core/templates/core/partials/ticket_table.html`** ✅
+- Cada `<tr>` tiene `data-sistema` y `data-estado`. Inofensivo en modo server.
 
-**3. `core/templates/core/ticket_list.html — switch del form**
-- Envolver el comportamiento HTMX del form (`hx-get`/`hx-trigger`/`hx-target`, lineas 17-20) en `{% if not MODO_FILTRO_CLIENTE %}`: al volver a `False` se reactiva solo.
-- Los 3 controles (`q`, `sistema`, `estado`) mantienen `name`/valores actuales; solo se agregan `data-*` para el JS.
-- Agregar contador `<span id="filtro-contador">` ("mostrando X de Y tickets").
+**3. `core/templates/core/ticket_list.html`** ✅
+- HTMX del form envuelto en `{% if not MODO_FILTRO_CLIENTE %}`; contador `<span id="filtro-contador">`; en modo server aparece el enlace "Limpiar".
 
-**4. JS client-side (block `{% block extra_js %}` en ticket_list o base)**
-- Solo se incluye si `MODO_FILTRO_CLIENTE` (`{% if %}`).
-- Escucha: `input` en `[name=q]` (debounce ~300ms) + `change` en `[name=sistema]` y `[name=estado]`.
-- Por fila, match 3 niveles: sistema = select (o vacio = todos), estado = select (o vacio = todos), titulo contiene `q` (case-insensitive).
-- Ocultar/mostrar filas con `style.display`; actualizar contador.
+**4. JS client-side (`{% block extra_js %}`)** ✅
+- Se incluye solo si `MODO_FILTRO_CLIENTE` (el `{% if %}` va DENTRO del block, no afuera — envolver un `{% block %}` en `{% if %}` no funciona en Django).
+- Escucha: `input` en `[name=q]` (debounce 200ms) + `change` en `[name=sistema]` y `[name=estado]`. Filtra por substring en titulo (case-insensitive) + match exacto sistema/estado. Ocultar/mostrar filas + actualizar contador.
 
-**5. Paginacion (demo)**
-- Ocultar la paginacion server-side en modo cliente (los pocos tickets se muestran todos, como Angular Material). Mantener el markup envuelto en `{% if page_obj.has_other_pages and not MODO_FILTRO_CLIENTE %}`.
+**5. Paginacion (demo)** ✅
+- Ocultada en modo cliente: `{% if page_obj.has_other_pages and not MODO_FILTRO_CLIENTE %}`.
 
-**6. Migracion a produccion (futuro, sin reescribir)**
-- Poner `MODO_FILTRO_CLIENTE = False`. El form recupera `hx-get`, el queryset vuelve a filtrar/paginar en server, el JS client-side deja de cargar. Volumen alto (>~miles por usuario) → server-side.
+**6. Migracion a produccion (futuro)** ✅
+- Poner `MODO_FILTRO_CLIENTE=False`. El form recupera `hx-get`, el queryset vuelve a filtrar/paginar en server, el JS client-side deja de cargar. Volumen alto (>~miles por usuario) → server-side.
 
 ### Verificacion
-- `runserver` → login → listado. Probar `q`, `sistema`, `estado`, combinaciones → instantaneo.
-- Voltear flag a `False` → confirmar que HTMX server-side sigue funcionando. Revisar `page_obj`/paginacion en ambos modos.
+- ✅ Verificado con test client: modo cliente trae todo + contador/JS sin `hx-get`; modo server filtra (`estado=PENDIENTE` → 1 fila) + `hx-get` activo. Partial HTMX OK en ambos modos.
 
 ### Recordatorios
 - Encoding templates: PowerShell `[System.IO.File]::WriteAllText(..., UTF8)`, NUNCA `Set-Content`.
 - Los selects de sistema y estado usan la MISMA metodologia client-side que `q` (los 3 disparan el filtrado en el navegador sin recargar).
+- **Django `{% if %}` no soporta parentesis** para agrupar condiciones (dio TemplateSyntaxError). Usar ifs anidados.
+- **Django venv**: hay que instalar `django-environ` (no venia instalado aunque settings lo importa).

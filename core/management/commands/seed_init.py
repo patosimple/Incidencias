@@ -1,8 +1,7 @@
 """
-Carga datos base para poder trabajar sin tener que cargarlos a mano desde
-el admin cada vez que se resetea la base.
+Carga los datos base: sistemas y catalogo de modelos de IA.
 
-Uso: python manage.py seed_datos
+Uso: python manage.py seed_init
 """
 
 from django.core.management.base import BaseCommand
@@ -16,7 +15,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self._seed_sistemas()
         self._seed_modelos_ia()
-        self.stdout.write(self.style.SUCCESS("Seed completo."))
+        self.stdout.write(self.style.SUCCESS("Seed init completo."))
 
     def _seed_sistemas(self):
         sistemas = [
