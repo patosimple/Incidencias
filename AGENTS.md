@@ -21,16 +21,19 @@
 - ✅ `core/views.py`: `TicketListView`, `TicketCreateView`, `TicketDetailView`, `tomar_ticket`, `cambiar_estado_ticket`, `agregar_comentario` (permisos por rol aplicados)
 - ✅ `core/management/commands/seed_init.py`: seed base aplicado (Sistemas: BALANCES, FINANCIAMIENTO; ModeloIA: Groq/Gemini/OpenRouter; ConfiguracionIA activa: Groq)
 - ✅ `core/management/commands/seed_tickets.py`: seed demo (5 solicitantes espanol + N tickets lorem, contables)
-- ✅ `core/templates/core/base.html`: layout general (sidebar, header, badges), Tailwind CDN + HTMX, **dark mode con toggle sol/luna**, `{% block extra_js %}` al final
-- ✅ `core/templates/core/ticket_list.html`: tabla con **filtrado client-side switcheable** (ver PLAN abajo), badges de estado, empty state, clases `dark:` aplicadas
-- ✅ `core/templates/core/partials/ticket_table.html`: partial (tabla + paginacion), target `#tabla-tickets`, cada `<tr>` con `data-sistema`/`data-estado`
+- ✅ `core/templates/core/base.html`: layout general responsive (sidebar desktop colapsable a iconos + off-canvas movil), Tailwind CDN + HTMX, **dark mode con toggle sol/luna**, `{% block extra_js %}` al final, **badge flotante de breakpoint** (`#breakpoint-indicator`, esquina inferior derecha, para probar responsive)
+- ✅ `core/templates/core/ticket_list.html`: tabla con **filtrado client-side switcheable** (ver PLAN abajo) + **paginacion client-side de a 20 estilo Angular Material**, badges de estado, empty state, clases `dark:` aplicadas
+- ✅ `core/templates/core/partials/ticket_table.html`: partial (tabla `md+` / cards movil + barra inferior con contador y paginador), target `#tabla-tickets`, cada `<tr>`/`<li>` con `data-ticket-id` (unico para contar/paginar), `data-sistema`/`data-estado`
+- ✅ `core/templates/core/partials/estado_badge.html` (nuevo): badge de estado reutilizable (`{% include ... with estado=ticket.estado %}`)
 - ✅ `TicketListView.get_template_names()`: devuelve partial si `HX-Request` header presente
-- ✅ `TicketListView.get_queryset()`: superuser ve todos los tickets sin filtro de rol/sistema; en modo cliente aplica SOLO visibilidad por rol (+ `paginate_by=500`), en modo server filtra/pagina
+- ✅ `TicketListView.get_queryset()`: superuser ve todos los tickets sin filtro de rol/sistema; en modo cliente aplica SOLO visibilidad por rol + `get_paginate_by()` devuelve `None` (trae todo; filtrado/paginacion en navegador); en modo server filtra/pagina (20)
 - ✅ **Bug filtro de sistemas resuelto**: `get_context_data()` — superuser ve `Sistema.objects.all()` en el dropdown (consistente con bypass de `get_queryset`); no-superuser ve `_sistemas_visibles()`
 - ✅ `core/context_processors.py` (nuevo): expone `MODO_FILTRO_CLIENTE` en todos los templates (leído de settings)
 - ✅ **Admin**: `UsuarioSistemaInline` (tabular) dentro de `UsuarioAdmin` para asignar sistemas desde el form del usuario. Duplicados los valida el formset nativo antes de guardar (con `unique_together` de BD como respaldo)
 - ✅ **Flag desde .env**: `MODO_FILTRO_CLIENTE` = `env.bool(...)` en `settings.py`, default `True`. Definido en `.env`. Debounce 200ms client y server
-- ❌ Pendiente: `ticket_form.html`, `ticket_detail.html`, `login.html` (dan TemplateDoesNotExist)
+- ✅ **Responsive shell implementado** (CDN): sidebar desktop colapsable a iconos (`localStorage 'sidebar'`), off-canvas movil con overlay, header compacto, tabla↔cards en listados (`estado_badge.html` extraido), `<main>` padding responsive — ver seccion **Responsive** abajo
+- ❌ Pendiente: `ticket_form.html`, `ticket_detail.html`, `login.html` (dan TemplateDoesNotExist). **DEBEN seguir las normas responsive** (base.html ya hereda el shell)
+- ❌ Pendiente: acceso desde la red local (movil en la misma WiFi): `ALLOWED_HOSTS=[]` en `settings.py` bloquea. Para probar en local: agregar la IP local al `ALLOWED_HOSTS` (o `['*']` en dev) + `runserver 0.0.0.0:8000` + permitir puerto 8000 en firewall de Windows
 - ❌ Pendiente: migrar Tailwind a build compilado
 - ❌ Pendiente: `settings.HUEY` para activar cola de tareas
 
@@ -57,6 +60,15 @@
 - Correr manage.py con `.\venv\Scripts\python.exe manage.py <comando>` (el activate.bat no persiste en PowerShell)
 - **Antes de commitear**: preguntar SIEMPRE al usuario si quiere actualizar `AGENTS.md` (el usuario no lo pide solo; el agente debe ofrecerlo). Se trabaja en varias maquinas y este archivo es el contexto compartido.
 
+## Responsive (NORMA OBLIGATORIA) — convenciones de layout
+> **Regla**: TODA vista/template nueva debe ser responsive y heredar el shell de `base.html`. Los templates pendientes (`ticket_form.html`, `ticket_detail.html`, `login.html`) DEBEN cumplir estas normas.
+- **Sidebar desktop**: `#sidebar-desktop` se muestra desde `md+` (`hidden md:flex`). Es **colapsable a solo iconos** (`w-56` ⇄ `w-16`) con el botón `#sidebar-desktop-toggle`. El estado manual se guarda en `localStorage` (`sidebar` = `'wide'`/`'collapsed'`). **Auto-comportamiento por breakpoint** (JS `applySidebarByBreakpoint()` en `resize` + al cargar): en `md` (768–1023) arranca SIEMPRE colapsado a iconos (expandible a mano pero re-colapsa al entrar en md); en `lg+` (≥1024) respeta la preferencia guardada (o wide por defecto). Los links usan `title` (tooltip nativo) que sirve cuando está colapsado.
+- **Sidebar movil**: off-canvas drawer (`#sidebar-mobile`, `md:hidden`) con overlay oscuro. Se abre con la hamburguesa `#sidebar-mobile-toggle` (en el header, `md:hidden`) y se cierra al clickear el overlay o el `tilde`. Replicar los items de la sidebar desktop como `{% block nav_mobile_*_active %}` separados para marcar el activo en el drawer.
+- **Header**: el email se esconde en `hidden md:block`, el badge de rol en `hidden sm:inline`, padding `px-3 sm:px-6`.
+- **Tabla ↔ cards (listados)**: doble render en `#tabla-tickets`. Tabla `hidden md:table`, cards `md:hidden` (`<ul>`). AMBOS llevan `data-ticket-id` (unico por ticket), `data-sistema`/`data-estado` y el titulo con clase `font-medium`. El JS client-side agrupa los nodos por `data-ticket-id` (cada ticket aparece 2 veces: tr + li) para filtrar/paginar sobre tickets unicos.
+- `<main>` usa padding responsive `p-4 sm:p-6`.
+- **Custom components del CDN**: las variantes responsive (sm/md/lg) funcionan con el CDN actual y se conservan al migrar al build compilado (django-tailwind), porque las clases estan escritas estaticas en los templates. Nunca generar clases dinamicas por string en JS (el compilador no las detectaria).
+
 ## Archivos clave
 ```
 config/
@@ -74,7 +86,8 @@ core/
   templates/core/
     base.html                        # Layout con Tailwind CDN + HTMX 1.9.10 + dark mode + block extra_js
     ticket_list.html                 # Lista con filtros client-side switcheable + JS + include partial
-    partials/ticket_table.html       # Partial: tabla + paginacion (target #tabla-tickets)
+    partials/ticket_table.html       # Partial: tabla + cards + paginacion (target #tabla-tickets)
+    partials/estado_badge.html       # Badge de estado reutilizable
 ai/
   providers.py     # AIProvider abstracto + Groq/Gemini/OpenRouter (NotImplementedError)
   tasks.py         # Huey task generar_analisis_ticket (Fase 2)
@@ -126,6 +139,8 @@ En `settings.py`: `DATABASES = {'default': env.db_url('DATABASE_URL')}`
 - **Dark mode**: Templates futuros (`ticket_form.html`, `ticket_detail.html`, `login.html`) deben crearse con clases `dark:` listas. Toggle implementado en `base.html` con `localStorage` + `prefers-color-scheme`, transición suave (`transition-colors duration-200` en body), iconos SVG inline sol/luna. Paleta de fondo dark: sidebar `slate-900`, fondo `#172233` (tono intermedio), tarjetas/inputs `slate-800`/`slate-700`. Light: fondo `gray-100`, tarjetas `white`.
   - **Comportamiento del toggle**: default SIEMPRE light en primera visita (ignora pref del OS); el toggle guarda la eleccion en `localStorage` (`theme` = `'dark'`/`'light'`) y la aplica en futuras cargas. Script init: agregar clase `dark` solo si `localStorage.theme === 'dark'`. Toggle (vanilla JS, no HTMX): `document.documentElement.classList.toggle('dark')` + guardar valor.
 - **Links/titulos teal en modo light**: usar `text-teal-700 hover:text-teal-900` (NO `text-teal-400`, contrasta mal sobre fondo claro), con `dark:text-teal-400 dark:hover:text-teal-300` en modo oscuro. Ejemplo en el titulo del ticket en `partials/ticket_table.html`.
+- **Paginacion client-side (modo cliente)**: `paginate_by=None` trae TODO el dataset (sin limite). Si el volumen crece y baja el rendimiento, pasar a server-side (`MODO_FILTRO_CLIENTE=False`). El paginador client-side usa `PAGE_SIZE=20` en el JS del listado.
+- **`core/tests.py` PENDIENTE (lo vimos, se dejo para el final)**: tests de vistas (modo cliente + server + permisos por rol) con `TestCase`. Consideración: los tests usan DB temporal — con Neon externo habria que configurar una DB local de prueba o ajustar permisos. El test client de Django NO ejecuta JS; para la logica client-side hay que validar con Node + DOM mock (como se hizo manualmente en esta sesion).
 
 ---
 
@@ -143,27 +158,28 @@ En `settings.py`: `DATABASES = {'default': env.db_url('DATABASE_URL')}`
 ### Pasos de implementacion (resuelto)
 
 **1. `core/views.py — TicketListView.get_queryset()`** ✅
-- Modo cliente: aplica SOLO visibilidad por rol (superuser/solicitante/desarrollador) y via `get_paginate_by()` sube a 500 (trae todo).
+- Modo cliente: aplica SOLO visibilidad por rol (superuser/solicitante/desarrollador) y via `get_paginate_by()` devuelve `None` (trae TODO el dataset; filtrado Y paginacion ocurren en el navegador).
 - Modo server (flag False): comportamiento completo (filtros sistema/estado/q + paginacion 20).
 
 **2. `core/templates/core/partials/ticket_table.html`** ✅
-- Cada `<tr>` tiene `data-sistema` y `data-estado`. Inofensivo en modo server.
+- Cada `<tr>` (tabla `md+`) y `<li>` (cards movil `<md`) tiene `data-ticket-id`, `data-sistema` y `data-estado`. Inofensivo en modo server.
 
 **3. `core/templates/core/ticket_list.html`** ✅
-- HTMX del form envuelto en `{% if not MODO_FILTRO_CLIENTE %}`; contador `<span id="filtro-contador">`; en modo server aparece el enlace "Limpiar".
+- HTMX del form envuelto en `{% if not MODO_FILTRO_CLIENTE %}`; en modo server aparece el enlace "Limpiar".
 
 **4. JS client-side (`{% block extra_js %}`)** ✅
 - Se incluye solo si `MODO_FILTRO_CLIENTE` (el `{% if %}` va DENTRO del block, no afuera — envolver un `{% block %}` en `{% if %}` no funciona en Django).
-- Escucha: `input` en `[name=q]` (debounce 200ms) + `change` en `[name=sistema]` y `[name=estado]`. Filtra por substring en titulo (case-insensitive) + match exacto sistema/estado. Ocultar/mostrar filas + actualizar contador.
+- **Paginacion + filtrado estilo Angular Material**: mantiene el dataset completo en memoria (agrupa nodos por `data-ticket-id`), filtra sobre el TOTAL (substring titulo case-insensitive + match exacto sistema/estado), resetea a pagina 1, y pagina de a 20 (`PAGE_SIZE=20`) mostrando solo la pagina actual. Contador "Mostrando A-B de N" (N = resultados filtrados), "Pagina X de Y", botones anterior/siguiente con disabled. Debounce 200ms en `q`.
 
 **5. Paginacion (demo)** ✅
-- Ocultada en modo cliente: `{% if page_obj.has_other_pages and not MODO_FILTRO_CLIENTE %}`.
+- En modo cliente es **client-side** (de a 20 en el navegador sobre el dataset completo). La paginacion server-side solo se usa en modo server (`page_obj.has_other_pages and not MODO_FILTRO_CLIENTE`).
 
 **6. Migracion a produccion (futuro)** ✅
-- Poner `MODO_FILTRO_CLIENTE=False`. El form recupera `hx-get`, el queryset vuelve a filtrar/paginar en server, el JS client-side deja de cargar. Volumen alto (>~miles por usuario) → server-side.
+- Poner `MODO_FILTRO_CLIENTE=False`. El form recupera `hx-get`, el queryset vuelve a filtrar/paginar en server (20), el JS client-side deja de cargar. **Cuando el volumen crezca y baje el rendimiento del modo cliente (trae todo el dataset), pasar a server-side.**
 
 ### Verificacion
-- ✅ Verificado con test client: modo cliente trae todo + contador/JS sin `hx-get`; modo server filtra (`estado=PENDIENTE` → 1 fila) + `hx-get` activo. Partial HTMX OK en ambos modos.
+- ✅ Verificado con test client: modo cliente trae todo + cargando JS/paginador client sin `hx-get`; modo server filtra (`estado=PENDIENTE` → 1 fila) + `hx-get` activo. Partial HTMX OK en ambos modos.
+- ✅ Logica de paginacion client-side validada con test de Node + DOM mock (45 tickets): pagina de a 20, ultima pagina parcial, disabled de botones, filtro que resetea y recalcula paginas (PASS 9/9). El JS se probo con `node --check` + ejecucion con un DOM falso (el test client de Django no ejecuta JS).
 
 ### Recordatorios
 - Encoding templates: PowerShell `[System.IO.File]::WriteAllText(..., UTF8)`, NUNCA `Set-Content`.

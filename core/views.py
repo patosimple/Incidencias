@@ -24,9 +24,11 @@ class TicketListView(LoginRequiredMixin, ListView):
         return getattr(settings, "MODO_FILTRO_CLIENTE", False)
 
     def get_paginate_by(self, queryset):
-        # En modo cliente traemos todo el dataset del usuario (una sola pagina)
+        # En modo cliente traemos todo el dataset del usuario (sin paginar);
+        # el filtrado y paginacion ocurren en el navegador (estilo Angular Material).
+        # Si el volumen crece y baja el rendimiento, pasar a modo server.
         if self._modo_cliente:
-            return 500
+            return None
         return 20
 
     def get_queryset(self):

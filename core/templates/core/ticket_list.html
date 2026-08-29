@@ -1,11 +1,12 @@
 {% extends 'core/base.html' %}
 {% block nav_tickets_active %}bg-slate-800{% endblock %}
+{% block nav_mobile_tickets_active %}bg-slate-800{% endblock %}
 
 {% block content %}
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
     <h1 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Mis Tickets</h1>
     <a href="{% url 'ticket_create' %}"
-       class="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium px-4 py-2 rounded transition-colors">
+       class="inline-flex w-full sm:w-auto items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium px-4 py-2 rounded transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
         </svg>
@@ -19,14 +20,14 @@
       hx-target="#tabla-tickets"
       hx-trigger="change from:select, keyup changed delay:200ms from:input[name=q]"
       hx-push-url="true"{% endif %}
-      class="flex flex-wrap gap-3 mb-6 p-4 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm">
+      class="flex flex-col sm:flex-row sm:flex-wrap gap-3 mb-6 p-4 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm">
 
     <input type="text" name="q" value="{{ request.GET.q }}"
            placeholder="Buscar por titulo..."
-           class="flex-1 min-w-[180px] text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500">
+           class="w-full sm:flex-1 sm:min-w-[180px] text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500">
 
     <select name="sistema"
-            class="text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500">
+            class="w-full sm:w-auto text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500">
         <option value="">Todos los sistemas</option>
         {% for s in sistemas_disponibles %}
         <option value="{{ s.pk }}" {% if request.GET.sistema == s.pk|stringformat:"s" %}selected{% endif %}>
@@ -36,7 +37,7 @@
     </select>
 
     <select name="estado"
-            class="text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500">
+            class="w-full sm:w-auto text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500">
         <option value="">Todos los estados</option>
         {% for valor, etiqueta in estados_disponibles %}
         <option value="{{ valor }}" {% if request.GET.estado == valor %}selected{% endif %}>
@@ -49,14 +50,10 @@
     {% if not MODO_FILTRO_CLIENTE %}
         {% if request.GET.q or request.GET.sistema or request.GET.estado %}
         <a href="{% url 'ticket_list' %}"
-           class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 self-center underline">
+           class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 w-full sm:w-auto text-center sm:self-center underline">
             Limpiar
         </a>
         {% endif %}
-    {% endif %}
-
-    {% if MODO_FILTRO_CLIENTE %}
-    <span id="filtro-contador" class="self-center text-sm text-gray-500 dark:text-gray-400"></span>
     {% endif %}
 </form>
 {% include "core/partials/ticket_table.html" %}
@@ -70,31 +67,91 @@
     var qInput = document.querySelector('input[name="q"]');
     var sistemaSelect = document.querySelector('select[name="sistema"]');
     var estadoSelect = document.querySelector('select[name="estado"]');
-    var filas = Array.prototype.slice.call(document.querySelectorAll('#tabla-tickets tbody tr'));
     var contador = document.getElementById('filtro-contador');
+    var pagInfo = document.getElementById('pag-info');
+    var pagAnt = document.getElementById('pag-anterior');
+    var pagSig = document.getElementById('pag-siguiente');
+    var PAGE_SIZE = 20;
+
+    // Cada ticket aparece 2 veces en el DOM (fila tabla + card movil), con data-ticket-id.
+    // Agrupamos los nodos por id para paginar sobre tickets unicos.
+    var nodos = Array.prototype.slice.call(document.querySelectorAll(
+        '#tabla-tickets tbody tr, #tabla-tickets ul[class*="md:hidden"] li'
+    ));
+    var nodosPorId = {};   // id -> [nodo, nodo, ...]
+    var ids = [];          // ids unicos en orden de aparicion
+    nodos.forEach(function (n) {
+        var id = n.getAttribute('data-ticket-id');
+        if (!(id in nodosPorId)) { nodosPorId[id] = []; ids.push(id); }
+        nodosPorId[id].push(n);
+    });
+    var totalTickets = ids.length;
+
+    function datosDe(id) {
+        var n = nodosPorId[id][0];
+        return {
+            sistema: n.getAttribute('data-sistema') || '',
+            estado: n.getAttribute('data-estado') || '',
+            titulo: (n.querySelector('.font-medium') || {}).textContent ? n.querySelector('.font-medium').textContent.toLowerCase() : ''
+        };
+    }
+
+    var filtrados = [];   // ids que pasan el filtro actual
+    var pagina = 1;
+
+    function numPaginas() {
+        return Math.max(1, Math.ceil(filtrados.length / PAGE_SIZE));
+    }
 
     function filtrar() {
         var q = (qInput ? qInput.value : '').trim().toLowerCase();
         var sistema = sistemaSelect ? sistemaSelect.value : '';
         var estado = estadoSelect ? estadoSelect.value : '';
-        var visibles = 0;
 
-        filas.forEach(function (fila) {
+        filtrados = [];
+        ids.forEach(function (id) {
+            var d = datosDe(id);
             var ok = true;
-            if (sistema && fila.getAttribute('data-sistema') !== sistema) ok = false;
-            if (ok && estado && fila.getAttribute('data-estado') !== estado) ok = false;
-            if (ok && q) {
-                var titulo = fila.querySelector('.font-medium');
-                if (!titulo || titulo.textContent.toLowerCase().indexOf(q) === -1) ok = false;
-            }
-            fila.style.display = ok ? '' : 'none';
-            if (ok) visibles++;
+            if (sistema && d.sistema !== sistema) ok = false;
+            if (ok && estado && d.estado !== estado) ok = false;
+            if (ok && q && d.titulo.indexOf(q) === -1) ok = false;
+            if (ok) filtrados.push(id);
+        });
+
+        if (pagina > numPaginas()) pagina = 1;
+        render();
+    }
+
+    function render() {
+        var desde = (pagina - 1) * PAGE_SIZE;
+        var hasta = Math.min(desde + PAGE_SIZE, filtrados.length);
+        var enPagina = {};
+        for (var i = desde; i < hasta; i++) enPagina[filtrados[i]] = true;
+
+        ids.forEach(function (id) {
+            var show = id in enPagina;
+            nodosPorId[id].forEach(function (n) {
+                n.style.display = show ? '' : 'none';
+            });
         });
 
         if (contador) {
-            contador.textContent = 'Mostrando ' + visibles + ' de ' + filas.length + ' tickets';
+            var v = filtrados.length;
+            if (v === 0) {
+                contador.textContent = 'Mostrando 0 de ' + totalTickets + ' tickets';
+            } else {
+                contador.textContent = 'Mostrando ' + (desde + 1) + '-' + hasta + ' de ' + v + ' tickets';
+            }
         }
+        if (pagInfo) {
+            pagInfo.textContent = 'Pagina ' + pagina + ' de ' + numPaginas();
+        }
+        if (pagAnt) pagAnt.disabled = pagina <= 1;
+        if (pagSig) pagSig.disabled = pagina >= numPaginas();
     }
+
+    if (pagAnt) pagAnt.addEventListener('click', function () { if (pagina > 1) { pagina--; render(); } });
+    if (pagSig) pagSig.addEventListener('click', function () { if (pagina < numPaginas()) { pagina++; render(); } });
 
     var timer = null;
     if (qInput) {
