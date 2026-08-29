@@ -1,0 +1,42 @@
+{% extends 'core/base.html' %}
+{% block title %}Iniciar sesión{% endblock %}
+
+{% block content %}
+<div class="max-w-sm mx-auto mt-6 sm:mt-12">
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm p-6">
+        <div class="text-center mb-6">
+            <h1 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Iniciar sesión</h1>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Reporte de Incidencias</p>
+        </div>
+
+        {% if form.non_field_errors %}
+        <div class="text-sm rounded px-3 py-2 mb-4 bg-red-50 text-red-700 border border-red-200
+                    dark:bg-red-900/30 dark:text-red-300 dark:border-red-800">
+            Usuario o contraseña incorrectos.
+        </div>
+        {% endif %}
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+            <div>
+                <label for="id_username" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Usuario</label>
+                <input type="text" name="username" id="id_username" autocomplete="username" required autofocus
+                       class="w-full text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500">
+            </div>
+            <div>
+                <label for="id_password" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Contraseña</label>
+                <input type="password" name="password" id="id_password" autocomplete="current-password" required
+                       class="w-full text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500">
+            </div>
+            <button type="submit"
+                    class="w-full bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded transition-colors">
+                Ingresar
+            </button>
+        </form>
+    </div>
+    <p class="mt-4 text-center text-xs text-gray-400 dark:text-gray-500">
+        Usuarios demo (Solicitantes): <code class="font-mono text-brand-600 dark:text-brand-400">Solicitante123!</code>
+    </p>
+</div>
+{% endblock %}

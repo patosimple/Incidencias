@@ -1,0 +1,8 @@
+{# Badge de rol reutilizable. Uso: {% include "core/partials/rol_badge.html" with rol=user.rol %} #}
+{% if rol == 'SOLICITANTE' %}
+    <span class="inline-block text-[10px] uppercase tracking-wide bg-brand-600 text-white px-2 py-0.5 rounded">Solicitante</span>
+{% elif rol == 'DESARROLLADOR' %}
+    <span class="inline-block text-[10px] uppercase tracking-wide bg-emerald-600 text-white px-2 py-0.5 rounded">Desarrollador</span>
+{% elif rol == 'COORDINADOR' %}
+    <span class="inline-block text-[10px] uppercase tracking-wide bg-purple-600 text-white px-2 py-0.5 rounded">Coordinador</span>
+{% endif %}

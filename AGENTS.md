@@ -16,12 +16,16 @@
 - ✅ Migraciones aplicadas
 - ✅ Admin funcionando en `/admin/`
 - ✅ Esqueleto IA en `ai/providers.py`, `ai/tasks.py`, `ai/models.py`
-- ✅ `core/urls.py` y `config/urls.py`: listado, creacion, detalle, tomar ticket, cambiar estado, comentar, login/logout
-- ✅ `core/forms.py`: `TicketForm`, `ComentarioForm`, `AdjuntoForm`/`AdjuntoFormSet`
-- ✅ `core/views.py`: `TicketListView`, `TicketCreateView`, `TicketDetailView`, `tomar_ticket`, `cambiar_estado_ticket`, `agregar_comentario` (permisos por rol aplicados)
+- ✅ `core/urls.py` y `config/urls.py`: listado, creacion, detalle, tomar ticket, cambiar estado, comentar, **login/logout + cambiar-password** (`auth_views` + `CambiarPasswordView`)
+- ✅ `config/settings.py`: `LOGIN_URL='login'`, `LOGIN_REDIRECT_URL='ticket_list'` (sin esto, anon iba a `/accounts/login/` que no existe)
+- ✅ `core/forms.py`: `TicketForm`, `ComentarioForm`, `AdjuntoForm`/`AdjuntoFormSet`, **`CambioPasswordForm`** (labels espanol + estilos Tailwind/dark en inputs)
+- ✅ `core/views.py`: `TicketListView`, `TicketCreateView`, `TicketDetailView`, `tomar_ticket`, `cambiar_estado_ticket`, `agregar_comentario` (permisos por rol aplicados) + **`CambiarPasswordView`** (`LoginRequiredMixin` + `PasswordChangeView`, success_url a `ticket_list` con mensaje flash)
 - ✅ `core/management/commands/seed_init.py`: seed base aplicado (Sistemas: BALANCES, FINANCIAMIENTO; ModeloIA: Groq/Gemini/OpenRouter; ConfiguracionIA activa: Groq)
-- ✅ `core/management/commands/seed_tickets.py`: seed demo (5 solicitantes espanol + N tickets lorem, contables)
-- ✅ `core/templates/core/base.html`: layout general responsive (sidebar desktop colapsable a iconos + off-canvas movil), Tailwind CDN + HTMX, **dark mode con toggle sol/luna**, `{% block extra_js %}` al final, **badge flotante de breakpoint** (`#breakpoint-indicator`, esquina inferior derecha, para probar responsive)
+- ✅ `core/management/commands/seed_tickets.py`: seed demo (5 solicitantes espanol + N tickets lorem, contables). **Password de los solicitantes: `Solicitante123!`** (usuarios: maria.lopez, carlos.gonzalez, lucia.fernandez, joaquin.rodriguez, valentina.martinez — todos con acceso a BALANCES + FINANCIAMIENTO)
+- ✅ `core/templates/core/base.html`: layout general responsive (sidebar desktop colapsable a iconos + off-canvas movil), Tailwind CDN + HTMX, **dark mode con toggle sol/luna**, **paleta de marca `brand` (base #007AC3)** en `tailwind.config` inline, `{% block extra_js %}` al final, **menu desplegable de usuario en el avatar** (nombre, email, rol, Administración, Cambiar contraseña, Salir; cierra con click afuera/Escape). El badge flotante de breakpoint fue ELIMINADO
+- ✅ `core/templates/core/login.html` (nuevo): pantalla de login que hereda el shell de base (dark mode + paleta brand), error en español ("Usuario o contraseña incorrectos."), pista de password demo
+- ✅ `core/templates/core/password_change.html` (nuevo): cambio de password (card responsive, hereda shell, dark ready)
+- ✅ `core/templates/core/partials/rol_badge.html` (nuevo): badge de rol reutilizable (Solicitante=brand-600, Desarrollador=emerald-600, Coordinador=purple-600). **HOY SIN USO** (se reemplazó por la barra vertical de color en el menu de usuario)
 - ✅ `core/templates/core/ticket_list.html`: tabla con **filtrado client-side switcheable** (ver PLAN abajo) + **paginacion client-side de a 20 estilo Angular Material**, badges de estado, empty state, clases `dark:` aplicadas
 - ✅ `core/templates/core/partials/ticket_table.html`: partial (tabla `md+` / cards movil + barra inferior con contador y paginador), target `#tabla-tickets`, cada `<tr>`/`<li>` con `data-ticket-id` (unico para contar/paginar), `data-sistema`/`data-estado`
 - ✅ `core/templates/core/partials/estado_badge.html` (nuevo): badge de estado reutilizable (`{% include ... with estado=ticket.estado %}`)
@@ -32,7 +36,7 @@
 - ✅ **Admin**: `UsuarioSistemaInline` (tabular) dentro de `UsuarioAdmin` para asignar sistemas desde el form del usuario. Duplicados los valida el formset nativo antes de guardar (con `unique_together` de BD como respaldo)
 - ✅ **Flag desde .env**: `MODO_FILTRO_CLIENTE` = `env.bool(...)` en `settings.py`, default `True`. Definido en `.env`. Debounce 200ms client y server
 - ✅ **Responsive shell implementado** (CDN): sidebar desktop colapsable a iconos (`localStorage 'sidebar'`), off-canvas movil con overlay, header compacto, tabla↔cards en listados (`estado_badge.html` extraido), `<main>` padding responsive — ver seccion **Responsive** abajo
-- ❌ Pendiente: `ticket_form.html`, `ticket_detail.html`, `login.html` (dan TemplateDoesNotExist). **DEBEN seguir las normas responsive** (base.html ya hereda el shell)
+- ❌ Pendiente: `ticket_form.html`, `ticket_detail.html` (dan TemplateDoesNotExist). **DEBEN seguir las normas responsive** (base.html ya hereda el shell)
 - ❌ Pendiente: acceso desde la red local (movil en la misma WiFi): `ALLOWED_HOSTS=[]` en `settings.py` bloquea. Para probar en local: agregar la IP local al `ALLOWED_HOSTS` (o `['*']` en dev) + `runserver 0.0.0.0:8000` + permitir puerto 8000 en firewall de Windows
 - ❌ Pendiente: migrar Tailwind a build compilado
 - ❌ Pendiente: `settings.HUEY` para activar cola de tareas
@@ -61,13 +65,22 @@
 - **Antes de commitear**: preguntar SIEMPRE al usuario si quiere actualizar `AGENTS.md` (el usuario no lo pide solo; el agente debe ofrecerlo). Se trabaja en varias maquinas y este archivo es el contexto compartido.
 
 ## Responsive (NORMA OBLIGATORIA) — convenciones de layout
-> **Regla**: TODA vista/template nueva debe ser responsive y heredar el shell de `base.html`. Los templates pendientes (`ticket_form.html`, `ticket_detail.html`, `login.html`) DEBEN cumplir estas normas.
+> **Regla**: TODA vista/template nueva debe ser responsive y heredar el shell de `base.html`. Los templates pendientes (`ticket_form.html`, `ticket_detail.html`) DEBEN cumplir estas normas.
 - **Sidebar desktop**: `#sidebar-desktop` se muestra desde `md+` (`hidden md:flex`). Es **colapsable a solo iconos** (`w-56` ⇄ `w-16`) con el botón `#sidebar-desktop-toggle`. El estado manual se guarda en `localStorage` (`sidebar` = `'wide'`/`'collapsed'`). **Auto-comportamiento por breakpoint** (JS `applySidebarByBreakpoint()` en `resize` + al cargar): en `md` (768–1023) arranca SIEMPRE colapsado a iconos (expandible a mano pero re-colapsa al entrar en md); en `lg+` (≥1024) respeta la preferencia guardada (o wide por defecto). Los links usan `title` (tooltip nativo) que sirve cuando está colapsado.
 - **Sidebar movil**: off-canvas drawer (`#sidebar-mobile`, `md:hidden`) con overlay oscuro. Se abre con la hamburguesa `#sidebar-mobile-toggle` (en el header, `md:hidden`) y se cierra al clickear el overlay o el `tilde`. Replicar los items de la sidebar desktop como `{% block nav_mobile_*_active %}` separados para marcar el activo en el drawer.
 - **Header**: el email se esconde en `hidden md:block`, el badge de rol en `hidden sm:inline`, padding `px-3 sm:px-6`.
 - **Tabla ↔ cards (listados)**: doble render en `#tabla-tickets`. Tabla `hidden md:table`, cards `md:hidden` (`<ul>`). AMBOS llevan `data-ticket-id` (unico por ticket), `data-sistema`/`data-estado` y el titulo con clase `font-medium`. El JS client-side agrupa los nodos por `data-ticket-id` (cada ticket aparece 2 veces: tr + li) para filtrar/paginar sobre tickets unicos.
 - `<main>` usa padding responsive `p-4 sm:p-6`.
 - **Custom components del CDN**: las variantes responsive (sm/md/lg) funcionan con el CDN actual y se conservan al migrar al build compilado (django-tailwind), porque las clases estan escritas estaticas en los templates. Nunca generar clases dinamicas por string en JS (el compilador no las detectaria).
+
+## Paleta de marca (brand) — base #007AC3 (NORMA OBLIGATORIA)
+> **Regla**: TODOS los templates (listos y futuros: `ticket_form.html`, `ticket_detail.html`, `login.html`) usan la paleta custom `brand` definida en `tailwind.config` de `base.html`. No usar otros azules/teal.
+- Escala completa: `50 #E8F5FE`, `100 #D3EBFD`, `200 #A6D6FA`, `300 #70BCF0`, `400 #3FA0E4`, `500 #1488D3`, **`600 #007AC3` (base)**, `700 #00639E`, `800 #005080`, `900 #003E63`, `950 #00304F`.
+- **Jerarquia de superficies**: header `bg-brand-800`, botones/acciones principales `bg-brand-600 hover:brand-700`, sidebar/drawer `bg-brand-950`, bordes de sidebar `brand-800`, hover/activo de nav `brand-800`, avatar `brand-500`, subtitulo sidebar `brand-300`.
+- **Links en modo light**: `text-brand-700 hover:text-brand-900` (NO `brand-400`, contrasta mal sobre fondo claro), con `dark:text-brand-400 dark:hover:text-brand-300`. Ejemplo: titulo del ticket en `partials/ticket_table.html`.
+- **Badge de rol texto/claro y elementos dark**: ver `base.html` (header `bg-brand-800` siempre, sin variante dark).
+- Form en `ticket_list.html:` focus rings `focus:ring-brand-500`.
+- **Al migrar a build compilado (django-tailwind)**: portar la escala `brand` exacta al `tailwind.config` del build. Los valores arbitrarios `bg-[#...]` solo se usan si no existe el escalon (evitar; preferir un escalon de la escala).
 
 ## Archivos clave
 ```
@@ -80,14 +93,17 @@ core/
   views.py         # CBVs/FBVs con permisos por rol + bypass superuser + get_template_names HTMX + modo cliente/server
   forms.py         # TicketForm, ComentarioForm, AdjuntoForm/AdjuntoFormSet
   context_processors.py  # Expone MODO_FILTRO_CLIENTE a templates
-  urls.py          # Rutas app (listado, creacion, detalle, acciones, login/logout)
+  urls.py          # Rutas app (listado, creacion, detalle, acciones, cambiar-password, login/logout)
   management/commands/seed_init.py     # Carga sistemas y ModeloIA
   management/commands/seed_tickets.py  # Seed demo: solicitantes + tickets lorem
   templates/core/
-    base.html                        # Layout con Tailwind CDN + HTMX 1.9.10 + dark mode + block extra_js
+    base.html                        # Layout con Tailwind CDN + HTMX 1.9.10 + dark mode + paleta brand + menu usuario
+    login.html                       # Login (hereda shell, error espanol)
+    password_change.html             # Cambio de password
     ticket_list.html                 # Lista con filtros client-side switcheable + JS + include partial
     partials/ticket_table.html       # Partial: tabla + cards + paginacion (target #tabla-tickets)
     partials/estado_badge.html       # Badge de estado reutilizable
+    partials/rol_badge.html          # Badge de rol (hoy sin uso)
 ai/
   providers.py     # AIProvider abstracto + Groq/Gemini/OpenRouter (NotImplementedError)
   tasks.py         # Huey task generar_analisis_ticket (Fase 2)
@@ -122,23 +138,25 @@ En `settings.py`: `DATABASES = {'default': env.db_url('DATABASE_URL')}`
 ## Proximos pasos (Fase 1)
 1. ✅ Bug filtro de sistemas resuelto (superuser ve todos en dropdown vía `is_superuser` en `get_context_data`)
 2. ✅ Filtrado client-side implementado (PLAN abajo) — con switch a server-side vía flag `.env`
-3. Templates: `ticket_form.html`, `ticket_detail.html`, `login.html` (referencia Figma)
+3. Templates: `ticket_form.html`, `ticket_detail.html` (referencia Figma) — `login.html` ya hecho
 4. HTMX partials para interacciones en detalle (tomar ticket, cambiar estado, comentar)
-5. **Menu desplegable en el icono de usuario** (header): opcion "Cambiar password" + mover ahi el boton "Salir", ambos con iconos amigables
+5. ✅ **Menu desplegable en el icono de usuario** (header): nombre, email, rol, **Administración** (solo superuser + rol DESARROLLADOR/COORDINADOR), **Cambiar contraseña** y **Salir**
 6. Tailwind config + build compilado (reemplazar CDN)
 7. `settings.HUEY` para activar cola de tareas
 
-## Notas para proxima sesion
+- **Notas para proxima sesion**
 - No tocar modelos ni admin (estan cerrados)
 - Fase 2 **no** se implementa hasta cerrar Fase 1 completo
 - Huey ya configurado en tasks.py, falta settings.HUEY
 - `ai/models.py` vacio intencionalmente (modelos IA en core)
+- **Menu de usuario (header)**: avatar + chevron abre `#user-menu`. Bloque identidad con **barra vertical de color por rol** (`self-stretch w-1.5`, SOLICITANTE=brand-600 / DESARROLLADOR=emerald-600 / COORDINADOR=purple-600) + nombre, email y rol en texto debajo. Items: **Administración** (`gestionar` solo superuser o rol DEV/COOR; **el link NO sustenta `is_staff`** — si un DEV/COOR no es staff lo espera un 403/redirect en /admin/), **Cambiar contraseña**, **Salir**. JS: cierra con click afuera o Escape.
+- **is_staff vs rol (desacoplados a proposito)**: `rol` = permiso de negocio (vistas); `is_staff`/`is_superuser` = acceso a /admin/. Los seeds crean SOLO solicitantes (pasword `Solicitante123!`), ninguno staff. El unico staff/superuser del entorno es `patosimple` (creado a mano). Si un DEV/COOR necesita /admin/, hay que marcarle `is_staff` en el admin.
 - **Settings y .env**: `DATABASE_URL` y `MODO_FILTRO_CLIENTE` se leen SOLO al arrancar el proceso. Cambiarlos (en `.env` o `settings.py`) requiere reiniciar/redeploy (Gunicorn/Render). No cambian en caliente.
 - **Accesos a sistemas en admin**: `UsuarioSistemaInline` dentro de `UsuarioAdmin`. Duplicados los valida el formset nativo de Django antes de guardar (el `unique_together` de BD es respaldo). No hace falta `related_name` en `UsuarioSistema` por ahora.
 - El carrusel multiMCP tuvo problemas en sesion anterior: Groq/Cerebras con modelos deprecados, Kimi/SambaNova sin saldo, NVIDIA con funcion no encontrada, Gemini modelo deprecado. Revisar IDs de modelos.
-- **Dark mode**: Templates futuros (`ticket_form.html`, `ticket_detail.html`, `login.html`) deben crearse con clases `dark:` listas. Toggle implementado en `base.html` con `localStorage` + `prefers-color-scheme`, transición suave (`transition-colors duration-200` en body), iconos SVG inline sol/luna. Paleta de fondo dark: sidebar `slate-900`, fondo `#172233` (tono intermedio), tarjetas/inputs `slate-800`/`slate-700`. Light: fondo `gray-100`, tarjetas `white`.
+- **Dark mode**: Templates futuros (`ticket_form.html`, `ticket_detail.html`) deben crearse con clases `dark:` listas. Toggle implementado en `base.html` con `localStorage` + `prefers-color-scheme`, transición suave (`transition-colors duration-200` en body), iconos SVG inline sol/luna. Paleta: header `bg-brand-800` fijo (funciona en ambos temas), sidebar `bg-brand-950`, fondos neutrales dark: body `#172233` (tono intermedio), tarjetas/inputs `slate-800`/`slate-700`. Light: fondo `gray-100`, tarjetas `white`.
   - **Comportamiento del toggle**: default SIEMPRE light en primera visita (ignora pref del OS); el toggle guarda la eleccion en `localStorage` (`theme` = `'dark'`/`'light'`) y la aplica en futuras cargas. Script init: agregar clase `dark` solo si `localStorage.theme === 'dark'`. Toggle (vanilla JS, no HTMX): `document.documentElement.classList.toggle('dark')` + guardar valor.
-- **Links/titulos teal en modo light**: usar `text-teal-700 hover:text-teal-900` (NO `text-teal-400`, contrasta mal sobre fondo claro), con `dark:text-teal-400 dark:hover:text-teal-300` en modo oscuro. Ejemplo en el titulo del ticket en `partials/ticket_table.html`.
+- **Links/titulos en modo light**: usar `text-brand-700 hover:text-brand-900` (NO `brand-400`, contrasta mal sobre fondo claro), con `dark:text-brand-400 dark:hover:text-brand-300` en modo oscuro. Ejemplo en el titulo del ticket en `partials/ticket_table.html`.
 - **Paginacion client-side (modo cliente)**: `paginate_by=None` trae TODO el dataset (sin limite). Si el volumen crece y baja el rendimiento, pasar a server-side (`MODO_FILTRO_CLIENTE=False`). El paginador client-side usa `PAGE_SIZE=20` en el JS del listado.
 - **`core/tests.py` PENDIENTE (lo vimos, se dejo para el final)**: tests de vistas (modo cliente + server + permisos por rol) con `TestCase`. Consideración: los tests usan DB temporal — con Neon externo habria que configurar una DB local de prueba o ajustar permisos. El test client de Django NO ejecuta JS; para la logica client-side hay que validar con Node + DOM mock (como se hizo manualmente en esta sesion).
 

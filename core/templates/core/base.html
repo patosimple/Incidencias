@@ -9,7 +9,29 @@
          al build compilado de django-tailwind (ya está en requirements.txt). -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      tailwind.config = { darkMode: 'class' }
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              // Paleta de marca basada en #007AC3
+              brand: {
+                50: '#E8F5FE',
+                100: '#D3EBFD',
+                200: '#A6D6FA',
+                300: '#70BCF0',
+                400: '#3FA0E4',
+                500: '#1488D3',
+                600: '#007AC3',
+                700: '#00639E',
+                800: '#005080',
+                900: '#003E63',
+                950: '#00304F',
+              },
+            },
+          },
+        },
+      };
     </script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 
@@ -28,18 +50,18 @@
 
     <!-- Sidebar desktop (colapsable a iconos en lg+). Estado guardado en localStorage. -->
     <aside id="sidebar-desktop"
-           class="hidden md:flex shrink-0 bg-slate-900 text-white flex-col w-56 transition-all duration-200">
-        <div id="sidebar-brand" class="flex items-center gap-2 px-4 py-4 border-b border-slate-700">
-            <div class="w-8 h-8 rounded bg-teal-600 flex items-center justify-center font-bold shrink-0">F</div>
+           class="hidden md:flex shrink-0 bg-brand-950 text-white flex-col w-56 transition-all duration-200">
+        <div id="sidebar-brand" class="flex items-center gap-2 px-4 py-4 border-b border-brand-800">
+            <div class="w-8 h-8 rounded bg-brand-600 flex items-center justify-center font-bold shrink-0">F</div>
             <div id="sidebar-brand-text" class="leading-tight">
                 <div class="font-bold text-sm whitespace-nowrap">FINANCIAMIENTO</div>
-                <div class="text-[10px] text-slate-400 uppercase tracking-wide whitespace-nowrap">Agrupaciones políticas</div>
+                <div class="text-[10px] text-brand-300 uppercase tracking-wide whitespace-nowrap">Agrupaciones políticas</div>
             </div>
         </div>
 
         <nav id="sidebar-nav" class="flex-1 px-2 py-4 space-y-1 text-sm">
             <a href="{% url 'ticket_list' %}" title="Mis Tickets"
-               class="flex items-center gap-2 px-3 py-2 rounded hover:bg-slate-800 {% block nav_tickets_active %}{% endblock %}">
+               class="flex items-center gap-2 px-3 py-2 rounded hover:bg-brand-800 {% block nav_tickets_active %}{% endblock %}">
                 <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
@@ -47,27 +69,16 @@
                 <span>Mis Tickets</span>
             </a>
             <a href="{% url 'ticket_create' %}" title="Crear Ticket"
-               class="flex items-center gap-2 px-3 py-2 rounded hover:bg-slate-800 {% block nav_crear_active %}{% endblock %}">
+               class="flex items-center gap-2 px-3 py-2 rounded hover:bg-brand-800 {% block nav_crear_active %}{% endblock %}">
                 <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
                 <span>Crear Ticket</span>
             </a>
-            {% if user.is_staff %}
-            <a href="{% url 'admin:index' %}" title="Administración"
-               class="flex items-center gap-2 px-3 py-2 rounded hover:bg-slate-800">
-                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                </svg>
-                <span>Administración</span>
-            </a>
-            {% endif %}
         </nav>
 
         <button id="sidebar-desktop-toggle" type="button" title="Colapsar menú"
-                class="mx-2 mb-2 p-2 rounded hover:bg-slate-800 flex items-center gap-2 px-3">
+                class="mx-2 mb-2 p-2 rounded hover:bg-brand-800 flex items-center gap-2 px-3">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
             </svg>
@@ -78,7 +89,7 @@
     <div class="flex-1 flex flex-col min-w-0">
 
         <!-- Header -->
-        <header class="h-14 shrink-0 bg-teal-800 text-white flex items-center justify-between px-3 sm:px-6 gap-2">
+        <header class="h-14 shrink-0 bg-brand-800 text-white flex items-center justify-between px-3 sm:px-6 gap-2">
             <div class="flex items-center gap-2 min-w-0">
                 <!-- Botón hamburguesa (solo móvil) -->
                 <button id="sidebar-mobile-toggle" type="button" aria-label="Abrir menú"
@@ -90,19 +101,7 @@
                 <div class="text-sm font-medium truncate">Reporte de Incidencias</div>
             </div>
             {% if user.is_authenticated %}
-            <div class="flex items-center gap-2 sm:gap-3 shrink-0">
-                <span class="text-[10px] uppercase bg-teal-700 px-2 py-0.5 rounded hidden sm:inline">
-                    {{ user.get_rol_display }}
-                </span>
-                <div class="text-right leading-tight text-xs hidden md:block">
-                    <div class="truncate max-w-[16rem]">{{ user.email }}</div>
-                </div>
-                <div class="w-8 h-8 rounded-full bg-teal-600 flex items-center justify-center text-xs font-bold shrink-0">
-                    {{ user.get_full_name|default:user.username|slice:":2"|upper }}
-                </div>
-                <a href="{% url 'logout' %}" class="text-xs underline decoration-teal-400 hover:text-teal-200">
-                    Salir
-                </a>
+            <div class="flex items-center gap-1 sm:gap-2 shrink-0">
                 <button id="theme-toggle" type="button" aria-label="Cambiar tema"
                         class="p-2 rounded hover:bg-white/10 dark:hover:bg-white/5 transition-colors">
                     <svg class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -114,6 +113,57 @@
                               d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
                     </svg>
                 </button>
+
+                <!-- Menú desplegable de usuario (avatar) -->
+                <div class="relative">
+                    <button id="user-menu-button" type="button" aria-expanded="false" aria-label="Menú de usuario"
+                            class="flex items-center gap-1.5 p-1.5 rounded hover:bg-white/10 dark:hover:bg-white/5 transition-colors">
+                        <div class="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center text-xs font-bold shrink-0">
+                            {{ user.get_full_name|default:user.username|slice:":2"|upper }}
+                        </div>
+                        <svg class="w-4 h-4 text-white/70 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+
+                    <div id="user-menu"
+                         class="hidden absolute right-0 top-full mt-1 w-64 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg py-1.5 z-50">
+                        <div class="px-4 py-2.5 border-b border-gray-100 dark:border-slate-700">
+                            <div class="flex items-center gap-2.5">
+                                <div class="self-stretch w-1.5 shrink-0 rounded-full {% if user.rol == 'SOLICITANTE' %}bg-brand-600{% elif user.rol == 'DESARROLLADOR' %}bg-emerald-600{% else %}bg-purple-600{% endif %}"></div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{{ user.get_full_name|default:user.username }}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ user.email }}</div>
+                                    <div class="mt-1 text-[10px] uppercase tracking-wide {% if user.rol == 'SOLICITANTE' %}text-brand-600 dark:text-brand-400{% elif user.rol == 'DESARROLLADOR' %}text-emerald-600 dark:text-emerald-400{% else %}text-purple-600 dark:text-purple-400{% endif %}">{{ user.get_rol_display }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% if user.is_superuser or user.rol == 'DESARROLLADOR' or user.rol == 'COORDINADOR' %}
+                        <a href="{% url 'admin:index' %}"
+                           class="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                            <svg class="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            Administración
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'cambiar_password' %}"
+                           class="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                            <svg class="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                            </svg>
+                            Cambiar contraseña
+                        </a>
+                        <a href="{% url 'logout' %}"
+                           class="flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                            </svg>
+                            Salir
+                        </a>
+                    </div>
+                </div>
             </div>
             {% endif %}
         </header>
@@ -121,18 +171,18 @@
         <!-- Drawer móvil: sidebar off-canvas + overlay -->
         <div id="sidebar-mobile" class="md:hidden fixed inset-0 z-50 pointer-events-none">
             <div id="sidebar-mobile-overlay" class="absolute inset-0 bg-black/50 opacity-0 transition-opacity duration-200 pointer-events-none"></div>
-            <aside class="absolute inset-y-0 left-0 w-64 bg-slate-900 text-white flex flex-col shadow-xl
+            <aside class="absolute inset-y-0 left-0 w-64 bg-brand-950 text-white flex flex-col shadow-xl
                           -translate-x-full transition-transform duration-200 pointer-events-auto">
-                <div class="flex items-center gap-2 px-4 py-4 border-b border-slate-700">
-                    <div class="w-8 h-8 rounded bg-teal-600 flex items-center justify-center font-bold">F</div>
+                <div class="flex items-center gap-2 px-4 py-4 border-b border-brand-800">
+                    <div class="w-8 h-8 rounded bg-brand-600 flex items-center justify-center font-bold">F</div>
                     <div class="leading-tight">
                         <div class="font-bold text-sm">FINANCIAMIENTO</div>
-                        <div class="text-[10px] text-slate-400 uppercase tracking-wide">Agrupaciones políticas</div>
+                        <div class="text-[10px] text-brand-300 uppercase tracking-wide">Agrupaciones políticas</div>
                     </div>
                 </div>
                 <nav class="flex-1 px-2 py-4 space-y-1 text-sm">
                     <a href="{% url 'ticket_list' %}"
-                       class="flex items-center gap-2 px-3 py-2 rounded hover:bg-slate-800 {% block nav_mobile_tickets_active %}{% endblock %}">
+                       class="flex items-center gap-2 px-3 py-2 rounded hover:bg-brand-800 {% block nav_mobile_tickets_active %}{% endblock %}">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                   d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
@@ -140,23 +190,12 @@
                         Mis Tickets
                     </a>
                     <a href="{% url 'ticket_create' %}"
-                       class="flex items-center gap-2 px-3 py-2 rounded hover:bg-slate-800 {% block nav_mobile_crear_active %}{% endblock %}">
+                       class="flex items-center gap-2 px-3 py-2 rounded hover:bg-brand-800 {% block nav_mobile_crear_active %}{% endblock %}">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                         </svg>
                         Crear Ticket
                     </a>
-                    {% if user.is_staff %}
-                    <a href="{% url 'admin:index' %}"
-                       class="flex items-center gap-2 px-3 py-2 rounded hover:bg-slate-800">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        </svg>
-                        Administración
-                    </a>
-                    {% endif %}
                 </nav>
             </aside>
         </div>
@@ -166,7 +205,7 @@
             {% if messages %}
                 <div class="mb-4 space-y-2">
                     {% for message in messages %}
-                        <div class="text-sm rounded px-3 py-2 bg-teal-50 text-teal-800 border border-teal-200 dark:bg-teal-900/30 dark:text-teal-200 dark:border-teal-800">
+                        <div class="text-sm rounded px-3 py-2 bg-brand-50 text-brand-800 border border-brand-200 dark:bg-brand-900/30 dark:text-brand-200 dark:border-brand-800">
                             {{ message }}
                         </div>
                     {% endfor %}
@@ -183,6 +222,28 @@
     const isDark = document.documentElement.classList.toggle('dark');
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
   });
+
+  // Menú desplegable de usuario (avatar)
+  var userMenuButton = document.getElementById('user-menu-button');
+  var userMenu = document.getElementById('user-menu');
+  function setUserMenu(open) {
+    if (!userMenu) return;
+    userMenu.classList.toggle('hidden', !open);
+    if (userMenuButton) userMenuButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  if (userMenuButton) {
+    userMenuButton.addEventListener('click', function (e) {
+      e.stopPropagation();
+      setUserMenu(userMenu.classList.contains('hidden'));
+    });
+  }
+  document.addEventListener('click', function (e) {
+    if (userMenu && !userMenu.contains(e.target) &&
+        userMenuButton && !userMenuButton.contains(e.target)) {
+      setUserMenu(false);
+    }
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setUserMenu(false); });
 
   // Sidebar desktop: colapsar a iconos
   var sidebarToggle = document.getElementById('sidebar-desktop-toggle');
@@ -264,29 +325,7 @@
   }
   if (mobileToggle) mobileToggle.addEventListener('click', function () { setMobileOpen(true); });
   if (overlay) overlay.addEventListener('click', function () { setMobileOpen(false); });
-
-  // Indicador de breakpoint (solo ayuda de desarrollo responsive)
-  function updateBreakpoint() {
-    var bpEl = document.getElementById('breakpoint-indicator');
-    if (!bpEl) return;
-    var w = window.innerWidth;
-    var label;
-    if (w < 640) label = 'base';
-    else if (w < 768) label = 'sm';
-    else if (w < 1024) label = 'md';
-    else if (w < 1280) label = 'lg';
-    else if (w < 1536) label = 'xl';
-    else label = '2xl';
-    bpEl.textContent = label + ' · ' + w + 'px';
-  }
-  document.addEventListener('DOMContentLoaded', updateBreakpoint);
-  window.addEventListener('resize', updateBreakpoint);
 </script>
 {% block extra_js %}{% endblock %}
-<div id="breakpoint-indicator"
-     class="fixed bottom-2 right-2 z-[60] px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wide
-            bg-slate-900/90 text-teal-300 dark:bg-slate-100/90 dark:text-teal-700 pointer-events-none">
-    base
-</div>
 </body>
 </html>

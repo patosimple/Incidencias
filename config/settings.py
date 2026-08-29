@@ -36,6 +36,10 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+# Redirect de usuarios anónimos hacia nuestro login propio (/login/)
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'ticket_list'
+
 
 # Application definition
 

@@ -1,17 +1,31 @@
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import PasswordChangeView
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, ListView
 
-from .forms import ComentarioForm, TicketForm
+from .forms import CambioPasswordForm, ComentarioForm, TicketForm
 from .models import EstadoTicket, RolUsuario, Sistema, Ticket, TicketDesarrollador
 
 
 def _sistemas_visibles(usuario):
     """Sistemas a los que el usuario tiene acceso (vía UsuarioSistema)."""
     return Sistema.objects.filter(usuariosistema__usuario=usuario)
+
+
+class CambiarPasswordView(LoginRequiredMixin, PasswordChangeView):
+    template_name = "core/password_change.html"
+    form_class = CambioPasswordForm
+    success_url = reverse_lazy("ticket_list")
+
+    def form_valid(self, form):
+        respuesta = super().form_valid(form)
+        messages.success(self.request, "Contraseña actualizada correctamente.")
+        return respuesta
 
 
 class TicketListView(LoginRequiredMixin, ListView):

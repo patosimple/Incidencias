@@ -1,6 +1,25 @@
 from django import forms
+from django.contrib.auth.forms import PasswordChangeForm
 
 from .models import Ticket, Comentario, Adjunto
+
+
+_PASSWORD_INPUT_CSS = (
+    "w-full text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 "
+    "border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 "
+    "focus:outline-none focus:ring-1 focus:ring-brand-500"
+)
+
+
+class CambioPasswordForm(PasswordChangeForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["old_password"].label = "Contraseña actual"
+        self.fields["new_password1"].label = "Nueva contraseña"
+        self.fields["new_password2"].label = "Repetí la nueva contraseña"
+        for campo in self.fields.values():
+            campo.widget.attrs["class"] = _PASSWORD_INPUT_CSS
+            campo.help_text = ""
 
 
 class TicketForm(forms.ModelForm):
