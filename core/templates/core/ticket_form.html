@@ -1,0 +1,151 @@
+{% extends 'core/base.html' %}
+{% block nav_crear_active %}bg-brand-800{% endblock %}
+{% block nav_mobile_crear_active %}bg-brand-800{% endblock %}
+
+{% block title %}Nuevo Ticket{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Nuevo Ticket</h1>
+        <a href="{% url 'ticket_list' %}"
+           class="text-sm text-brand-700 dark:text-brand-400 hover:underline">
+            ← Volver
+        </a>
+    </div>
+
+    <form id="ticket-form" method="post" enctype="multipart/form-data" novalidate
+          class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm p-4 sm:p-6 space-y-4">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+        <div class="rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm px-3 py-2">
+            {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+
+        {% for field in form %}
+        <div>
+            <label for="{{ field.id_for_label }}"
+                   class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {{ field.label }}
+            </label>
+            {{ field }}
+            {% if field.name == 'descripcion_original' %}
+            <div id="quill-descripcion" class="bg-white dark:bg-slate-700"></div>
+            {% endif %}
+            {% if field.errors %}
+            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ field.errors|striptags }}</p>
+            {% endif %}
+            {% if field.help_text %}
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ field.help_text }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+<!-- Adjuntos -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Adjuntos</label>
+            <div class="flex items-center gap-2">
+                <input type="file" id="archivos-ticket" name="archivos" multiple class="hidden">
+                <button type="button" id="btn-adjuntar-ticket"
+                        class="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400 hover:text-brand-900 dark:hover:text-brand-300">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Adjuntar archivos
+                </button>
+            </div>
+            <ul id="adjuntos-lista" class="mt-2 space-y-1"></ul>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Opcional. Podés elegir varios archivos de a uno.</p>
+        </div>
+
+        <div class="pt-2 flex flex-col sm:flex-row gap-2 sm:justify-end">
+            <a href="{% url 'ticket_list' %}"
+               class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">
+                Cancelar
+            </a>
+            <button type="submit"
+                    class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
+                Crear ticket
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+<script>
+  (function () {
+    var css = ["w-full", "text-sm", "bg-white", "dark:bg-slate-700", "text-gray-800",
+               "dark:text-gray-100", "border", "border-gray-300", "dark:border-slate-600",
+               "rounded", "px-3", "py-2", "focus:outline-none", "focus:ring-1",
+               "focus:ring-brand-500"];
+    document.querySelectorAll('form input[type=text], form select').forEach(function (el) {
+      el.classList.add.apply(el.classList, css);
+    });
+
+    // Editor Quill para la descripción
+    var textarea = document.getElementById('id_descripcion_original');
+    var contenedor = document.getElementById('quill-descripcion');
+    var quill = null;
+    if (textarea && contenedor && typeof Quill !== 'undefined') {
+      textarea.style.display = 'none'; // ocultar el textarea original
+      quill = new Quill(contenedor, {
+        theme: 'snow',
+        placeholder: 'Escriba la descripción del ticket...',
+        modules: { toolbar: [['bold', 'italic', 'underline', 'strike'], [{ 'list': 'ordered' }, { 'list': 'bullet' }], ['link']] }
+      });
+    }
+    var form = document.getElementById('ticket-form');
+    if (form && textarea) {
+      form.addEventListener('submit', function () {
+        textarea.value = (quill ? quill.root.innerHTML : textarea.value);
+      });
+    }
+
+    // Adjuntos acumulativos (de a uno, se van sumando)
+    var btnAdjuntar = document.getElementById('btn-adjuntar-ticket');
+    var fileInput = document.getElementById('archivos-ticket');
+    var lista = document.getElementById('adjuntos-lista');
+    var form = document.getElementById('ticket-form');
+    if (btnAdjuntar && fileInput && lista) {
+      var items = [];
+      var dt = (window.DataTransfer ? new DataTransfer() : null);
+      btnAdjuntar.addEventListener('click', function () { fileInput.click(); });
+      fileInput.addEventListener('change', function () {
+        Array.prototype.forEach.call(fileInput.files, function (f) {
+          items.push(f);
+          if (dt) dt.items.add(f);
+        });
+        fileInput.value = ''; // permite volver a elegir el mismo archivo
+        lista.innerHTML = '';
+        items.forEach(function (f) {
+          var li = document.createElement('li');
+          li.className = 'flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200';
+          var ic = document.createElement('span');
+          ic.className = 'w-4 h-4 shrink-0 text-gray-400';
+          ic.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>';
+          li.appendChild(ic);
+          li.appendChild(document.createTextNode(' ' + f.name));
+          lista.appendChild(li);
+        });
+      });
+      if (form) {
+        form.addEventListener('submit', function () {
+          var finalDt = (window.DataTransfer ? new DataTransfer() : null);
+          if (finalDt) {
+            items.forEach(function (f) { finalDt.items.add(f); });
+            try { fileInput.files = finalDt.files; } catch (e) {}
+          }
+        });
+      }
+    }
+  })();
+</script>
+{% endblock %}

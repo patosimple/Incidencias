@@ -1,8 +1,10 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="{% static 'core/favicon.ico' %}">
     <title>{% block title %}Reporte de Incidencias{% endblock %} — FINANCIAMIENTO</title>
 
     <!-- Simplificación de arranque: Tailwind vía CDN. Para producción, migrar
@@ -51,13 +53,14 @@
     <!-- Sidebar desktop (colapsable a iconos en lg+). Estado guardado en localStorage. -->
     <aside id="sidebar-desktop"
            class="hidden md:flex shrink-0 bg-brand-950 text-white flex-col w-56 transition-all duration-200">
-        <div id="sidebar-brand" class="flex items-center gap-2 px-4 py-4 border-b border-brand-800">
+        <a id="sidebar-brand" href="{% url 'home' %}" title="Inicio"
+           class="flex items-center gap-2 px-4 py-4 border-b border-brand-800">
             <div class="w-8 h-8 rounded bg-brand-600 flex items-center justify-center font-bold shrink-0">F</div>
             <div id="sidebar-brand-text" class="leading-tight">
                 <div class="font-bold text-sm whitespace-nowrap">FINANCIAMIENTO</div>
                 <div class="text-[10px] text-brand-300 uppercase tracking-wide whitespace-nowrap">Agrupaciones políticas</div>
             </div>
-        </div>
+        </a>
 
         <nav id="sidebar-nav" class="flex-1 px-2 py-4 space-y-1 text-sm">
             <a href="{% url 'ticket_list' %}" title="Mis Tickets"
@@ -98,7 +101,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                     </svg>
                 </button>
-                <div class="text-sm font-medium truncate">Reporte de Incidencias</div>
+                <a href="{% url 'home' %}" class="text-sm font-medium truncate">Reporte de Incidencias</a>
             </div>
             {% if user.is_authenticated %}
             <div class="flex items-center gap-1 sm:gap-2 shrink-0">
@@ -155,13 +158,16 @@
                             </svg>
                             Cambiar contraseña
                         </a>
-                        <a href="{% url 'logout' %}"
-                           class="flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                            </svg>
-                            Salir
-                        </a>
+                        <form method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button type="submit"
+                                    class="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                                </svg>
+                                Salir
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -173,13 +179,13 @@
             <div id="sidebar-mobile-overlay" class="absolute inset-0 bg-black/50 opacity-0 transition-opacity duration-200 pointer-events-none"></div>
             <aside class="absolute inset-y-0 left-0 w-64 bg-brand-950 text-white flex flex-col shadow-xl
                           -translate-x-full transition-transform duration-200 pointer-events-auto">
-                <div class="flex items-center gap-2 px-4 py-4 border-b border-brand-800">
+                <a href="{% url 'home' %}" title="Inicio" class="flex items-center gap-2 px-4 py-4 border-b border-brand-800">
                     <div class="w-8 h-8 rounded bg-brand-600 flex items-center justify-center font-bold">F</div>
                     <div class="leading-tight">
                         <div class="font-bold text-sm">FINANCIAMIENTO</div>
                         <div class="text-[10px] text-brand-300 uppercase tracking-wide">Agrupaciones políticas</div>
                     </div>
-                </div>
+                </a>
                 <nav class="flex-1 px-2 py-4 space-y-1 text-sm">
                     <a href="{% url 'ticket_list' %}"
                        class="flex items-center gap-2 px-3 py-2 rounded hover:bg-brand-800 {% block nav_mobile_tickets_active %}{% endblock %}">

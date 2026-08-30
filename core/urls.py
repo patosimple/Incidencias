@@ -9,5 +9,6 @@ urlpatterns = [
     path("tickets/<int:pk>/tomar/", views.tomar_ticket, name="ticket_tomar"),
     path("tickets/<int:pk>/estado/", views.cambiar_estado_ticket, name="ticket_cambiar_estado"),
     path("tickets/<int:pk>/comentar/", views.agregar_comentario, name="ticket_comentar"),
+    path("adjuntos/<int:pk>/descargar/", views.descargar_adjunto, name="adjunto_descargar"),
     path("cambiar-password/", views.CambiarPasswordView.as_view(), name="cambiar_password"),
 ]

@@ -164,10 +164,13 @@ class Adjunto(models.Model):
         ]
 
     def clean(self):
-        # Defensa a nivel de aplicación además del CHECK de la base
-        if bool(self.ticket_id) == bool(self.comentario_id):
+        # Defensa a nivel de aplicación además del CHECK de la base.
+        # Permite que ambos estén vacíos en la subida (el ticket/comentario se
+        # asigna al guardar); solo impide que tengan AMBOS seteados.
+        # El CHECK de BD (chk_pertenece_a_uno) exige exactamente uno al guardar.
+        if bool(self.ticket_id) and bool(self.comentario_id):
             raise ValidationError(
-                "El adjunto debe pertenecer exactamente a un ticket o a un comentario, no a ambos ni a ninguno."
+                "El adjunto debe pertenecer a un ticket o a un comentario, no a ambos."
             )
 
 

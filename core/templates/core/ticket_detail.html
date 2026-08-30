@@ -1,0 +1,277 @@
+{% extends 'core/base.html' %}
+{% block nav_tickets_active %}bg-brand-800{% endblock %}
+{% block nav_mobile_tickets_active %}bg-brand-800{% endblock %}
+
+{% block title %}#{{ ticket.pk }} · {{ ticket.titulo }}{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-4">
+
+    <!-- Header del ticket -->
+    <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+            <a href="{% url 'ticket_list' %}"
+               class="text-sm text-brand-700 dark:text-brand-400 hover:underline">← Mis Tickets</a>
+            <h1 class="mt-1 text-lg font-semibold text-gray-800 dark:text-gray-100 leading-snug">
+                #{{ ticket.pk }} · {{ ticket.titulo }}
+            </h1>
+        </div>
+        <div class="shrink-0">
+            {% include "core/partials/estado_badge.html" with estado=ticket.estado %}
+        </div>
+    </div>
+
+    <!-- Acciones -->
+    {% if puede_actuar %}
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm p-4 sm:p-6">
+        {% if ticket.estado == 'PENDIENTE' or ticket.estado == 'REABIERTO' %}
+            {% if user.rol == 'DESARROLLADOR' %}
+                <form method="post" action="{% url 'ticket_tomar' ticket.pk %}">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
+                        Tomar ticket
+                    </button>
+                </form>
+            {% endif %}
+        {% elif ticket.estado == 'EN_PROCESO' %}
+            {% if user.rol == 'DESARROLLADOR' or user.rol == 'COORDINADOR' %}
+            <div class="flex flex-col sm:flex-row gap-2">
+                <form method="post" action="{% url 'ticket_cambiar_estado' ticket.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" name="estado" value="CERRADO"
+                            class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
+                        Cerrar
+                    </button>
+                </form>
+                <form method="post" action="{% url 'ticket_cambiar_estado' ticket.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" name="estado" value="PENDIENTE"
+                            class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">
+                        Volver a pendiente
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        {% elif ticket.estado == 'CERRADO' %}
+            <form method="post" action="{% url 'ticket_cambiar_estado' ticket.pk %}">
+                {% csrf_token %}
+                <button type="submit" name="estado" value="REABIERTO"
+                        class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
+                    Reabrir
+                </button>
+            </form>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Detalle del ticket -->
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 sm:p-6 border-b border-gray-100 dark:border-slate-700">
+            <div>
+                <dt class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Sistema</dt>
+                <dd class="mt-0.5 text-sm font-medium text-gray-800 dark:text-gray-100">{{ ticket.sistema.nombre }}</dd>
+            </div>
+            <div>
+                <dt class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Solicitante</dt>
+                <dd class="mt-0.5 text-sm font-medium text-gray-800 dark:text-gray-100">{{ ticket.solicitante.get_full_name|default:ticket.solicitante.username }}</dd>
+            </div>
+            <div>
+                <dt class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Creado</dt>
+                <dd class="mt-0.5 text-sm text-gray-800 dark:text-gray-100">{{ ticket.creado_en|date:"d/m/Y H:i" }}</dd>
+            </div>
+            <div>
+                <dt class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Estado</dt>
+                <dd class="mt-0.5 text-sm text-gray-800 dark:text-gray-100">{{ ticket.get_estado_display }}</dd>
+            </div>
+        </dl>
+
+        <div class="p-4 sm:p-6">
+            <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">Descripción</h2>
+            <div class="prose-sm text-sm text-gray-700 dark:text-gray-200 break-words leading-relaxed">
+                {{ ticket.descripcion_original|safe }}
+            </div>
+        </div>
+
+        <!-- Colaboradores (desarrolladores) -->
+        {% if ticket.ticketdesarrollador_set.all %}
+        <div class="p-4 sm:p-6 border-t border-gray-100 dark:border-slate-700">
+            <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">Colaboradores</h2>
+            <ul class="space-y-2">
+                {% for td in ticket.ticketdesarrollador_set.all %}
+                <li class="flex items-center justify-between gap-3 text-sm">
+                    <span class="text-gray-700 dark:text-gray-200">{{ td.usuario.get_full_name|default:td.usuario.username }}</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ td.tomado_en|date:"d/m/Y H:i" }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Comentarios -->
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm p-4 sm:p-6 space-y-4">
+        <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Comentarios ({{ ticket.comentarios.count }})</h2>
+
+        <div class="space-y-4">
+            {% for comentario in ticket.comentarios.all %}
+            {% with rol=comentario.usuario.rol %}
+            <div class="border-l-2 {% if rol == 'DESARROLLADOR' %}border-emerald-600{% elif rol == 'COORDINADOR' %}border-purple-600{% else %}border-brand-600{% endif %} pl-3">
+                <div class="flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    <span class="font-medium text-gray-700 dark:text-gray-200">
+                        {{ comentario.usuario.get_full_name|default:comentario.usuario.username }}
+                    </span>
+                    <span>{{ comentario.creado_en|date:"d/m/Y H:i" }}</span>
+                </div>
+                <div class="mt-1 text-sm text-gray-700 dark:text-gray-200 break-words leading-relaxed">
+                    {{ comentario.cuerpo|safe }}
+                </div>
+                {% if comentario.adjuntos.all %}
+                <div class="mt-2 flex flex-wrap gap-2">
+                    {% for adj in comentario.adjuntos.all %}
+                    <a href="{% url 'adjunto_descargar' adj.pk %}"
+                       class="inline-flex items-center gap-1.5 text-xs text-brand-700 dark:text-brand-400 hover:underline">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        {{ adj.nombre_archivo }}
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endwith %}
+            {% empty %}
+            <p class="text-sm text-gray-500 dark:text-gray-400">Sin comentarios todavía.</p>
+            {% endfor %}
+        </div>
+
+        {% if puede_comentar %}
+        <form id="comentario-form" method="post" enctype="multipart/form-data"
+              action="{% url 'ticket_comentar' ticket.pk %}" class="space-y-2" novalidate>
+            {% csrf_token %}
+            {{ comentario_form.cuerpo }}
+            <div id="quill-comentario" class="bg-white dark:bg-slate-700"></div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <input type="file" id="archivos-comentario" name="archivos" multiple class="hidden">
+                    <button type="button" id="btn-adjuntar-comentario"
+                            class="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400 hover:text-brand-900 dark:hover:text-brand-300">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Adjuntar archivos
+                    </button>
+                </div>
+                <ul id="adjuntos-lista" class="mt-2 space-y-1"></ul>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Opcional. Podés elegir varios archivos de a uno.</p>
+            </div>
+            <div class="flex justify-end">
+                <button type="submit"
+                        class="inline-flex items-center justify-center px-4 py-2 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
+                    Comentar
+                </button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+
+    <!-- Adjuntos -->
+    {% if ticket.adjuntos.all %}
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm p-4 sm:p-6">
+        <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-3">Adjuntos</h2>
+        <ul class="space-y-2">
+            {% for adj in ticket.adjuntos.all %}
+            <li class="text-sm text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                <a href="{% url 'adjunto_descargar' adj.pk %}"
+                   class="inline-flex items-center gap-2 text-brand-700 dark:text-brand-400 hover:underline">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    {{ adj.nombre_archivo }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+<script>
+  (function () {
+    var css = ["w-full", "text-sm", "bg-white", "dark:bg-slate-700", "text-gray-800",
+               "dark:text-gray-100", "border", "border-gray-300", "dark:border-slate-600",
+               "rounded", "px-3", "py-2", "focus:outline-none", "focus:ring-1",
+               "focus:ring-brand-500"];
+    document.querySelectorAll('form input[type=text], form select').forEach(function (el) {
+      el.classList.add.apply(el.classList, css);
+    });
+
+    // Editor Quill para el comentario
+    var textarea = document.getElementById('id_cuerpo');
+    var contenedor = document.getElementById('quill-comentario');
+    var quill = null;
+    if (textarea && contenedor && typeof Quill !== 'undefined') {
+      textarea.style.display = 'none'; // ocultar el textarea original
+      quill = new Quill(contenedor, {
+        theme: 'snow',
+        placeholder: 'Escriba una respuesta...',
+        modules: { toolbar: [['bold', 'italic', 'underline', 'strike'], [{ 'list': 'ordered' }, { 'list': 'bullet' }], ['link']] }
+      });
+    }
+    var form = document.getElementById('comentario-form');
+    if (form && textarea) {
+      form.addEventListener('submit', function () {
+        textarea.value = (quill ? quill.root.innerHTML : textarea.value);
+      });
+    }
+
+    // Adjuntos acumulativos (de a uno, se van sumando)
+    var btnAdjuntar = document.getElementById('btn-adjuntar-comentario');
+    var fileInput = document.getElementById('archivos-comentario');
+    var lista = document.getElementById('adjuntos-lista');
+    var form = document.getElementById('comentario-form');
+    if (btnAdjuntar && fileInput && lista) {
+      var dt = (window.DataTransfer ? new DataTransfer() : { items: [] });
+      var items = [];
+      btnAdjuntar.addEventListener('click', function () { fileInput.click(); });
+      fileInput.addEventListener('change', function () {
+        Array.prototype.forEach.call(fileInput.files, function (f) {
+          items.push(f);
+          if (window.DataTransfer) dt.items.add(f);
+        });
+        fileInput.value = ''; // permite volver a elegir el mismo archivo
+        lista.innerHTML = '';
+        items.forEach(function (f) {
+          var li = document.createElement('li');
+          li.className = 'flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200';
+          var ic = document.createElement('span');
+          ic.className = 'w-4 h-4 shrink-0 text-gray-400';
+          ic.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>';
+          li.appendChild(ic);
+          li.appendChild(document.createTextNode(' ' + f.name));
+          lista.appendChild(li);
+        });
+      });
+      if (form) {
+        form.addEventListener('submit', function () {
+          // reunir todos los archivos elegidos y asignarlos al input
+          var finalDt = (window.DataTransfer ? new DataTransfer() : null);
+          if (finalDt) {
+            items.forEach(function (f) { finalDt.items.add(f); });
+            try { fileInput.files = finalDt.files; } catch (e) {}
+          }
+        });
+      }
+    }
+  })();
+</script>
+{% endblock %}

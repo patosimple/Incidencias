@@ -18,7 +18,7 @@
 - ✅ Esqueleto IA en `ai/providers.py`, `ai/tasks.py`, `ai/models.py`
 - ✅ `core/urls.py` y `config/urls.py`: listado, creacion, detalle, tomar ticket, cambiar estado, comentar, **login/logout + cambiar-password** (`auth_views` + `CambiarPasswordView`)
 - ✅ `config/settings.py`: `LOGIN_URL='login'`, `LOGIN_REDIRECT_URL='ticket_list'` (sin esto, anon iba a `/accounts/login/` que no existe)
-- ✅ `core/forms.py`: `TicketForm`, `ComentarioForm`, `AdjuntoForm`/`AdjuntoFormSet`, **`CambioPasswordForm`** (labels espanol + estilos Tailwind/dark en inputs)
+- ✅ `core/forms.py`: `TicketForm`, `ComentarioForm`, **`CambioPasswordForm`** (labels espanol + estilos Tailwind/dark en inputs). ~~`AdjuntoForm`/`AdjuntoFormSet`~~ **ELIMINADOS** — ya no hay formset; los adjuntos se suben con un único `<input type="file" name="archivos" multiple>` manejado con `request.FILES.getlist("archivos")` en `core/views.py`)
 - ✅ `core/views.py`: `TicketListView`, `TicketCreateView`, `TicketDetailView`, `tomar_ticket`, `cambiar_estado_ticket`, `agregar_comentario` (permisos por rol aplicados) + **`CambiarPasswordView`** (`LoginRequiredMixin` + `PasswordChangeView`, success_url a `ticket_list` con mensaje flash)
 - ✅ `core/management/commands/seed_init.py`: seed base aplicado (Sistemas: BALANCES, FINANCIAMIENTO; ModeloIA: Groq/Gemini/OpenRouter; ConfiguracionIA activa: Groq)
 - ✅ `core/management/commands/seed_tickets.py`: seed demo (5 solicitantes espanol + N tickets lorem, contables). **Password de los solicitantes: `Solicitante123!`** (usuarios: maria.lopez, carlos.gonzalez, lucia.fernandez, joaquin.rodriguez, valentina.martinez — todos con acceso a BALANCES + FINANCIAMIENTO)
@@ -36,7 +36,29 @@
 - ✅ **Admin**: `UsuarioSistemaInline` (tabular) dentro de `UsuarioAdmin` para asignar sistemas desde el form del usuario. Duplicados los valida el formset nativo antes de guardar (con `unique_together` de BD como respaldo)
 - ✅ **Flag desde .env**: `MODO_FILTRO_CLIENTE` = `env.bool(...)` en `settings.py`, default `True`. Definido en `.env`. Debounce 200ms client y server
 - ✅ **Responsive shell implementado** (CDN): sidebar desktop colapsable a iconos (`localStorage 'sidebar'`), off-canvas movil con overlay, header compacto, tabla↔cards en listados (`estado_badge.html` extraido), `<main>` padding responsive — ver seccion **Responsive** abajo
-- ❌ Pendiente: `ticket_form.html`, `ticket_detail.html` (dan TemplateDoesNotExist). **DEBEN seguir las normas responsive** (base.html ya hereda el shell)
+- ✅ `core/templates/core/ticket_form.html` (nuevo): form de nuevo ticket (max-w-2xl, hereda shell, dark + brand, errores por campo, botones Cancelar/Crear; JS en `extra_js` aplica clases CSS a inputs/selects/textarea del form)
+- ✅ `core/templates/core/ticket_detail.html` (nuevo): detalle (header con estado, `dl` de metadatos, descripción `linebreaksbr`, colaboradores vía `ticket.ticketdesarrollador_set`, acciones tomar/cambiar-estado, comentarios con form, adjuntos). Hereda shell, dark + brand
+- ✅ **Logout arreglado**: el enlace "Salir" en `base.html` era `<a href>` (GET) pero `LogoutView` solo acepta POST → daba 405 y no cerraba sesión. Cambiado a `<form method="post">` con CSRF. La ruta `logout/` ya existía en `config/urls.py:10` (`auth_views.LogoutView(next_page="login")`)
+- ✅ **Bug bypass superuser en detalle resuelto**: `TicketDetailView.get_queryset()` NO tenía el bypass `is_superuser` que sí tiene el listado → un superuser con rol DESARROLLADOR y sin sistemas visibles recibía 404 en todos los tickets. Ahora `is_superuser` ve cualquier ticket (consistente con `TicketListView`)
+- ✅ Pendiente: HTMX partials para interacciones en detalle (tomar ticket, cambiar estado, comentar) — por ahora los forms del detalle hacen submit normal (redirect)
+- ✅ **Transiciones de estado por botones (sin select)**: `tomar_ticket` pasa PENDIENTE/REABIERTO → EN_PROCESO; `cambiar_estado_ticket` solo permite EN_PROCESO→CERRADO/PENDIENTE (dev/coor) y CERRADO→REABIERTO (cualquiera); setea/limpia `cerrado_en`. En el detalle la tarjeta de acciones es contextual por estado+rol (visible arriba, se oculta si no hay acciones vía `_puede_actuar` en `TicketDetailView`). Colores de estado (`estado_badge.html`): PENDIENTE=rojo, EN_PROCESO=verde, CERRADO=gris oscuro, REABIERTO=azul brand
+- ✅ **Crear ticket select de sistemas**: `TicketForm` deja de filtrar sistemas para superuser (ve todos, mismo bypass que listado/detalle)
+- ✅ **Branding/home**: `config/urls.py` home con `name="home"`; "Reporte de Incidencias" (header) y los logos de sidebar (desktop + drawer móvil) ahora son links a home. `base.html`
+- ✅ **Texto enriquecido con Quill** (CDN `quill@2.0.2`): editor en crear ticket (`descripcion_original`) y en comentarios (`cuerpo`). Se renderiza con `|safe` en detalle. Ver **⚠️ PENDIENTE IMPORTANTE (XSS)** abajo
+- ✅ **Adjuntos (subir + descargar, sin visualizar)**: `MEDIA_URL`/`MEDIA_ROOT` en settings; media servido en DEBUG; `core/urls.py` ruta `adjuntos/<pk>/descargar/` → `descargar_adjunto` (FileResponse `as_attachment=True`, con visibilidad por rol); tipo se deduce por extensión vía `_tipo_por_nombre`; `Adjunto.clean()` permite FK vacía al subir (se asigna al guardar; el CHECK de BD exige exactamente uno). **Un único `<input type="file" name="archivos" multiple>`** (crear ticket y comentarios), manejado con `request.FILES.getlist("archivos")` → `_guardar_adjuntos(...)` en `core/views.py` (crea un `Adjunto` por archivo). El detalle lista adjuntos del ticket y de cada comentario como links de descarga. El editor Quill usa un `<div>` contenedor (#quill-xxx) y el textarea se oculta (`style.display='none'`), no se pasa el textarea a `new Quill` (evita el bug de "barra de herramientas sin area de escritura"); en submit se copia `quill.root.innerHTML` al textarea
+- ✅ **Permisos de comentar** (`_puede_comentar` en views): `False` si el ticket está CERRADO; `True` para superuser, el creador (`solicitante_id`), y los desarrolladores que tomaron el ticket. El form de comentario se oculta con `{% if puede_comentar %}` y `agregar_comentario` lanza `PermissionDenied` (403) si no aplica. La sección "Colaboradores" siempre visible en el detalle lista quiénes tomaron el ticket (`ticket.ticketdesarrollador_set`)
+- ⚠️ **PENDIENTE IMPORTANTE — XSS**: `ticket_detail.html` renderiza `descripcion_original` y `cuerpo` con `|safe` (HTML de Quill) sin sanitizar. Riesgo de XSS. Para producción: sanitizar el HTML (p.ej. `bleach` o `nh3`) al guardar o al renderizar. NO desplegar a prod sin resolver esto
+- ⚠️ **PENDIENTE IMPORTANTE — Subidas pesadas sin progreso**: hoy la subida de adjuntos es un **POST síncrono** del form: el navegador espera sin feedback (solo spinner nativo) y `FILE_UPLOAD_MAX_MEMORY_SIZE` es 2.5MB (memoria!). Un adjunto pesado puede colgar la request, superar el timeout de Gunicorn (30s default) y fallar opaco. **PLAN (mediano)**: subida vía **XMLHttpRequest** (`xhr.upload.onprogress` → barra de progreso; `xhr.abort()` → cancelar), con límite de tamaño por usuario y validación de tipo. Alternativa: subida fragmentada/resumible (chunks) o directo a object storage (S3/R2 presigned). Mientras tanto, validar tamaño en `_guardar_adjuntos` (rechazar > N MB) para no romper la demo
+- ❌ Pendiente: **definir tamaño máximo de adjunto** (mismo tema del punto anterior): definir un límite (p.ej. N MB) y rechazar en `_guardar_adjuntos` con mensaje claro al usuario (hoy no hay límite: un archivo gigante llena `MEDIA_ROOT` y puede tumbar el server)
+- ❌ Pendiente: **adjuntos en producción (MEDIA_ROOT local)**: los adjuntos se guardan en `media/adjuntos/AAAA/MM/` (disco local de `MEDIA_ROOT`). En Render/Neon el disco es **ephemeral** (se pierde en redeploy; el backup de la DB no los incluye) y no escala a N instancias. Para producción real: `django-storages` + S3/R2, o volumen persistente. **Configuración condicional por entorno en `settings.py`** (el modelo no cambia; el FileField escribe al bucket en vez del disco):
+  ```python
+  if DEBUG:   # desarrollo local
+      STORAGES = {"default": {"BACKEND": "django.core.files.storage.FileSystemStorage"}}
+  else:       # producción (Render)
+      STORAGES = {"default": {"BACKEND": "storages.backends.s3.S3Storage", "OPTIONS": {"bucket_name": env("S3_BUCKET"), ...}}}
+  ```
+- ❌ Pendiente: **editar/eliminar comentarios** (hoy solo crear). Reglas a definir: ¿quién puede editar? (propio usuario, window de tiempo), ¿historial/auditoria de ediciones? (`Comentario.modificado_en` / versión previa)
+- ❌ Pendiente: **citar/responder un comentario anterior** (botón "Responder" en cada comentario → pre-carga el editor con referencia/cita al comentario original, tipo quote/reply). Definir modelo de datos (¿campo `Comentario.responde_a` FK a otro comentario, o solo cita en el texto?) y render
 - ❌ Pendiente: acceso desde la red local (movil en la misma WiFi): `ALLOWED_HOSTS=[]` en `settings.py` bloquea. Para probar en local: agregar la IP local al `ALLOWED_HOSTS` (o `['*']` en dev) + `runserver 0.0.0.0:8000` + permitir puerto 8000 en firewall de Windows
 - ❌ Pendiente: migrar Tailwind a build compilado
 - ❌ Pendiente: `settings.HUEY` para activar cola de tareas
@@ -91,7 +113,7 @@ core/
   models.py        # Modelos completos (258 lineas)
   admin.py         # Admin completo con inlines (UsuarioSistemaInline en UsuarioAdmin)
   views.py         # CBVs/FBVs con permisos por rol + bypass superuser + get_template_names HTMX + modo cliente/server
-  forms.py         # TicketForm, ComentarioForm, AdjuntoForm/AdjuntoFormSet
+  forms.py         # TicketForm, ComentarioForm, CambioPasswordForm
   context_processors.py  # Expone MODO_FILTRO_CLIENTE a templates
   urls.py          # Rutas app (listado, creacion, detalle, acciones, cambiar-password, login/logout)
   management/commands/seed_init.py     # Carga sistemas y ModeloIA
@@ -101,6 +123,8 @@ core/
     login.html                       # Login (hereda shell, error espanol)
     password_change.html             # Cambio de password
     ticket_list.html                 # Lista con filtros client-side switcheable + JS + include partial
+    ticket_form.html                 # Form de nuevo ticket (heredar shell + brand + dark)
+    ticket_detail.html               # Detalle: metadatos, acciones, comentarios, adjuntos
     partials/ticket_table.html       # Partial: tabla + cards + paginacion (target #tabla-tickets)
     partials/estado_badge.html       # Badge de estado reutilizable
     partials/rol_badge.html          # Badge de rol (hoy sin uso)
@@ -138,8 +162,8 @@ En `settings.py`: `DATABASES = {'default': env.db_url('DATABASE_URL')}`
 ## Proximos pasos (Fase 1)
 1. ✅ Bug filtro de sistemas resuelto (superuser ve todos en dropdown vía `is_superuser` en `get_context_data`)
 2. ✅ Filtrado client-side implementado (PLAN abajo) — con switch a server-side vía flag `.env`
-3. Templates: `ticket_form.html`, `ticket_detail.html` (referencia Figma) — `login.html` ya hecho
-4. HTMX partials para interacciones en detalle (tomar ticket, cambiar estado, comentar)
+3. ✅ Templates: `ticket_form.html`, `ticket_detail.html` (referencia Figma) — `login.html` ya hecho
+4. ✅ HTMX partials para interacciones en detalle (tomar ticket, cambiar estado, comentar) — PENDIENTE (los forms del detalle hacen submit normal por ahora)
 5. ✅ **Menu desplegable en el icono de usuario** (header): nombre, email, rol, **Administración** (solo superuser + rol DESARROLLADOR/COORDINADOR), **Cambiar contraseña** y **Salir**
 6. Tailwind config + build compilado (reemplazar CDN)
 7. `settings.HUEY` para activar cola de tareas
