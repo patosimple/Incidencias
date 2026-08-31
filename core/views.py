@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import PasswordChangeView
 from django.core.exceptions import PermissionDenied
+from django.db.models import Prefetch
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
@@ -137,6 +138,15 @@ class TicketListView(LoginRequiredMixin, ListView):
             if q:
                 qs = qs.filter(titulo__icontains=q)
 
+        # Prefetch de colaboradores activos (read-only) para pintar el badge
+        # de ticket reabierto "tomado" (verde) vs "sin tomar" (rojo).
+        qs = qs.prefetch_related(
+            Prefetch(
+                "ticketdesarrollador_set",
+                queryset=TicketDesarrollador.objects.filter(activo=True),
+                to_attr="colabs_activos",
+            )
+        )
         return qs
 
     def get_template_names(self):
@@ -153,6 +163,11 @@ class TicketListView(LoginRequiredMixin, ListView):
         else:
             ctx["sistemas_disponibles"] = _sistemas_visibles(usuario)
         ctx["estados_disponibles"] = EstadoTicket.choices
+        # Marcar "tomado" (tiene colaborador activo) por ticket para el badge.
+        # Se asigna como atributo real de instancia porque resolver anotaciones
+        # dentro de {% include ... with %} recursiona en Django.
+        for t in ctx["tickets"]:
+            t.tomado = bool(getattr(t, "colabs_activos", []))
         return ctx
 
 
@@ -210,6 +225,7 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
         ctx["puede_gestionar_comentarios"] = _es_participante_activo(
             self.request.user, self.object
         )
+        ctx["tomado"] = self.object.ticketdesarrollador_set.filter(activo=True).exists()
         return ctx
 
     @staticmethod
@@ -229,15 +245,18 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
             # dev/coor siempre tiene al menos Tomar/Liberar; el dueño puede cerrar
             return es_dev_coor or usuario.pk == ticket.solicitante_id
         if ticket.estado in (EstadoTicket.PENDIENTE, EstadoTicket.REABIERTO):
-            # Ver el botón "Tomar ticket" solo si le falta tomar (ojalá dev y
-            # todavía no es colaborador activo). Un colaborador activo en un
-            # REABIERTO ya participa y no necesita tomar de nuevo.
-            return (
-                usuario.rol == RolUsuario.DESARROLLADOR
-                and not ticket.ticketdesarrollador_set.filter(
+            # PENDIENTE/REABIERTO: un dev que todavía no colabora ve "Tomar ticket".
+            # Un dev que YA colabora activamente (lo tiene tomado, p.ej. reabrió un
+            # ticket que cerró) ve Cerrar + Liberar, igual que un ticket EN_PROCESO
+            # tomado: no debe volver a "tomar" lo que ya tiene. Coordinador/dueño
+            # también pueden actuar sobre su ticket.
+            if usuario.rol == RolUsuario.DESARROLLADOR:
+                return True
+            if usuario.rol == RolUsuario.COORDINADOR or usuario.pk == ticket.solicitante_id:
+                return ticket.ticketdesarrollador_set.filter(
                     usuario=usuario, activo=True
                 ).exists()
-            )
+            return False
         return False
 
 
@@ -308,6 +327,12 @@ def cambiar_estado_ticket(request, pk):
     permitido = False
     if (
         ticket.estado == EstadoTicket.EN_PROCESO
+        and nuevo_estado == EstadoTicket.CERRADO
+        and (es_colaborador_activo or request.user.pk == ticket.solicitante_id)
+    ):
+        permitido = True
+    elif (
+        ticket.estado == EstadoTicket.REABIERTO
         and nuevo_estado == EstadoTicket.CERRADO
         and (es_colaborador_activo or request.user.pk == ticket.solicitante_id)
     ):
