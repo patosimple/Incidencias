@@ -15,6 +15,7 @@ from django.views.generic import CreateView, DetailView, ListView
 from .forms import CambioPasswordForm, ComentarioForm, TicketForm
 from .models import (
     Adjunto,
+    Comentario,
     EstadoTicket,
     RolUsuario,
     Sistema,
@@ -49,16 +50,31 @@ def _guardar_adjuntos(archivos, *, ticket=None, comentario=None, usuario):
     return guardados
 
 
+def _eliminar_adjuntos(adjuntos):
+    """Elimina de BD y borra el archivo físico de cada adjunto."""
+    for adj in adjuntos:
+        if adj.archivo:
+            adj.archivo.delete(save=False)
+        adj.delete()
+
+
+def _es_participante_activo(usuario, ticket):
+    """El dueño (solicitante) o un desarrollador/coordinador que colabora
+    activamente (NO liberado) en el ticket."""
+    if usuario.pk == ticket.solicitante_id:
+        return True
+    return ticket.ticketdesarrollador_set.filter(
+        usuario=usuario, activo=True
+    ).exists()
+
+
 def _puede_comentar(usuario, ticket):
-    """Solo el creador del ticket y quienes lo tomaron pueden comentar, y solo
-    si el ticket no está cerrado."""
+    """Solo el creador del ticket y los desarrolladores que lo están trabajando
+    (colaboradores ACTIVOS, no liberados) pueden comentar, y solo
+    si el ticket no está cerrado. Superuser también queda sujeto a estas reglas."""
     if ticket.estado == EstadoTicket.CERRADO:
         return False
-    if usuario.is_superuser:
-        return True
-    if ticket.solicitante_id == usuario.pk:
-        return True
-    return ticket.desarrolladores.filter(pk=usuario.pk).exists()
+    return _es_participante_activo(usuario, ticket)
 
 
 def _sistemas_visibles(usuario):
@@ -187,7 +203,20 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
         ctx["comentario_form"] = ComentarioForm()
         ctx["puede_actuar"] = self._puede_actuar(self.request.user, self.object)
         ctx["puede_comentar"] = _puede_comentar(self.request.user, self.object)
+        ctx["puede_liberar"] = self.object.ticketdesarrollador_set.filter(
+            usuario=self.request.user, activo=True
+        ).exists()
+        ctx["puede_cerrar"] = self._puede_cerrar(self.request.user, self.object)
+        ctx["puede_gestionar_comentarios"] = _es_participante_activo(
+            self.request.user, self.object
+        )
         return ctx
+
+    @staticmethod
+    def _puede_cerrar(usuario, ticket):
+        """Puede cerrar un ticket EN_PROCESO: el dueño (solicitante) o un
+        desarrollador/coordinador que esté colaborando activamente (NO liberado)."""
+        return _es_participante_activo(usuario, ticket)
 
     @staticmethod
     def _puede_actuar(usuario, ticket):
@@ -197,44 +226,90 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
             return True  # cualquiera puede reabrir
         es_dev_coor = usuario.rol in (RolUsuario.DESARROLLADOR, RolUsuario.COORDINADOR)
         if ticket.estado == EstadoTicket.EN_PROCESO:
-            return es_dev_coor
+            # dev/coor siempre tiene al menos Tomar/Liberar; el dueño puede cerrar
+            return es_dev_coor or usuario.pk == ticket.solicitante_id
         if ticket.estado in (EstadoTicket.PENDIENTE, EstadoTicket.REABIERTO):
-            return usuario.rol == RolUsuario.DESARROLLADOR
+            # Ver el botón "Tomar ticket" solo si le falta tomar (ojalá dev y
+            # todavía no es colaborador activo). Un colaborador activo en un
+            # REABIERTO ya participa y no necesita tomar de nuevo.
+            return (
+                usuario.rol == RolUsuario.DESARROLLADOR
+                and not ticket.ticketdesarrollador_set.filter(
+                    usuario=usuario, activo=True
+                ).exists()
+            )
         return False
 
 
 @login_required
 def tomar_ticket(request, pk):
-    """Un desarrollador se suma como colaborador del ticket (sin sacar a los demás).
-    Al tomar un ticket PENDIENTE o REABIERTO, este pasa automáticamente a EN_PROCESO."""
+    """Un desarrollador se suma como colaborador activo del ticket (sin sacar a los demás).
+    Al tomar el primer colaborador de un ticket PENDIENTE o REABIERTO, este pasa a EN_PROCESO
+    y se recuerda el estado previo (estado_previo) para restaurarlo al liberar."""
     if request.method != "POST":
         raise PermissionDenied
     ticket = get_object_or_404(Ticket, pk=pk)
     if request.user.rol != RolUsuario.DESARROLLADOR:
         raise PermissionDenied("Solo un desarrollador puede tomar un ticket.")
-    TicketDesarrollador.objects.get_or_create(ticket=ticket, usuario=request.user)
+    # Si había liberado antes, vuelve a ser colaborador activo (mantiene el único registro).
+    td, _ = TicketDesarrollador.objects.get_or_create(
+        ticket=ticket, usuario=request.user
+    )
+    if not td.activo:
+        td.activo = True
+        td.save(update_fields=["activo"])
     if ticket.estado in (EstadoTicket.PENDIENTE, EstadoTicket.REABIERTO):
+        ticket.estado_previo = ticket.estado
         ticket.estado = EstadoTicket.EN_PROCESO
-        ticket.save(update_fields=["estado"])
+        ticket.save(update_fields=["estado", "estado_previo"])
+    return redirect("ticket_detail", pk=pk)
+
+
+@login_required
+def liberar_ticket(request, pk):
+    """Un desarrollador/coordinador deja de trabajar el ticket (libera).
+    Se conserva el histórico de participación (activo=False) pero ya no puede comentar.
+    Si era el último colaborador activo, el ticket vuelve al estado previo
+    (PENDIENTE o REABIERTO) y se libera para que otro lo tome."""
+    if request.method != "POST":
+        raise PermissionDenied
+    ticket = get_object_or_404(Ticket, pk=pk)
+    es_dev_coor = request.user.rol in (RolUsuario.DESARROLLADOR, RolUsuario.COORDINADOR)
+    if not es_dev_coor:
+        raise PermissionDenied("Solo desarrollador/coordinador puede liberar un ticket.")
+    td = TicketDesarrollador.objects.filter(ticket=ticket, usuario=request.user).first()
+    if td is None or not td.activo:
+        raise PermissionDenied("No sos colaborador activo de este ticket.")
+    td.activo = False
+    td.save(update_fields=["activo"])
+
+    quedan_activos = ticket.ticketdesarrollador_set.filter(activo=True).exists()
+    if not quedan_activos:
+        ticket.estado = ticket.estado_previo or EstadoTicket.PENDIENTE
+        ticket.estado_previo = None
+        ticket.save(update_fields=["estado", "estado_previo"])
     return redirect("ticket_detail", pk=pk)
 
 
 @login_required
 def cambiar_estado_ticket(request, pk):
     """Cambio de estado por transicion, acotado por rol (sin select genérico).
-    - EN_PROCESO -> CERRADO / PENDIENTE: solo Desarrollador/Coordinador.
-    - CERRADO    -> REABIERTO: cualquier usuario autenticado."""
+    - EN_PROCESO -> CERRADO: solo Desarrollador/Coordinador.
+    - CERRADO    -> REABIERTO: cualquier usuario autenticado.
+    La vuelta de EN_PROCESO a PENDIENTE/REABIERTO la maneja liberar_ticket."""
     if request.method != "POST":
         raise PermissionDenied
     ticket = get_object_or_404(Ticket, pk=pk)
     nuevo_estado = request.POST.get("estado")
-    es_dev_coor = request.user.rol in (RolUsuario.DESARROLLADOR, RolUsuario.COORDINADOR)
+    es_colaborador_activo = ticket.ticketdesarrollador_set.filter(
+        usuario=request.user, activo=True
+    ).exists()
 
     permitido = False
     if (
         ticket.estado == EstadoTicket.EN_PROCESO
-        and nuevo_estado in (EstadoTicket.CERRADO, EstadoTicket.PENDIENTE)
-        and es_dev_coor
+        and nuevo_estado == EstadoTicket.CERRADO
+        and (es_colaborador_activo or request.user.pk == ticket.solicitante_id)
     ):
         permitido = True
     elif (
@@ -247,9 +322,10 @@ def cambiar_estado_ticket(request, pk):
         ticket.estado = nuevo_estado
         if nuevo_estado == EstadoTicket.CERRADO:
             ticket.cerrado_en = timezone.now()
+            ticket.estado_previo = None
         else:
             ticket.cerrado_en = None
-        ticket.save(update_fields=["estado", "cerrado_en"])
+        ticket.save(update_fields=["estado", "cerrado_en", "estado_previo"])
     else:
         raise PermissionDenied("Transición de estado no permitida.")
     return redirect("ticket_detail", pk=pk)
@@ -274,6 +350,55 @@ def agregar_comentario(request, pk):
             usuario=request.user,
         )
     return redirect("ticket_detail", pk=pk)
+
+
+@login_required
+def editar_comentario(request, pk):
+    """Edita un comentario (solo su autor, y debe seguir participando activamente:
+    dueño o colaborador activo; un dev liberado ya no puede editar sus comentarios)."""
+    comentario = get_object_or_404(Comentario, pk=pk)
+    if comentario.usuario != request.user:
+        raise PermissionDenied("Solo el autor puede editar su comentario.")
+    if not _es_participante_activo(request.user, comentario.ticket):
+        raise PermissionDenied("Ya no participás activamente en este ticket.")
+    if request.method == "POST":
+        form = ComentarioForm(request.POST, instance=comentario)
+        if form.is_valid():
+            comentario.modificado_en = timezone.now()
+            form.save()
+            # Agregar adjuntos nuevos
+            _guardar_adjuntos(
+                request.FILES.getlist("archivos"),
+                comentario=comentario,
+                usuario=request.user,
+            )
+            # Eliminar adjuntos marcados (borra el archivo físico + registro)
+            eliminar = request.POST.get("adjuntos_eliminar", "")
+            eliminar_pks = [p.strip() for p in eliminar.split(",") if p.strip().isdigit()]
+            if eliminar_pks:
+                a_eliminar = comentario.adjuntos.filter(pk__in=eliminar_pks)
+                _eliminar_adjuntos(a_eliminar)
+            messages.success(request, "Comentario actualizado.")
+        return redirect("ticket_detail", pk=comentario.ticket_id)
+    return redirect("ticket_detail", pk=comentario.ticket_id)
+
+
+@login_required
+def eliminar_comentario(request, pk):
+    """Elimina un comentario lógicamente (soft delete): solo su autor y solo POST;
+    debe seguir participando activamente (dueño o colaborador activo).
+    El registro se conserva (eliminado_en) para el histórico; se oculta de la vista."""
+    if request.method != "POST":
+        raise PermissionDenied
+    comentario = get_object_or_404(Comentario, pk=pk)
+    if comentario.usuario != request.user:
+        raise PermissionDenied("Solo el autor puede eliminar su comentario.")
+    if not _es_participante_activo(request.user, comentario.ticket):
+        raise PermissionDenied("Ya no participás activamente en este ticket.")
+    ticket_id = comentario.ticket_id
+    comentario.soft_delete()
+    messages.success(request, "Comentario eliminado.")
+    return redirect("ticket_detail", pk=ticket_id)
 
 
 @login_required

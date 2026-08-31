@@ -29,7 +29,7 @@
     {% if puede_actuar %}
     <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm p-4 sm:p-6">
         {% if ticket.estado == 'PENDIENTE' or ticket.estado == 'REABIERTO' %}
-            {% if user.rol == 'DESARROLLADOR' %}
+            {% if user.rol == 'DESARROLLADOR' and not puede_liberar %}
                 <form method="post" action="{% url 'ticket_tomar' ticket.pk %}">
                     {% csrf_token %}
                     <button type="submit"
@@ -39,8 +39,18 @@
                 </form>
             {% endif %}
         {% elif ticket.estado == 'EN_PROCESO' %}
-            {% if user.rol == 'DESARROLLADOR' or user.rol == 'COORDINADOR' %}
+            {% if user.rol == 'DESARROLLADOR' or user.rol == 'COORDINADOR' or puede_cerrar %}
             <div class="flex flex-col sm:flex-row gap-2">
+                {% if user.rol == 'DESARROLLADOR' and not puede_liberar %}
+                <form method="post" action="{% url 'ticket_tomar' ticket.pk %}">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
+                        Tomar ticket
+                    </button>
+                </form>
+                {% endif %}
+                {% if puede_cerrar %}
                 <form method="post" action="{% url 'ticket_cambiar_estado' ticket.pk %}">
                     {% csrf_token %}
                     <button type="submit" name="estado" value="CERRADO"
@@ -48,13 +58,16 @@
                         Cerrar
                     </button>
                 </form>
-                <form method="post" action="{% url 'ticket_cambiar_estado' ticket.pk %}">
+                {% endif %}
+                {% if puede_liberar %}
+                <form method="post" action="{% url 'ticket_liberar' ticket.pk %}">
                     {% csrf_token %}
-                    <button type="submit" name="estado" value="PENDIENTE"
+                    <button type="submit"
                             class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">
-                        Volver a pendiente
+                        Liberar
                     </button>
                 </form>
+                {% endif %}
             </div>
             {% endif %}
         {% elif ticket.estado == 'CERRADO' %}
@@ -104,8 +117,11 @@
             <ul class="space-y-2">
                 {% for td in ticket.ticketdesarrollador_set.all %}
                 <li class="flex items-center justify-between gap-3 text-sm">
-                    <span class="text-gray-700 dark:text-gray-200">{{ td.usuario.get_full_name|default:td.usuario.username }}</span>
-                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ td.tomado_en|date:"d/m/Y H:i" }}</span>
+                    <span class="text-gray-700 dark:text-gray-200 {% if not td.activo %}line-through opacity-60{% endif %}">{{ td.usuario.get_full_name|default:td.usuario.username }}</span>
+                    <span class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        {% if not td.activo %}<span class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-gray-400">Liberado</span>{% endif %}
+                        <span>{{ td.tomado_en|date:"d/m/Y H:i" }}</span>
+                    </span>
                 </li>
                 {% endfor %}
             </ul>
@@ -117,19 +133,86 @@
     <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm p-4 sm:p-6 space-y-4">
         <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Comentarios ({{ ticket.comentarios.count }})</h2>
 
-        <div class="space-y-4">
+        <div class="space-y-4" id="comentarios-lista">
             {% for comentario in ticket.comentarios.all %}
             {% with rol=comentario.usuario.rol %}
-            <div class="border-l-2 {% if rol == 'DESARROLLADOR' %}border-emerald-600{% elif rol == 'COORDINADOR' %}border-purple-600{% else %}border-brand-600{% endif %} pl-3">
+            <div class="border-l-2 {% if rol == 'DESARROLLADOR' %}border-emerald-600{% elif rol == 'COORDINADOR' %}border-purple-600{% else %}border-brand-600{% endif %} pl-3" id="comentario-{{ comentario.pk }}">
                 <div class="flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
                     <span class="font-medium text-gray-700 dark:text-gray-200">
                         {{ comentario.usuario.get_full_name|default:comentario.usuario.username }}
                     </span>
-                    <span>{{ comentario.creado_en|date:"d/m/Y H:i" }}</span>
+                    <span>
+                        {{ comentario.creado_en|date:"d/m/Y H:i" }}
+                        {% if comentario.modificado_en %}<span class="italic text-gray-400 dark:text-gray-500">· editado {{ comentario.modificado_en|date:"d/m/Y H:i" }}</span>{% endif %}
+                    </span>
                 </div>
-                <div class="mt-1 text-sm text-gray-700 dark:text-gray-200 break-words leading-relaxed">
+                <div class="mt-1 text-sm text-gray-700 dark:text-gray-200 break-words leading-relaxed comentario-cuerpo">
                     {{ comentario.cuerpo|safe }}
                 </div>
+                {% if user.is_authenticated and comentario.usuario == user and puede_gestionar_comentarios %}
+                <div class="mt-1.5 flex items-center gap-2 text-xs">
+                    <span class="flex gap-1.5" data-comentario-acciones="{{ comentario.pk }}">
+                        <button type="button" data-editar-comentario="{{ comentario.pk }}" title="Editar"
+                                class="p-1.5 rounded text-brand-700 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-slate-700 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                        </button>
+                        <form method="post" action="{% url 'comentario_eliminar' comentario.pk %}"
+                              class="inline eliminar-comentario-form" data-pk="{{ comentario.pk }}">
+                            {% csrf_token %}
+                            <button type="submit" title="Eliminar"
+                                    class="p-1.5 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
+                        </form>
+                    </span>
+                </div>
+                <form method="post" action="{% url 'comentario_editar' comentario.pk %}"
+                      class="hidden mt-2 space-y-2 editar-comentario-form" data-form-comentario="{{ comentario.pk }}" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+                    <textarea name="cuerpo" class="hidden">{{ comentario.cuerpo }}</textarea>
+                    <div class="quill-editor bg-white dark:bg-slate-700"></div>
+                    <div class="pt-1">
+                        <div class="flex items-center gap-2">
+                            <input type="file" id="archivos-edit-{{ comentario.pk }}" name="archivos" multiple class="hidden">
+                            <button type="button" id="btn-adjuntar-edit-{{ comentario.pk }}"
+                                    class="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400 hover:text-brand-900 dark:hover:text-brand-300">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                                Adjuntar archivos
+                            </button>
+                        </div>
+                        <ul id="adjuntos-edit-lista-{{ comentario.pk }}" class="mt-2 space-y-1">
+                            {% for adj in comentario.adjuntos.all %}
+                            <li class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200" data-adj-existente="{{ adj.pk }}">
+                                <span class="w-4 h-4 shrink-0 text-gray-400">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                </span>
+                                <span>{{ adj.nombre_archivo }}</span>
+                                <span class="ml-auto">
+                                    <button type="button" title="Quitar" data-quitar-existente="{{ adj.pk }}"
+                                            class="p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                </span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        <input type="hidden" name="adjuntos_eliminar" value="">
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Podés agregar archivos o quitar los existentes (se borran del servidor).</p>
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" data-cancelar-editar="{{ comentario.pk }}"
+                                class="px-3 py-1.5 rounded text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">Cancelar</button>
+                        <button type="submit"
+                                class="px-3 py-1.5 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">Guardar</button>
+                    </div>
+                </form>
+                {% endif %}
                 {% if comentario.adjuntos.all %}
                 <div class="mt-2 flex flex-wrap gap-2">
                     {% for adj in comentario.adjuntos.all %}
@@ -205,6 +288,7 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
   (function () {
     var css = ["w-full", "text-sm", "bg-white", "dark:bg-slate-700", "text-gray-800",
@@ -234,23 +318,16 @@
       });
     }
 
-    // Adjuntos acumulativos (de a uno, se van sumando)
+    // Adjuntos acumulativos del comentario nuevo (con opción de quitar)
     var btnAdjuntar = document.getElementById('btn-adjuntar-comentario');
     var fileInput = document.getElementById('archivos-comentario');
     var lista = document.getElementById('adjuntos-lista');
     var form = document.getElementById('comentario-form');
     if (btnAdjuntar && fileInput && lista) {
-      var dt = (window.DataTransfer ? new DataTransfer() : { items: [] });
       var items = [];
-      btnAdjuntar.addEventListener('click', function () { fileInput.click(); });
-      fileInput.addEventListener('change', function () {
-        Array.prototype.forEach.call(fileInput.files, function (f) {
-          items.push(f);
-          if (window.DataTransfer) dt.items.add(f);
-        });
-        fileInput.value = ''; // permite volver a elegir el mismo archivo
+      function renderLista() {
         lista.innerHTML = '';
-        items.forEach(function (f) {
+        items.forEach(function (f, idx) {
           var li = document.createElement('li');
           li.className = 'flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200';
           var ic = document.createElement('span');
@@ -258,12 +335,33 @@
           ic.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>';
           li.appendChild(ic);
           li.appendChild(document.createTextNode(' ' + f.name));
+          var span = document.createElement('span');
+          span.className = 'ml-auto';
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.title = 'Quitar';
+          btn.className = 'p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors';
+          btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+          btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            items.splice(idx, 1);
+            renderLista();
+          });
+          span.appendChild(btn);
+          li.appendChild(span);
           lista.appendChild(li);
         });
+      }
+      btnAdjuntar.addEventListener('click', function () { fileInput.click(); });
+      fileInput.addEventListener('change', function () {
+        Array.prototype.forEach.call(fileInput.files, function (f) {
+          items.push(f);
+        });
+        fileInput.value = ''; // permite volver a elegir el mismo archivo
+        renderLista();
       });
       if (form) {
         form.addEventListener('submit', function () {
-          // reunir todos los archivos elegidos y asignarlos al input
           var finalDt = (window.DataTransfer ? new DataTransfer() : null);
           if (finalDt) {
             items.forEach(function (f) { finalDt.items.add(f); });
@@ -272,6 +370,147 @@
         });
       }
     }
+
+    // Editar / eliminar comentario (solo autor): toggle form inline + Quill
+    var editores = {}; // pk -> instancia Quill
+    function cargarEditor(form) {
+      var pk = form.getAttribute('data-form-comentario');
+      var textarea = form.querySelector('textarea[name=cuerpo]');
+      var contenedor = form.querySelector('.quill-editor');
+      var quill = new Quill(contenedor, {
+        theme: 'snow',
+        placeholder: 'Editar comentario...',
+        modules: { toolbar: [['bold', 'italic', 'underline', 'strike'], [{ 'list': 'ordered' }, { 'list': 'bullet' }], ['link']] }
+      });
+      // inicializar con el contenido existente
+      var contenido = textarea.value;
+      if (contenido) {
+        try { quill.clipboard.dangerouslyPasteHTML(contenido); } catch (e) {}
+      }
+      editores[pk] = quill;
+      return quill;
+    }
+    document.querySelectorAll('[data-editar-comentario]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var pk = btn.getAttribute('data-editar-comentario');
+        var form = document.querySelector('[data-form-comentario="' + pk + '"]');
+        if (!form) return;
+        form.classList.remove('hidden');
+        if (!editores[pk]) cargarEditor(form);
+      });
+    });
+    document.querySelectorAll('[data-cancelar-editar]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var pk = btn.getAttribute('data-cancelar-editar');
+        var form = document.querySelector('[data-form-comentario="' + pk + '"]');
+        if (form) form.classList.add('hidden');
+      });
+    });
+    (function bindSubmitEditores() {
+      document.querySelectorAll('.editar-comentario-form').forEach(function (form) {
+        form.addEventListener('submit', function () {
+          var pk = form.getAttribute('data-form-comentario');
+          var textarea = form.querySelector('textarea[name=cuerpo]');
+          var quill = editores[pk];
+          if (quill) textarea.value = quill.root.innerHTML;
+        });
+      });
+    })();
+
+    // Adjuntos en el editor del comentario: agregar nuevos / quitar existentes
+    document.querySelectorAll('.editar-comentario-form').forEach(function (form) {
+      var pk = form.getAttribute('data-form-comentario');
+      var btn = form.querySelector('#btn-adjuntar-edit-' + pk);
+      var input = form.querySelector('#archivos-edit-' + pk);
+      var lista = form.querySelector('#adjuntos-edit-lista-' + pk);
+      var hidden = form.querySelector('input[name=adjuntos_eliminar]');
+      if (!input) return;
+
+      var nuevos = []; // archivos nuevos agregados en esta edición
+
+      function renderNuevo(f, idx) {
+        var li = document.createElement('li');
+        li.className = 'flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400';
+        var ic = document.createElement('span');
+        ic.className = 'w-4 h-4 shrink-0 text-gray-400';
+        ic.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>';
+        li.appendChild(ic);
+        var t = document.createElement('span');
+        t.textContent = f.name + ' (nuevo)';
+        li.appendChild(t);
+        var span = document.createElement('span');
+        span.className = 'ml-auto';
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.title = 'Quitar';
+        b.className = 'p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors';
+        b.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+        b.addEventListener('click', function (e) {
+          e.preventDefault();
+          nuevos.splice(idx, 1);
+          li.remove();
+        });
+        span.appendChild(b);
+        li.appendChild(span);
+        lista.appendChild(li);
+      }
+
+      // Quitar existente: lo tacha y lo marca en el hidden para eliminar
+      lista.querySelectorAll('[data-quitar-existente]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var adjPk = b.getAttribute('data-quitar-existente');
+          var li = b.closest('li');
+          if (!li) return;
+          li.classList.add('opacity-40', 'line-through');
+          b.disabled = true;
+          var marcados = hidden.value ? hidden.value.split(',') : [];
+          if (marcados.indexOf(adjPk) === -1) marcados.push(adjPk);
+          hidden.value = marcados.join(',');
+        });
+      });
+
+      if (btn) {
+        btn.addEventListener('click', function () { input.click(); });
+      }
+      input.addEventListener('change', function () {
+        Array.prototype.forEach.call(input.files, function (f) { nuevos.push(f); });
+        input.value = '';
+        var from = lista.children.length;
+        nuevos.forEach(function (f, idx) { renderNuevo(f, idx); });
+      });
+
+      form.addEventListener('submit', function () {
+        var finalDt = (window.DataTransfer ? new DataTransfer() : null);
+        if (finalDt) {
+          nuevos.forEach(function (f) { finalDt.items.add(f); });
+          try { input.files = finalDt.files; } catch (e) {}
+        }
+      });
+    });
+
+    // Confirmación de eliminar comentario con SweetAlert2
+    document.querySelectorAll('.eliminar-comentario-form').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var dark = document.documentElement.classList.contains('dark');
+        Swal.fire({
+          title: '¿Eliminar comentario?',
+          text: 'Esta acción no se puede deshacer.',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          cancelButtonColor: '#6b7280',
+          confirmButtonText: 'Sí, eliminar',
+          cancelButtonText: 'Cancelar',
+          background: dark ? '#1f2937' : '#ffffff',
+          color: dark ? '#f3f4f6' : '#111827'
+        }).then(function (result) {
+          if (result.isConfirmed) {
+            form.submit();
+          }
+        });
+      });
+    });
   })();
 </script>
 {% endblock %}

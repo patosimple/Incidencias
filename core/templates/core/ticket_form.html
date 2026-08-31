@@ -109,23 +109,16 @@
       });
     }
 
-    // Adjuntos acumulativos (de a uno, se van sumando)
+    // Adjuntos acumulativos (de a uno) con opción de quitar antes de guardar
     var btnAdjuntar = document.getElementById('btn-adjuntar-ticket');
     var fileInput = document.getElementById('archivos-ticket');
     var lista = document.getElementById('adjuntos-lista');
     var form = document.getElementById('ticket-form');
     if (btnAdjuntar && fileInput && lista) {
       var items = [];
-      var dt = (window.DataTransfer ? new DataTransfer() : null);
-      btnAdjuntar.addEventListener('click', function () { fileInput.click(); });
-      fileInput.addEventListener('change', function () {
-        Array.prototype.forEach.call(fileInput.files, function (f) {
-          items.push(f);
-          if (dt) dt.items.add(f);
-        });
-        fileInput.value = ''; // permite volver a elegir el mismo archivo
+      function renderLista() {
         lista.innerHTML = '';
-        items.forEach(function (f) {
+        items.forEach(function (f, idx) {
           var li = document.createElement('li');
           li.className = 'flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200';
           var ic = document.createElement('span');
@@ -133,8 +126,30 @@
           ic.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>';
           li.appendChild(ic);
           li.appendChild(document.createTextNode(' ' + f.name));
+          var span = document.createElement('span');
+          span.className = 'ml-auto';
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.title = 'Quitar';
+          btn.className = 'p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors';
+          btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+          btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            items.splice(idx, 1);
+            renderLista();
+          });
+          span.appendChild(btn);
+          li.appendChild(span);
           lista.appendChild(li);
         });
+      }
+      btnAdjuntar.addEventListener('click', function () { fileInput.click(); });
+      fileInput.addEventListener('change', function () {
+        Array.prototype.forEach.call(fileInput.files, function (f) {
+          items.push(f);
+        });
+        fileInput.value = ''; // permite volver a elegir el mismo archivo
+        renderLista();
       });
       if (form) {
         form.addEventListener('submit', function () {

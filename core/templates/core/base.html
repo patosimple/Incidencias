@@ -55,7 +55,9 @@
            class="hidden md:flex shrink-0 bg-brand-950 text-white flex-col w-56 transition-all duration-200">
         <a id="sidebar-brand" href="{% url 'home' %}" title="Inicio"
            class="flex items-center gap-2 px-4 py-4 border-b border-brand-800">
-            <div class="w-8 h-8 rounded bg-brand-600 flex items-center justify-center font-bold shrink-0">F</div>
+            <div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 p-1 shadow-sm">
+                <img src="{% static 'core/img/logo_urna.png' %}" alt="Logo" class="w-full h-full object-contain">
+            </div>
             <div id="sidebar-brand-text" class="leading-tight">
                 <div class="font-bold text-sm whitespace-nowrap">FINANCIAMIENTO</div>
                 <div class="text-[10px] text-brand-300 uppercase tracking-wide whitespace-nowrap">Agrupaciones políticas</div>
@@ -101,7 +103,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                     </svg>
                 </button>
-                <a href="{% url 'home' %}" class="text-sm font-medium truncate">Reporte de Incidencias</a>
+                <a href="{% url 'home' %}" class="text-sm font-medium truncate">REPORTE DE INCIDENCIAS</a>
             </div>
             {% if user.is_authenticated %}
             <div class="flex items-center gap-1 sm:gap-2 shrink-0">
@@ -180,7 +182,9 @@
             <aside class="absolute inset-y-0 left-0 w-64 bg-brand-950 text-white flex flex-col shadow-xl
                           -translate-x-full transition-transform duration-200 pointer-events-auto">
                 <a href="{% url 'home' %}" title="Inicio" class="flex items-center gap-2 px-4 py-4 border-b border-brand-800">
-                    <div class="w-8 h-8 rounded bg-brand-600 flex items-center justify-center font-bold">F</div>
+                    <div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center p-1 shadow-sm">
+                        <img src="{% static 'core/img/logo_urna.png' %}" alt="Logo" class="w-full h-full object-contain">
+                    </div>
                     <div class="leading-tight">
                         <div class="font-bold text-sm">FINANCIAMIENTO</div>
                         <div class="text-[10px] text-brand-300 uppercase tracking-wide">Agrupaciones políticas</div>

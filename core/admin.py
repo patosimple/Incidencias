@@ -65,7 +65,12 @@ class TicketDesarrolladorAdmin(admin.ModelAdmin):
 
 @admin.register(Comentario)
 class ComentarioAdmin(admin.ModelAdmin):
-    list_display = ("ticket", "usuario", "creado_en")
+    list_display = ("ticket", "usuario", "creado_en", "eliminado_en")
+    list_filter = ("eliminado_en",)
+
+    def get_queryset(self, request):
+        # En el admin se ven también los comentarios eliminados lógicamente
+        return Comentario.all_objects.all()
 
 
 @admin.register(Adjunto)

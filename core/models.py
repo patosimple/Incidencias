@@ -9,6 +9,7 @@ Ubicación sugerida: core/models.py (ajustar el nombre de la app si usás otro).
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 
 # ---------------------------------------------------------------------------
@@ -82,6 +83,11 @@ class Ticket(models.Model):
     estado = models.CharField(
         max_length=20, choices=EstadoTicket.choices, default=EstadoTicket.PENDIENTE
     )
+    # Recuerda el estado previo (PENDIENTE/REABIERTO) antes de la sesión EN_PROCESO,
+    # para restaurarlo al liberar el último colaborador activo. Se limpia al cerrar.
+    estado_previo = models.CharField(
+        max_length=20, choices=EstadoTicket.choices, null=True, blank=True
+    )
     creado_en = models.DateTimeField(auto_now_add=True)
     cerrado_en = models.DateTimeField(null=True, blank=True)
 
@@ -105,6 +111,9 @@ class TicketDesarrollador(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE)
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
     tomado_en = models.DateTimeField(auto_now_add=True)
+    # True = colaborador activo (trabajando el ticket). False = liberó el ticket
+    # (se conserva el histórico de quién participó, pero ya no puede comentar).
+    activo = models.BooleanField(default=True)
 
     class Meta:
         unique_together = ("ticket", "usuario")
@@ -116,11 +125,34 @@ class TicketDesarrollador(models.Model):
 # Comentario
 # ---------------------------------------------------------------------------
 
+class ComentarioQuerySet(models.QuerySet):
+    def visibles(self):
+        """Excluye los comentarios eliminados lógicamente (soft delete)."""
+        return self.filter(eliminado_en__isnull=True)
+
+
+class ComentarioManager(models.Manager):
+    def get_queryset(self):
+        # El manager por defecto oculta los comentarios eliminados lógicamente
+        return super().get_queryset().filter(eliminado_en__isnull=True)
+
+
 class Comentario(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name="comentarios")
     usuario = models.ForeignKey(Usuario, on_delete=models.PROTECT)
     cuerpo = models.TextField(help_text="Texto enriquecido (HTML/Markdown)")
     creado_en = models.DateTimeField(auto_now_add=True)
+    modificado_en = models.DateTimeField(null=True, blank=True, help_text="Última edición (solo autor)")
+    # Soft delete: al borrar un comentario se setea eliminado_en (NULL = visible).
+    # El registro se conserva (histórico); se oculta con el manager por defecto.
+    eliminado_en = models.DateTimeField(null=True, blank=True)
+
+    objects = ComentarioManager()
+    all_objects = models.Manager()
+
+    def soft_delete(self):
+        self.eliminado_en = timezone.now()
+        self.save(update_fields=["eliminado_en"])
 
     class Meta:
         verbose_name = "Comentario"

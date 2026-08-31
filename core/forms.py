@@ -1,7 +1,32 @@
+import nh3
+
 from django import forms
 from django.contrib.auth.forms import PasswordChangeForm
 
 from .models import Ticket, Comentario
+
+# Tags/atributos que Quill genera con formato seguro (sin scripts ni eventos).
+# nh3 elimina por defecto <script>, eventos inline (onerror, onclick, ...) y
+# URLs peligrosas (javascript:); acá solo ampliamos la lista blanca base.
+_QUILL_TAGS = {
+    "p", "br", "strong", "b", "em", "i", "u", "s", "strike",
+    "ol", "ul", "li",
+    "blockquote", "code", "pre",
+    "h1", "h2", "h3",
+    "a", "img",
+}
+_QUILL_ATTRIBUTES = {
+    "a": {"href", "title", "target"},
+    "img": {"src", "alt", "title"},
+}
+
+
+def _sanear_html(html):
+    """Sanea el HTML que genera Quill: conserva el formato básico permitido
+    y elimina scripts/eventos/URLs peligrosas (mitigación de XSS)."""
+    if not html:
+        return html
+    return nh3.clean(html, tags=_QUILL_TAGS, attributes=_QUILL_ATTRIBUTES)
 
 
 _PASSWORD_INPUT_CSS = (
@@ -39,6 +64,9 @@ class TicketForm(forms.ModelForm):
                 usuariosistema__usuario=usuario
             )
 
+    def clean_descripcion_original(self):
+        return _sanear_html(self.cleaned_data.get("descripcion_original"))
+
 
 class ComentarioForm(forms.ModelForm):
     class Meta:
@@ -47,3 +75,6 @@ class ComentarioForm(forms.ModelForm):
         widgets = {
             "cuerpo": forms.Textarea(attrs={"rows": 3, "placeholder": "Escriba una respuesta..."}),
         }
+
+    def clean_cuerpo(self):
+        return _sanear_html(self.cleaned_data.get("cuerpo"))
