@@ -147,7 +147,6 @@ class Command(BaseCommand):
 
     def _seed_tickets(self, solicitantes, n):
         sistemas = list(Sistema.objects.all())
-        estados = [e[0] for e in EstadoTicket.choices]
         contador = 0
         for _ in range(n):
             Ticket.objects.create(
@@ -155,7 +154,7 @@ class Command(BaseCommand):
                 sistema=random.choice(sistemas),
                 solicitante=random.choice(solicitantes),
                 descripcion_original=_parrafo_lorem(),
-                estado=random.choice(estados),
+                estado=EstadoTicket.PENDIENTE,
             )
             contador += 1
         self.stdout.write(f"  Tickets creados: {contador}")
