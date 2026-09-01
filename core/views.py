@@ -138,6 +138,19 @@ class TicketListView(LoginRequiredMixin, ListView):
             if q:
                 qs = qs.filter(titulo__icontains=q)
 
+            # Filtro "tomado" relativo al desarrollador logueado (solo devs):
+            #   por_mi    -> colaborador activo = el usuario actual
+            #   por_otros -> ticket tomado (colab activo) pero NO por el usuario
+            #   sin_tomar -> sin ningún colaborador activo
+            tomado = self.request.GET.get("tomado")
+            if tomado and usuario.rol == RolUsuario.DESARROLLADOR:
+                if tomado == "por_mi":
+                    qs = qs.filter(ticketdesarrollador__usuario=usuario, ticketdesarrollador__activo=True).distinct()
+                elif tomado == "por_otros":
+                    qs = qs.exclude(ticketdesarrollador__usuario=usuario, ticketdesarrollador__activo=True).filter(ticketdesarrollador__activo=True).distinct()
+                elif tomado == "sin_tomar":
+                    qs = qs.exclude(ticketdesarrollador__activo=True).distinct()
+
         # Prefetch de colaboradores activos (read-only) para pintar el badge
         # de ticket reabierto "tomado" (verde) vs "sin tomar" (rojo).
         qs = qs.prefetch_related(
@@ -163,11 +176,17 @@ class TicketListView(LoginRequiredMixin, ListView):
         else:
             ctx["sistemas_disponibles"] = _sistemas_visibles(usuario)
         ctx["estados_disponibles"] = EstadoTicket.choices
+        # Select "tomado/sin tomar" solo visible para desarrolladores
+        ctx["es_desarrollador"] = usuario.rol == RolUsuario.DESARROLLADOR
         # Marcar "tomado" (tiene colaborador activo) por ticket para el badge.
         # Se asigna como atributo real de instancia porque resolver anotaciones
         # dentro de {% include ... with %} recursiona en Django.
         for t in ctx["tickets"]:
             t.tomado = bool(getattr(t, "colabs_activos", []))
+            t.tomado_mi = any(
+                td.usuario_id == usuario.pk
+                for td in getattr(t, "colabs_activos", [])
+            )
         return ctx
 
 
@@ -222,6 +241,7 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
             usuario=self.request.user, activo=True
         ).exists()
         ctx["puede_cerrar"] = self._puede_cerrar(self.request.user, self.object)
+        ctx["puede_reabrir"] = self._puede_reabrir(self.request.user, self.object)
         ctx["puede_gestionar_comentarios"] = _es_participante_activo(
             self.request.user, self.object
         )
@@ -230,34 +250,33 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
 
     @staticmethod
     def _puede_cerrar(usuario, ticket):
-        """Puede cerrar un ticket EN_PROCESO: el dueño (solicitante) o un
-        desarrollador/coordinador que esté colaborando activamente (NO liberado)."""
-        return _es_participante_activo(usuario, ticket)
+        """Cualquier actor con rol de gestión (dueño solicitante, desarrollador,
+        coordinador) puede cerrar un ticket abierto (EN_PROCESO, PENDIENTE,
+        REABIERTO). No tiene sentido cerrar un ticket ya cerrado."""
+        if ticket.estado == EstadoTicket.CERRADO:
+            return False
+        if usuario.rol in (RolUsuario.DESARROLLADOR, RolUsuario.COORDINADOR):
+            return True
+        return usuario.pk == ticket.solicitante_id
+
+    @staticmethod
+    def _puede_reabrir(usuario, ticket):
+        """Solo actor con rol de gestión (dueño solicitante, desarrollador,
+        coordinador) puede reabrir un ticket cerrado."""
+        if ticket.estado != EstadoTicket.CERRADO:
+            return False
+        if usuario.rol in (RolUsuario.DESARROLLADOR, RolUsuario.COORDINADOR):
+            return True
+        return usuario.pk == ticket.solicitante_id
 
     @staticmethod
     def _puede_actuar(usuario, ticket):
-        """El usuario ve la tarjeta de acciones si tiene al menos un botón disponible
-        para el estado actual del ticket."""
-        if ticket.estado == EstadoTicket.CERRADO:
-            return True  # cualquiera puede reabrir
-        es_dev_coor = usuario.rol in (RolUsuario.DESARROLLADOR, RolUsuario.COORDINADOR)
-        if ticket.estado == EstadoTicket.EN_PROCESO:
-            # dev/coor siempre tiene al menos Tomar/Liberar; el dueño puede cerrar
-            return es_dev_coor or usuario.pk == ticket.solicitante_id
-        if ticket.estado in (EstadoTicket.PENDIENTE, EstadoTicket.REABIERTO):
-            # PENDIENTE/REABIERTO: un dev que todavía no colabora ve "Tomar ticket".
-            # Un dev que YA colabora activamente (lo tiene tomado, p.ej. reabrió un
-            # ticket que cerró) ve Cerrar + Liberar, igual que un ticket EN_PROCESO
-            # tomado: no debe volver a "tomar" lo que ya tiene. Coordinador/dueño
-            # también pueden actuar sobre su ticket.
-            if usuario.rol == RolUsuario.DESARROLLADOR:
-                return True
-            if usuario.rol == RolUsuario.COORDINADOR or usuario.pk == ticket.solicitante_id:
-                return ticket.ticketdesarrollador_set.filter(
-                    usuario=usuario, activo=True
-                ).exists()
-            return False
-        return False
+        """El usuario ve la tarjeta de acciones si tiene al menos un botón
+        disponible: todo actor con rol de gestión (dev, coor o dueño) puede
+        actuar sobre el ticket en cualquier estado (cerrar, reabrir, tomar/liberar)."""
+        if usuario.rol in (RolUsuario.DESARROLLADOR, RolUsuario.COORDINADOR):
+            return True
+        return usuario.pk == ticket.solicitante_id
 
 
 @login_required
@@ -313,46 +332,58 @@ def liberar_ticket(request, pk):
 @login_required
 def cambiar_estado_ticket(request, pk):
     """Cambio de estado por transicion, acotado por rol (sin select genérico).
-    - EN_PROCESO -> CERRADO: solo Desarrollador/Coordinador.
-    - CERRADO    -> REABIERTO: cualquier usuario autenticado.
-    La vuelta de EN_PROCESO a PENDIENTE/REABIERTO la maneja liberar_ticket."""
+    - Cualquier estado abierto (EN_PROCESO/PENDIENTE/REABIERTO) -> CERRADO:
+      dueño, desarrollador o coordinador.
+    - CERRADO -> REABIERTO: dueño, desarrollador o coordinador. Si lo reabre
+      un desarrollador que no era colaborador, pasa a ser colaborador activo."""
     if request.method != "POST":
         raise PermissionDenied
     ticket = get_object_or_404(Ticket, pk=pk)
     nuevo_estado = request.POST.get("estado")
-    es_colaborador_activo = ticket.ticketdesarrollador_set.filter(
-        usuario=request.user, activo=True
-    ).exists()
+    es_actor_gestion = (
+        request.user.rol in (RolUsuario.DESARROLLADOR, RolUsuario.COORDINADOR)
+        or request.user.pk == ticket.solicitante_id
+    )
 
     permitido = False
     if (
-        ticket.estado == EstadoTicket.EN_PROCESO
-        and nuevo_estado == EstadoTicket.CERRADO
-        and (es_colaborador_activo or request.user.pk == ticket.solicitante_id)
+        nuevo_estado == EstadoTicket.CERRADO
+        and ticket.estado != EstadoTicket.CERRADO
+        and es_actor_gestion
     ):
+        # Cerrar desde cualquier estado abierto (EN_PROCESO, PENDIENTE, REABIERTO)
         permitido = True
     elif (
-        ticket.estado == EstadoTicket.REABIERTO
-        and nuevo_estado == EstadoTicket.CERRADO
-        and (es_colaborador_activo or request.user.pk == ticket.solicitante_id)
-    ):
-        permitido = True
-    elif (
-        ticket.estado == EstadoTicket.CERRADO
-        and nuevo_estado == EstadoTicket.REABIERTO
+        nuevo_estado == EstadoTicket.REABIERTO
+        and ticket.estado == EstadoTicket.CERRADO
+        and es_actor_gestion
     ):
         permitido = True
 
-    if permitido:
-        ticket.estado = nuevo_estado
-        if nuevo_estado == EstadoTicket.CERRADO:
-            ticket.cerrado_en = timezone.now()
-            ticket.estado_previo = None
-        else:
-            ticket.cerrado_en = None
-        ticket.save(update_fields=["estado", "cerrado_en", "estado_previo"])
-    else:
+    if not permitido:
         raise PermissionDenied("Transición de estado no permitida.")
+
+    if nuevo_estado == EstadoTicket.CERRADO:
+        ticket.cerrado_en = timezone.now()
+        ticket.estado_previo = None
+    elif nuevo_estado == EstadoTicket.REABIERTO:
+        ticket.cerrado_en = None
+        # Si reabre un desarrollador que no es colaborador, se suma como colaborador activo.
+        if (
+            request.user.rol == RolUsuario.DESARROLLADOR
+            and not ticket.ticketdesarrollador_set.filter(
+                usuario=request.user, activo=True
+            ).exists()
+        ):
+            td, _ = TicketDesarrollador.objects.get_or_create(
+                ticket=ticket, usuario=request.user
+            )
+            if not td.activo:
+                td.activo = True
+                td.save(update_fields=["activo"])
+
+    ticket.estado = nuevo_estado
+    ticket.save(update_fields=["estado", "cerrado_en", "estado_previo"])
     return redirect("ticket_detail", pk=pk)
 
 

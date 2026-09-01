@@ -1,9 +1,38 @@
 import nh3
 
 from django import forms
-from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth.forms import PasswordChangeForm, UserCreationForm
 
-from .models import Ticket, Comentario
+from .models import Ticket, Comentario, Usuario
+
+
+class UsuarioCreationForm(UserCreationForm):
+    """Form de alta de usuario del admin: muestra los mismos campos que la
+    edición (datos personales, permisos y rol) para poder asignarlos al crear.
+    El campo `rol` es obligatorio (igual que en editar, con la opción vacía
+    "-----" por defecto). password1/password2 (del UserCreationForm) manejan
+    la contraseña; se excluyen los campos automáticos del modelo
+    (password, date_joined, last_login)."""
+
+    class Meta:
+        model = Usuario
+        fields = (
+            "username",
+            "rol",
+            "first_name",
+            "last_name",
+            "email",
+            "is_staff",
+            "is_active",
+            "is_superuser",
+            "groups",
+            "user_permissions",
+        )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["username"].help_text = None
+        self.fields["password1"].help_text = None
 
 # Tags/atributos que Quill genera con formato seguro (sin scripts ni eventos).
 # nh3 elimina por defecto <script>, eventos inline (onerror, onclick, ...) y

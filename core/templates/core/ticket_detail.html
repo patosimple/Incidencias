@@ -28,78 +28,47 @@
     <!-- Acciones -->
     {% if puede_actuar %}
     <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm p-4 sm:p-6">
-        {% if ticket.estado == 'PENDIENTE' or ticket.estado == 'REABIERTO' %}
+    {% if ticket.estado == 'CERRADO' %}
+        {% if puede_reabrir %}
+        <form method="post" action="{% url 'ticket_cambiar_estado' ticket.pk %}">
+            {% csrf_token %}
+            <button type="submit" name="estado" value="REABIERTO"
+                    class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
+                Reabrir
+            </button>
+        </form>
+        {% endif %}
+    {% else %}
+        <div class="flex flex-col sm:flex-row gap-2">
             {% if user.rol == 'DESARROLLADOR' and not puede_liberar %}
-                <form method="post" action="{% url 'ticket_tomar' ticket.pk %}">
-                    {% csrf_token %}
-                    <button type="submit"
-                            class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
-                        Tomar ticket
-                    </button>
-                </form>
-            {% elif puede_cerrar or puede_liberar %}
-            <div class="flex flex-col sm:flex-row gap-2">
-                {% if puede_cerrar %}
-                <form method="post" action="{% url 'ticket_cambiar_estado' ticket.pk %}">
-                    {% csrf_token %}
-                    <button type="submit" name="estado" value="CERRADO"
-                            class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
-                        Cerrar
-                    </button>
-                </form>
-                {% endif %}
-                {% if puede_liberar %}
-                <form method="post" action="{% url 'ticket_liberar' ticket.pk %}">
-                    {% csrf_token %}
-                    <button type="submit"
-                            class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">
-                        Liberar
-                    </button>
-                </form>
-                {% endif %}
-            </div>
-            {% endif %}
-        {% elif ticket.estado == 'EN_PROCESO' %}
-            {% if user.rol == 'DESARROLLADOR' or user.rol == 'COORDINADOR' or puede_cerrar %}
-            <div class="flex flex-col sm:flex-row gap-2">
-                {% if user.rol == 'DESARROLLADOR' and not puede_liberar %}
-                <form method="post" action="{% url 'ticket_tomar' ticket.pk %}">
-                    {% csrf_token %}
-                    <button type="submit"
-                            class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
-                        Tomar ticket
-                    </button>
-                </form>
-                {% endif %}
-                {% if puede_cerrar %}
-                <form method="post" action="{% url 'ticket_cambiar_estado' ticket.pk %}">
-                    {% csrf_token %}
-                    <button type="submit" name="estado" value="CERRADO"
-                            class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
-                        Cerrar
-                    </button>
-                </form>
-                {% endif %}
-                {% if puede_liberar %}
-                <form method="post" action="{% url 'ticket_liberar' ticket.pk %}">
-                    {% csrf_token %}
-                    <button type="submit"
-                            class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">
-                        Liberar
-                    </button>
-                </form>
-                {% endif %}
-            </div>
-            {% endif %}
-        {% elif ticket.estado == 'CERRADO' %}
-            <form method="post" action="{% url 'ticket_cambiar_estado' ticket.pk %}">
+            <form method="post" action="{% url 'ticket_tomar' ticket.pk %}">
                 {% csrf_token %}
-                <button type="submit" name="estado" value="REABIERTO"
+                <button type="submit"
                         class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
-                    Reabrir
+                    Tomar ticket
                 </button>
             </form>
-        {% endif %}
+            {% endif %}
+            {% if puede_cerrar %}
+            <form method="post" action="{% url 'ticket_cambiar_estado' ticket.pk %}">
+                {% csrf_token %}
+                <button type="submit" name="estado" value="CERRADO"
+                        class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
+                    Cerrar
+                </button>
+            </form>
+            {% endif %}
+            {% if puede_liberar %}
+            <form method="post" action="{% url 'ticket_liberar' ticket.pk %}">
+                {% csrf_token %}
+                <button type="submit"
+                        class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">
+                    Liberar
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    {% endif %}
     </div>
     {% endif %}
 

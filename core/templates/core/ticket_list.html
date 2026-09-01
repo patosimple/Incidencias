@@ -46,9 +46,19 @@
         {% endfor %}
     </select>
 
+    {% if es_desarrollador %}
+    <select name="tomado"
+            class="w-full sm:w-auto text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500">
+        <option value="">Todos</option>
+        <option value="por_mi" {% if request.GET.tomado == 'por_mi' %}selected{% endif %}>Tomados por mí</option>
+        <option value="por_otros" {% if request.GET.tomado == 'por_otros' %}selected{% endif %}>Tomados por otros</option>
+        <option value="sin_tomar" {% if request.GET.tomado == 'sin_tomar' %}selected{% endif %}>Sin tomar</option>
+    </select>
+    {% endif %}
+
 
     {% if not MODO_FILTRO_CLIENTE %}
-        {% if request.GET.q or request.GET.sistema or request.GET.estado %}
+        {% if request.GET.q or request.GET.sistema or request.GET.estado or request.GET.tomado %}
         <a href="{% url 'ticket_list' %}"
            class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 w-full sm:w-auto text-center sm:self-center underline">
             Limpiar
@@ -67,6 +77,7 @@
     var qInput = document.querySelector('input[name="q"]');
     var sistemaSelect = document.querySelector('select[name="sistema"]');
     var estadoSelect = document.querySelector('select[name="estado"]');
+    var tomadoSelect = document.querySelector('select[name="tomado"]');
     var contador = document.getElementById('filtro-contador');
     var pagInfo = document.getElementById('pag-info');
     var pagAnt = document.getElementById('pag-anterior');
@@ -92,6 +103,8 @@
         return {
             sistema: n.getAttribute('data-sistema') || '',
             estado: n.getAttribute('data-estado') || '',
+            tomado: n.getAttribute('data-tomado') || '0',
+            tomadoMi: n.getAttribute('data-tomado-mi') || '0',
             titulo: (n.querySelector('.font-medium') || {}).textContent ? n.querySelector('.font-medium').textContent.toLowerCase() : ''
         };
     }
@@ -107,6 +120,7 @@
         var q = (qInput ? qInput.value : '').trim().toLowerCase();
         var sistema = sistemaSelect ? sistemaSelect.value : '';
         var estado = estadoSelect ? estadoSelect.value : '';
+        var tomado = tomadoSelect ? tomadoSelect.value : '';
 
         filtrados = [];
         ids.forEach(function (id) {
@@ -114,6 +128,11 @@
             var ok = true;
             if (sistema && d.sistema !== sistema) ok = false;
             if (ok && estado && d.estado !== estado) ok = false;
+            if (ok && tomado) {
+                if (tomado === 'por_mi' && d.tomadoMi !== '1') ok = false;
+                if (tomado === 'por_otros' && (d.tomado !== '1' || d.tomadoMi === '1')) ok = false;
+                if (tomado === 'sin_tomar' && d.tomado !== '0') ok = false;
+            }
             if (ok && q && d.titulo.indexOf(q) === -1) ok = false;
             if (ok) filtrados.push(id);
         });
@@ -162,6 +181,7 @@
     }
     if (sistemaSelect) sistemaSelect.addEventListener('change', filtrar);
     if (estadoSelect) estadoSelect.addEventListener('change', filtrar);
+    if (tomadoSelect) tomadoSelect.addEventListener('change', filtrar);
 
     filtrar();
 })();

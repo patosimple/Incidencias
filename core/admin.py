@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
+from .forms import UsuarioCreationForm
 from .models import (
     Usuario, Sistema, UsuarioSistema, Ticket, TicketDesarrollador,
     Comentario, Adjunto, ModeloIA, ConfiguracionIA, AnalisisIA,
@@ -21,6 +22,13 @@ class UsuarioAdmin(UserAdmin):
     # el inline de accesos a sistemas (relación N a N vía UsuarioSistema).
     fieldsets = UserAdmin.fieldsets + (
         ("Rol de negocio", {"fields": ("rol",)}),
+    )
+    add_form = UsuarioCreationForm
+    add_fieldsets = (
+        (None, {"fields": ("username", "password1", "password2")}),
+        ("Rol de negocio", {"fields": ("rol",)}),
+        ("Información personal", {"fields": ("first_name", "last_name", "email")}),
+        ("Permisos", {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
     )
     inlines = [UsuarioSistemaInline]
     list_display = ("username", "email", "rol", "is_staff", "is_active")
