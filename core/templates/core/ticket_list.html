@@ -112,6 +112,43 @@
     var filtrados = [];   // ids que pasan el filtro actual
     var pagina = 1;
 
+    // Ordenamiento por columnas (afecta a todo el dataset, no solo la pagina).
+    // Orden inicial: # desc (= numero de ticket mas nuevo primero), coincide con el
+    // order_by('-pk') del queryset; se indica con la flecha en la columna #.
+    var ORDEN_ESTADO = { PENDIENTE: 0, EN_PROCESO: 1, REABIERTO: 2, CERRADO: 3 };
+    var orden = { col: 'id', dir: 'desc' };
+
+    function valorOrden(id, col) {
+        var n = nodosPorId[id][0];
+        switch (col) {
+            case 'id': return parseInt(n.getAttribute('data-ticket-id') || '0', 10);
+            case 'titulo': return (n.getAttribute('data-ord-titulo') || '').toLowerCase();
+            case 'sistema': return (n.getAttribute('data-ord-sistema') || '').toLowerCase();
+            case 'solicitante': return (n.getAttribute('data-ord-solicitante') || '').toLowerCase();
+            case 'estado': return ORDEN_ESTADO[n.getAttribute('data-ord-estado')] != null ? ORDEN_ESTADO[n.getAttribute('data-ord-estado')] : 99;
+            case 'fecha': return parseInt(n.getAttribute('data-ord-fecha') || '0', 10);
+            default: return '';
+        }
+    }
+
+    function comparar(a, b) {
+        var va = valorOrden(a, orden.col);
+        var vb = valorOrden(b, orden.col);
+        var r = (typeof va === 'number') ? (va - vb) : String(va).localeCompare(String(vb));
+        if (r === 0) r = a - b; // desempate estable por id (orden de aparicion)
+        return orden.dir === 'asc' ? r : -r;
+    }
+
+    function pintarIndicadores() {
+        document.querySelectorAll('.ord-ind').forEach(function (el) {
+            if (el.getAttribute('data-ind') === orden.col) {
+                el.textContent = orden.dir === 'asc' ? '\u2191' : '\u2193';
+            } else {
+                el.textContent = '';
+            }
+        });
+    }
+
     function numPaginas() {
         return Math.max(1, Math.ceil(filtrados.length / PAGE_SIZE));
     }
@@ -137,6 +174,8 @@
             if (ok) filtrados.push(id);
         });
 
+        if (orden.col) filtrados.sort(comparar);
+
         if (pagina > numPaginas()) pagina = 1;
         render();
     }
@@ -151,6 +190,20 @@
             var show = id in enPagina;
             nodosPorId[id].forEach(function (n) {
                 n.style.display = show ? '' : 'none';
+            });
+        });
+
+        // Reordenar visualmente los nodos de la pagina actual segun el orden de
+        // filtrados (que respeta el sort de columnas). appendChild() mueve cada
+        // nodo al final de su contenedor, reordenando en el orden de la pagina.
+        var tbody = document.querySelector('#tabla-tickets tbody');
+        var ul = document.querySelector('#tabla-tickets ul[class*="md:hidden"]');
+        var visibles = filtrados.slice(desde, hasta);
+        visibles.forEach(function (id) {
+            nodosPorId[id].forEach(function (n) {
+                var parent = n.parentNode;
+                if (tbody && parent === tbody) tbody.appendChild(n);
+                else if (ul && parent === ul) ul.appendChild(n);
             });
         });
 
@@ -183,6 +236,22 @@
     if (estadoSelect) estadoSelect.addEventListener('change', filtrar);
     if (tomadoSelect) tomadoSelect.addEventListener('change', filtrar);
 
+    document.querySelectorAll('th[data-col]').forEach(function (th) {
+        th.addEventListener('click', function () {
+            var col = th.getAttribute('data-col');
+            if (orden.col === col) {
+                orden.dir = orden.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                orden.col = col;
+                orden.dir = 'asc';
+            }
+            pagina = 1;
+            pintarIndicadores();
+            filtrar();
+        });
+    });
+
+    pintarIndicadores();
     filtrar();
 })();
 </script>

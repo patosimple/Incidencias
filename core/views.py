@@ -113,7 +113,8 @@ class TicketListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         usuario = self.request.user
-        qs = Ticket.objects.select_related("sistema", "solicitante")
+        # Orden por defecto: numero de ticket (pk) descendente (mas nuevos primero)
+        qs = Ticket.objects.select_related("sistema", "solicitante").order_by("-pk")
 
         if usuario.is_superuser:
             pass  # superuser ve todos los tickets sin restricción
