@@ -1,14 +1,30 @@
-{# Badge de estado reutilizable. Uso: {% include "core/partials/estado_badge.html" with estado=ticket.estado %} (tomado= opcional, solo REABIERTO) #}
+{# Badge de estado reutilizable. Uso: {% include "core/partials/estado_badge.html" with estado=ticket.estado %} (tomado=/tomado_mi= opcional, solo REABIERTO) #}
 {% if estado == 'PENDIENTE' %}
     <span class="inline-block bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium px-2 py-0.5 rounded">Pendiente</span>
 {% elif estado == 'REABIERTO' %}
-    {% if tomado %}
+    {% if user.rol == 'DESARROLLADOR' or user.rol == 'COORDINADOR' %}
+        {% if tomado_mi %}
+            <span class="inline-block bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium px-2 py-0.5 rounded">Reabierto</span>
+        {% elif tomado %}
+            <span class="inline-block bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 text-xs font-medium px-2 py-0.5 rounded">Reabierto</span>
+        {% else %}
+            <span class="inline-block bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium px-2 py-0.5 rounded">Reabierto</span>
+        {% endif %}
+    {% elif tomado %}
         <span class="inline-block bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium px-2 py-0.5 rounded">Reabierto</span>
     {% else %}
         <span class="inline-block bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium px-2 py-0.5 rounded">Reabierto</span>
     {% endif %}
 {% elif estado == 'EN_PROCESO' %}
-    <span class="inline-block bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium px-2 py-0.5 rounded">En proceso</span>
+    {% if user.rol == 'DESARROLLADOR' or user.rol == 'COORDINADOR' %}
+        {% if tomado_mi %}
+            <span class="inline-block bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium px-2 py-0.5 rounded">En proceso</span>
+        {% else %}
+            <span class="inline-block bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 text-xs font-medium px-2 py-0.5 rounded">En proceso</span>
+        {% endif %}
+    {% else %}
+        <span class="inline-block bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium px-2 py-0.5 rounded">En proceso</span>
+    {% endif %}
 {% elif estado == 'CERRADO' %}
     <span class="inline-block bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-gray-300 text-xs font-medium px-2 py-0.5 rounded">Cerrado</span>
 {% endif %}

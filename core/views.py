@@ -187,6 +187,10 @@ class TicketListView(LoginRequiredMixin, ListView):
                 td.usuario_id == usuario.pk
                 for td in getattr(t, "colabs_activos", [])
             )
+            t.nombres_colabs = ", ".join(
+                (td.usuario.get_full_name() or td.usuario.username)
+                for td in getattr(t, "colabs_activos", [])
+            )
         return ctx
 
 
@@ -246,6 +250,9 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
             self.request.user, self.object
         )
         ctx["tomado"] = self.object.ticketdesarrollador_set.filter(activo=True).exists()
+        ctx["tomado_mi"] = self.object.ticketdesarrollador_set.filter(
+            usuario=self.request.user, activo=True
+        ).exists()
         return ctx
 
     @staticmethod
@@ -282,8 +289,9 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
 @login_required
 def tomar_ticket(request, pk):
     """Un desarrollador se suma como colaborador activo del ticket (sin sacar a los demás).
-    Al tomar el primer colaborador de un ticket PENDIENTE o REABIERTO, este pasa a EN_PROCESO
-    y se recuerda el estado previo (estado_previo) para restaurarlo al liberar."""
+    Solo si el ticket está PENDIENTE pasa a EN_PROCESO (y se recuerda el estado previo
+    para restaurarlo al liberar). Si está REABIERTO, se suma como colaborador pero el
+    ticket sigue REABIERTO."""
     if request.method != "POST":
         raise PermissionDenied
     ticket = get_object_or_404(Ticket, pk=pk)
@@ -296,7 +304,7 @@ def tomar_ticket(request, pk):
     if not td.activo:
         td.activo = True
         td.save(update_fields=["activo"])
-    if ticket.estado in (EstadoTicket.PENDIENTE, EstadoTicket.REABIERTO):
+    if ticket.estado == EstadoTicket.PENDIENTE:
         ticket.estado_previo = ticket.estado
         ticket.estado = EstadoTicket.EN_PROCESO
         ticket.save(update_fields=["estado", "estado_previo"])
@@ -307,8 +315,8 @@ def tomar_ticket(request, pk):
 def liberar_ticket(request, pk):
     """Un desarrollador/coordinador deja de trabajar el ticket (libera).
     Se conserva el histórico de participación (activo=False) pero ya no puede comentar.
-    Si era el último colaborador activo, el ticket vuelve al estado previo
-    (PENDIENTE o REABIERTO) y se libera para que otro lo tome."""
+    Si era el último colaborador activo: un EN_PROCESO vuelve a su estado previo
+    (PENDIENTE), mientras que un REABIERTO queda REABIERTO (rojo, sin tomar)."""
     if request.method != "POST":
         raise PermissionDenied
     ticket = get_object_or_404(Ticket, pk=pk)
@@ -323,7 +331,11 @@ def liberar_ticket(request, pk):
 
     quedan_activos = ticket.ticketdesarrollador_set.filter(activo=True).exists()
     if not quedan_activos:
-        ticket.estado = ticket.estado_previo or EstadoTicket.PENDIENTE
+        # Un EN_PROCESO liberado por el último colaborador vuelve al estado previo
+        # (PENDIENTE, ya que desde REABIERTO ya no se pasa a EN_PROCESO). Un REABIERTO
+        # tomado y luego liberado queda REABIERTO (rojo, sin tomar): no cambia de estado.
+        if ticket.estado == EstadoTicket.EN_PROCESO:
+            ticket.estado = ticket.estado_previo or EstadoTicket.PENDIENTE
         ticket.estado_previo = None
         ticket.save(update_fields=["estado", "estado_previo"])
     return redirect("ticket_detail", pk=pk)

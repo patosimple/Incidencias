@@ -32,7 +32,10 @@
                     </span>
                 </td>
                 <td class="px-4 py-3">
-                    {% include "core/partials/estado_badge.html" with estado=ticket.estado tomado=ticket.tomado %}
+                    {% if ticket.estado == 'EN_PROCESO' or ticket.estado == 'REABIERTO' %}{% if ticket.nombres_colabs %}
+                    <span title="{{ ticket.nombres_colabs }}">{% endif %}{% endif %}
+                    {% include "core/partials/estado_badge.html" with estado=ticket.estado tomado=ticket.tomado tomado_mi=ticket.tomado_mi %}
+                    {% if ticket.estado == 'EN_PROCESO' or ticket.estado == 'REABIERTO' %}{% if ticket.nombres_colabs %}</span>{% endif %}{% endif %}
                 </td>
                 <td class="px-4 py-3 text-gray-600 dark:text-gray-300">{{ ticket.solicitante }}</td>
                 <td class="px-4 py-3 text-gray-400 dark:text-gray-500">{{ ticket.creado_en|date:"d/m/Y" }}</td>
@@ -56,7 +59,10 @@
                 <span class="inline-block bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium px-2 py-0.5 rounded">
                     {{ ticket.sistema.nombre }}
                 </span>
-                {% include "core/partials/estado_badge.html" with estado=ticket.estado tomado=ticket.tomado %}
+                {% if ticket.estado == 'EN_PROCESO' or ticket.estado == 'REABIERTO' %}{% if ticket.nombres_colabs %}
+                <span title="{{ ticket.nombres_colabs }}">{% endif %}{% endif %}
+                {% include "core/partials/estado_badge.html" with estado=ticket.estado tomado=ticket.tomado tomado_mi=ticket.tomado_mi %}
+                {% if ticket.estado == 'EN_PROCESO' or ticket.estado == 'REABIERTO' %}{% if ticket.nombres_colabs %}</span>{% endif %}{% endif %}
             </div>
             <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between">
                 <span class="truncate">{{ ticket.solicitante }}</span>
