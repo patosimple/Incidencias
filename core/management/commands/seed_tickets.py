@@ -132,7 +132,7 @@ class Command(BaseCommand):
                 },
             )
             if creado:
-                user.set_password("Solicitante123!")
+                user.set_password("soli")
                 user.save()
             # acceso random a 1 o 2 sistemas
             elegidos = random.sample(sistemas, random.randint(1, len(sistemas)))

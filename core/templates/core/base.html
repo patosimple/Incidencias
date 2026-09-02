@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/x-icon" href="{% static 'core/favicon.ico' %}">
-    <title>{% block title %}Reporte de Incidencias{% endblock %} — FINANCIAMIENTO</title>
+        <title>Reporte de Incidencias</title>
 
     <!-- Simplificación de arranque: Tailwind vía CDN. Para producción, migrar
          al build compilado de django-tailwind (ya está en requirements.txt). -->
@@ -105,7 +105,6 @@
                 </button>
                 <a href="{% url 'home' %}" class="text-sm font-medium truncate">REPORTE DE INCIDENCIAS</a>
             </div>
-            {% if user.is_authenticated %}
             <div class="flex items-center gap-1 sm:gap-2 shrink-0">
                 <button id="theme-toggle" type="button" aria-label="Cambiar tema"
                         class="p-2 rounded hover:bg-white/10 dark:hover:bg-white/5 transition-colors">
@@ -119,6 +118,7 @@
                     </svg>
                 </button>
 
+                {% if user.is_authenticated %}
                 <!-- Menú desplegable de usuario (avatar) -->
                 <div class="relative">
                     <button id="user-menu-button" type="button" aria-expanded="false" aria-label="Menú de usuario"
