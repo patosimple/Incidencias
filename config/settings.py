@@ -146,8 +146,14 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Whitenoise sirve los estaticos colectados (produccion)
+# Whitenoise sirve los estaticos colectados (produccion).
+# IMPORTANTE: al definir STORAGES manualmente hay que incluir SIEMPRE la clave
+# 'default' (storage de archivos subidos/FileField). Sin ella, Django lanza
+# InvalidStorageError 'Could not find config for default' al guardar adjuntos.
 STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
