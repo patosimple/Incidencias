@@ -163,3 +163,31 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # False -> vuelve a filtrar/paginar en el servidor (HTMX)
 # Default True si no esta definido en el .env
 MODO_FILTRO_CLIENTE = env.bool('MODO_FILTRO_CLIENTE', default=True)
+
+# Logging: permite ver el traceback de los errores 500 en los logs (p.ej. Render).
+# Sin esto, en DEBUG=False Django no imprime los tracebacks en consola.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}
