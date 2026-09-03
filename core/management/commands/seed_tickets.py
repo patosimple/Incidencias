@@ -17,7 +17,7 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.utils import lorem_ipsum
 
-from core.models import EstadoTicket, Sistema, Ticket, UsuarioSistema
+from core.models import Adjunto, EstadoTicket, Sistema, Ticket, UsuarioSistema
 
 Usuario = get_user_model()
 
@@ -113,8 +113,20 @@ class Command(BaseCommand):
 
     def _reset(self):
         usernames = [_username(p) for p in SOLICITANTES]
-        # Solo borra los tickets de los solicitantes del seed (no los de otros usuarios).
-        Ticket.objects.filter(solicitante__username__in=usernames).delete()
+        # Solo considera los tickets de los solicitantes del seed (no los de otros usuarios).
+        tickets = Ticket.objects.filter(solicitante__username__in=usernames)
+
+        # Recolecta y borra fisicamente los adjuntos de esos tickets y de sus
+        # comentarios ANTES del delete en cascada (que solo borra registros en BD,
+        # no los archivos fisicos). Util en local, donde el disco persiste.
+        adjuntos = Adjunto.objects.filter(
+            ticket__in=tickets
+        ) | Adjunto.objects.filter(comentario__ticket__in=tickets)
+        for adj in adjuntos.distinct():
+            if adj.archivo:
+                adj.archivo.delete(save=False)
+
+        tickets.delete()
         Usuario.objects.filter(username__in=usernames).delete()
 
     def _seed_solicitantes(self):
