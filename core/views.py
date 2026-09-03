@@ -99,7 +99,7 @@ class TicketListView(LoginRequiredMixin, ListView):
     template_name = "core/ticket_list.html"
     context_object_name = "tickets"
 
-    @propertysi 
+    @property
     def _modo_cliente(self):
         return getattr(settings, "MODO_FILTRO_CLIENTE", False)
 
