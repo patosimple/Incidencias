@@ -1,0 +1,23 @@
+# Blueprint de Render para el sistema de tickets.
+# Sin disco persistente (almacen de adjuntos efimero por ahora):
+# los archivos subidos se pierden en cada redeploy. Para persistir,
+# ver AGENTS.md (pendiente Supabase Storage / R2).
+
+services:
+  - type: web
+    name: incidencias
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate"
+    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: "incidencias.onrender.com"
+      - key: MODO_FILTRO_CLIENTE
+        value: "False"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false

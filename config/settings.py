@@ -29,12 +29,14 @@ DATABASE_URL = env('DATABASE_URL')
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-9in9v6(l5)=)8bube3)v5at8lc)k-a7pp32tyb+8+c@0n64n81'
+SECRET_KEY = env('DJANGO_SECRET_KEY', default='django-insecure-9in9v6(l5)=)8bube3)v5at8lc)k-a7pp32tyb+8+c@0n64n81')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env.bool('DJANGO_DEBUG', default=True)
 
-ALLOWED_HOSTS = []
+# En produccion setear DJANGO_ALLOWED_HOSTS (p.ej. el dominio .onrender.com).
+# En dev se admite cualquier host (advertencia: no usar en produccion).
+ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['*'])
 
 # Redirect de usuarios anónimos hacia nuestro login propio (/login/)
 LOGIN_URL = 'login'
@@ -56,6 +58,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -135,9 +138,19 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# Archivos estaticos colectados (para produccion con Whitenoise)
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
 # Archivos subidos por usuarios (adjuntos)
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Whitenoise sirve los estaticos colectados (produccion)
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
