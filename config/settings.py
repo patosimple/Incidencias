@@ -36,7 +36,8 @@ DEBUG = env.bool('DJANGO_DEBUG', default=True)
 
 # En produccion setear DJANGO_ALLOWED_HOSTS (p.ej. el dominio .onrender.com).
 # En dev se admite cualquier host (advertencia: no usar en produccion).
-ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['*'])
+# Default para Render: cualquier subdominio .onrender.com (ademas de los locales).
+ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['*']) + ['.onrender.com', 'localhost', '127.0.0.1']
 
 # Redirect de usuarios anónimos hacia nuestro login propio (/login/)
 LOGIN_URL = 'login'
