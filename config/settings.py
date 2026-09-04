@@ -24,6 +24,12 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 DATABASE_URL = env('DATABASE_URL')
 
+# API keys de IA: las guardo en os.environ para que ai/providers.py las lea.
+for _key in ('GROQ_API_KEY', 'GOOGLE_AI_API_KEY', 'OPENROUTER_API_KEY'):
+    _val = env(_key, default='')
+    if _val:
+        os.environ.setdefault(_key, _val)
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -55,6 +61,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'core',
     'ai',
+    'huey.contrib.djhuey',
 ]
 
 MIDDLEWARE = [
@@ -196,4 +203,19 @@ LOGGING = {
             'propagate': False,
         },
     },
+}
+
+
+# Cola de tareas (Huey) para la capa de IA (Fase 2).
+# PostgresHuey usa la misma DB configurada arriba (DATABASE_URL) como broker,
+# por lo que no hace falta duplicar la conexión ni levantar Redis.
+# `immediate=True` ejecuta las tareas en el mismo request (síncrono): es la vía
+# para la demo en Render free porque NO requiere correr un worker aparte (un
+# worker consumiría otra instancia del plan gratuito). Para producción con
+# background real, poner AI_IMMEDIATE=False y correr `huey_consumer` como worker.
+HUEY = {
+    'huey_class': 'huey.PostgresHuey',
+    'name': 'incidencias',
+    'immediate': env.bool('AI_IMMEDIATE', default=True),
+    'utc': True,
 }

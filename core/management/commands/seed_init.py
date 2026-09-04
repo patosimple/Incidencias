@@ -30,12 +30,15 @@ class Command(BaseCommand):
             self.stdout.write(f"  Sistema {sistema.codigo}: {estado}")
 
     def _seed_modelos_ia(self):
-        # Catálogo de los 3 proveedores gratuitos evaluados (Fase 2).
+        # Catálogo de los proveedores elegibles (Fase 2). El primero de la lista
+        # queda como activo si todavía no hay ConfiguracionIA.
         # Ajustar el string de "modelo" al que efectivamente se use de cada proveedor.
+        # Ollama es local (sin API key): solo funciona en desarrollo, no en Render.
         modelos = [
-            {"proveedor": "Groq", "modelo": "llama-3.3-70b-versatile"},
+            {"proveedor": "Groq", "modelo": "qwen/qwen3.8-27b"},
             {"proveedor": "Gemini", "modelo": "gemini-2.0-flash"},
             {"proveedor": "OpenRouter", "modelo": "meta-llama/llama-3.3-70b-instruct:free"},
+            {"proveedor": "Ollama", "modelo": "gemma2:2b"},
         ]
         primero = None
         for datos in modelos:

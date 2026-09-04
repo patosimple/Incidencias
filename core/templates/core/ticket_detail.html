@@ -119,6 +119,86 @@
         {% endif %}
     </div>
 
+    <!-- Análisis IA (Fase 2) -->
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm p-4 sm:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div class="flex items-center gap-2">
+                <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Análisis IA · Conceptual</h2>
+                {% if analisis_conceptual %}
+                <span class="px-2 py-0.5 rounded-full text-xs font-medium
+                    {% if analisis_conceptual.estado_aprobacion == 'ACEPTADO' %}bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300
+                    {% elif analisis_conceptual.estado_aprobacion == 'OBJETADO' %}bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300
+                    {% else %}bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300{% endif %}">
+                    {{ analisis_conceptual.get_estado_aprobacion_display }}
+                </span>
+                {% endif %}
+            </div>
+            {% if puede_analizar %}
+            <form method="post" action="{% url 'ticket_analizar' ticket.pk %}" id="form-analizar">
+                {% csrf_token %}
+                <button type="submit" id="btn-analizar"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
+                    <svg class="w-4 h-4" id="icon-analizar" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    <span id="texto-analizar">{% if analisis_conceptual %}Reanalizar{% else %}Analizar{% endif %}</span>
+                </button>
+            </form>
+            {% endif %}
+        </div>
+
+        {% if analisis_conceptual %}
+        <div class="space-y-4 text-sm">
+            {% if analisis_conceptual.problema %}
+            <div>
+                <h3 class="text-xs uppercase tracking-wide text-brand-700 dark:text-brand-400 font-semibold mb-1">Resumen técnico</h3>
+                <p class="text-gray-800 dark:text-gray-100 leading-relaxed whitespace-pre-line">{{ analisis_conceptual.problema }}</p>
+            </div>
+            {% endif %}
+            {% if analisis_conceptual.comportamiento_esperado %}
+            <div>
+                <h3 class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold mb-1">Comportamiento esperado</h3>
+                <p class="text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-line">{{ analisis_conceptual.comportamiento_esperado }}</p>
+            </div>
+            {% endif %}
+            {% if analisis_conceptual.comportamiento_observado %}
+            <div>
+                <h3 class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold mb-1">Comportamiento observado</h3>
+                <p class="text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-line">{{ analisis_conceptual.comportamiento_observado }}</p>
+            </div>
+            {% endif %}
+            {% if analisis_conceptual.pasos_reproducir %}
+            <div>
+                <h3 class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold mb-1">Pasos para reproducir</h3>
+                <p class="text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-line">{{ analisis_conceptual.pasos_reproducir }}</p>
+            </div>
+            {% endif %}
+            {% if analisis_conceptual.datos_relevantes %}
+            <div>
+                <h3 class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold mb-1">Datos relevantes</h3>
+                <p class="text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-line">{{ analisis_conceptual.datos_relevantes }}</p>
+            </div>
+            {% endif %}
+            {% if analisis_conceptual.informacion_faltante %}
+            <div>
+                <h3 class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold mb-1">Información faltante</h3>
+                <p class="text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-line">{{ analisis_conceptual.informacion_faltante }}</p>
+            </div>
+            {% endif %}
+            <p class="text-xs text-gray-400 dark:text-gray-500">
+                Generado con {{ analisis_conceptual.modelo_ia }} · {{ analisis_conceptual.generado_en|date:"d/m/Y H:i" }}
+            </p>
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+            Este ticket todavía no tiene análisis generado.
+            {% if puede_analizar %}Usá el botón <span class="font-medium text-gray-700 dark:text-gray-200">Analizar</span> para crear el resumen conceptual automático.{% else %}
+            El creador o un desarrollador/coordinador puede generarlo.
+            {% endif %}
+        </p>
+        {% endif %}
+    </div>
+
     <!-- Comentarios -->
     <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm p-4 sm:p-6 space-y-4">
         <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Comentarios ({{ ticket.comentarios.count }})</h2>
@@ -501,6 +581,21 @@
         });
       });
     });
+
+    // Spinner del botón Analizar/Reanalizar
+    var formAnalizar = document.getElementById('form-analizar');
+    if (formAnalizar) {
+      formAnalizar.addEventListener('submit', function () {
+        var btn = document.getElementById('btn-analizar');
+        var icon = document.getElementById('icon-analizar');
+        var texto = document.getElementById('texto-analizar');
+        btn.disabled = true;
+        btn.classList.remove('bg-brand-600', 'hover:bg-brand-700');
+        btn.classList.add('bg-brand-400', 'cursor-wait');
+        icon.classList.add('animate-spin');
+        texto.textContent = 'Analizando...';
+      });
+    }
   })();
 </script>
 {% endblock %}

@@ -14,8 +14,10 @@ from django.utils import timezone
 from django.views.generic import CreateView, DetailView, ListView
 
 from .forms import CambioPasswordForm, ComentarioForm, TicketForm
+from ai.tasks import _ejecutar_analisis
 from .models import (
     Adjunto,
+    AnalisisIA,
     Comentario,
     EstadoTicket,
     RolUsuario,
@@ -23,6 +25,7 @@ from .models import (
     Ticket,
     TicketDesarrollador,
     TipoAdjunto,
+    TipoAnalisis,
 )
 
 
@@ -229,7 +232,7 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
         # Mismo criterio de visibilidad que el listado (con bypass de superuser)
         usuario = self.request.user
         qs = Ticket.objects.select_related("sistema", "solicitante").prefetch_related(
-            "comentarios", "adjuntos", "desarrolladores"
+            "comentarios", "adjuntos", "desarrolladores", "analisis"
         )
         if usuario.is_superuser:
             return qs  # superuser ve cualquier ticket sin restricción de rol
@@ -254,6 +257,12 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
         ctx["tomado_mi"] = self.object.ticketdesarrollador_set.filter(
             usuario=self.request.user, activo=True
         ).exists()
+        # Análisis conceptual (Fase 2): el más reciente de tipo CONCEPTUAL.
+        analisis = list(
+            self.object.analisis.filter(tipo=TipoAnalisis.CONCEPTUAL)
+        )
+        ctx["analisis_conceptual"] = analisis[0] if analisis else None
+        ctx["puede_analizar"] = self._puede_actuar(self.request.user, self.object)
         return ctx
 
     @staticmethod
@@ -491,3 +500,29 @@ def descargar_adjunto(request, pk):
         filename=adj.nombre_archivo,
         content_type="application/octet-stream",
     )
+
+
+@login_required
+def analizar_ticket(request, pk):
+    """Dispara el análisis conceptual (IA) de un ticket y redirige al detalle.
+
+    Con HUEY.immediate=True (demo/Render free) la task corre en este mismo
+    request, por lo que la respuesta tarda lo que tarde la llamada a la IA
+    (con Groq suele ser de 2 a 8 segundos). Si en el futuro se corre un worker
+    (AI_IMMEDIATE=False), esto vuelve a ser asíncrono de fondo.
+    """
+    if request.method != "POST":
+        raise PermissionDenied
+    ticket = get_object_or_404(Ticket, pk=pk)
+    if not TicketDetailView._puede_actuar(request.user, ticket):
+        raise PermissionDenied("No podés analizar este ticket.")
+
+    try:
+        _ejecutar_analisis(ticket.pk)
+        messages.success(request, "Análisis conceptual actualizado.")
+    except Exception as exc:
+        if request.user.rol == RolUsuario.SOLICITANTE:
+            messages.error(request, "No se pudo generar el análisis. Intentá de nuevo más tarde.")
+        else:
+            messages.error(request, f"No se pudo generar el análisis: {exc}")
+    return redirect("ticket_detail", pk=ticket.pk)

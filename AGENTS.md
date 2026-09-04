@@ -2,8 +2,8 @@
 
 ## Resumen del proyecto
 **Sistema de tickets** - Gestion interna de bugs para apps "Balances" y "Financiamiento" (financiamiento politico).
-- **Fase 1 (actual)**: Tickets convencional - login, listado, creacion, detalle, comentarios, adjuntos, toma colaborativa, cambio de estado, admin de sistemas/accesos. **Sin IA**.
-- **Fase 2 (futura)**: Capa IA - analisis Conceptual/Tecnico automaticos via LLM (esqueleto ya existe en `ai/`).
+- **Fase 1 (completa)**: Tickets convencional - login, listado, creacion, detalle, comentarios, adjuntos, toma colaborativa, cambio de estado, admin de sistemas/accesos.
+- **Fase 2 (parcial)**: Analisis conceptual IA via LLM - modo manual (boton Analizar/Reanalizar). Providers Groq/Gemini/OpenRouter/Ollama con llamada HTTP real. Prompt unico (sin system/user). **Pendiente**: auto-analisis al crear ticket, rotacion de modelos/API keys, prompt optimizado.
 
 ## Stack
 - Django 5.2 + PostgreSQL (psycopg)
@@ -16,13 +16,14 @@
 - ✅ Migraciones aplicadas
 - ✅ Admin funcionando en `/admin/`
 - ✅ Esqueleto IA en `ai/providers.py`, `ai/tasks.py`, `ai/models.py`
-- ✅ `core/urls.py` y `config/urls.py`: listado, creacion, detalle, tomar ticket, cambiar estado, comentar, **login/logout + cambiar-password** (`auth_views` + `CambiarPasswordView`)
+- ✅ **Fase 2 IA implementada** (parcial): `ai/providers.py` con llamada HTTP real a Groq/Gemini/OpenRouter/Ollama (formato OpenAI-compatible); `ai/tasks.py` con lógica en `_ejecutar_analisis()` (separada del wrapper Huey para propagar excepciones); vista `analizar_ticket` en `core/views.py` con try/except + mensajes diferenciados por rol; sección "Análisis IA" en `ticket_detail.html` (botón Analizar/Reanalizar + spinner + cards de resultado); config `HUEY` en `settings.py` con `immediate=True` (síncrono); `huey.contrib.djhuey` en `INSTALLED_APPS`; API keys en `.env` propagadas a `os.environ` en `settings.py`; modelo Groq activo: `qwen/qwen3.8-27b` (actualizado en BD y seed_init)
+- ✅ `core/urls.py` y `config/urls.py`: listado, creacion, detalle, tomar ticket, cambiar estado, comentar, **login/logout + cambiar-password** (`auth_views` + `CambiarPasswordView`) + **analizar ticket** (`analizar_ticket`)
 - ✅ `config/settings.py`: `LOGIN_URL='login'`, `LOGIN_REDIRECT_URL='ticket_list'` (sin esto, anon iba a `/accounts/login/` que no existe)
 - ✅ `core/forms.py`: `TicketForm`, `ComentarioForm`, **`CambioPasswordForm`** (labels espanol + estilos Tailwind/dark en inputs). ~~`AdjuntoForm`/`AdjuntoFormSet`~~ **ELIMINADOS** — ya no hay formset; los adjuntos se suben con un único `<input type="file" name="archivos" multiple>` manejado con `request.FILES.getlist("archivos")` en `core/views.py`)
 - ✅ `core/views.py`: `TicketListView`, `TicketCreateView`, `TicketDetailView`, `tomar_ticket`, `cambiar_estado_ticket`, `agregar_comentario` (permisos por rol aplicados) + **`CambiarPasswordView`** (`LoginRequiredMixin` + `PasswordChangeView`, success_url a `ticket_list` con mensaje flash)
 - ✅ `core/management/commands/seed_init.py`: seed base aplicado (Sistemas: BALANCES, FINANCIAMIENTO; ModeloIA: Groq/Gemini/OpenRouter; ConfiguracionIA activa: Groq)
 - ✅ `core/management/commands/seed_tickets.py`: seed demo (5 solicitantes espanol + N tickets lorem, contables). **Password de los solicitantes: `Solicitante123!`** (usuarios: maria.lopez, carlos.gonzalez, lucia.fernandez, joaquin.rodriguez, valentina.martinez — todos con acceso a BALANCES + FINANCIAMIENTO)
-- ✅ `core/templates/core/base.html`: layout general responsive (sidebar desktop colapsable a iconos + off-canvas movil), Tailwind CDN + HTMX, **dark mode con toggle sol/luna**, **paleta de marca `brand` (base #007AC3)** en `tailwind.config` inline, `{% block extra_js %}` al final, **menu desplegable de usuario en el avatar** (nombre, email, rol, Administración, Cambiar contraseña, Salir; cierra con click afuera/Escape). El badge flotante de breakpoint fue ELIMINADO
+- ✅ `core/templates/core/base.html`: layout general responsive (sidebar desktop colapsable a iconos + off-canvas movil), Tailwind CDN + HTMX, **dark mode con toggle sol/luna**, **paleta de marca `brand` (base #007AC3)** en `tailwind.config` inline, `{% block extra_js %}` al final, **menu desplegable de usuario en el avatar** (nombre, email, rol, Administración, Cambiar contraseña, Salir; cierra con click afuera/Escape). El badge flotante de breakpoint fue ELIMINADO. **Flash messages diferenciadas**: error=rojo, warning=ambar, success/info=brand azul (via `message.tags`)
 - ✅ `core/templates/core/login.html` (nuevo): pantalla de login que hereda el shell de base (dark mode + paleta brand), error en español ("Usuario o contraseña incorrectos."), pista de password demo
 - ✅ `core/templates/core/password_change.html` (nuevo): cambio de password (card responsive, hereda shell, dark ready)
 - ✅ `core/templates/core/partials/rol_badge.html` (nuevo): badge de rol reutilizable (Solicitante=brand-600, Desarrollador=emerald-600, Coordinador=purple-600). **HOY SIN USO** (se reemplazó por la barra vertical de color en el menu de usuario)
@@ -37,7 +38,7 @@
 - ✅ **Flag desde .env**: `MODO_FILTRO_CLIENTE` = `env.bool(...)` en `settings.py`, default `True`. Definido en `.env`. Debounce 200ms client y server
 - ✅ **Responsive shell implementado** (CDN): sidebar desktop colapsable a iconos (`localStorage 'sidebar'`), off-canvas movil con overlay, header compacto, tabla↔cards en listados (`estado_badge.html` extraido), `<main>` padding responsive — ver seccion **Responsive** abajo
 - ✅ `core/templates/core/ticket_form.html` (nuevo): form de nuevo ticket (max-w-2xl, hereda shell, dark + brand, errores por campo, botones Cancelar/Crear; JS en `extra_js` aplica clases CSS a inputs/selects/textarea del form)
-- ✅ `core/templates/core/ticket_detail.html` (nuevo): detalle (header con estado, `dl` de metadatos, descripción `linebreaksbr`, colaboradores vía `ticket.ticketdesarrollador_set`, acciones tomar/cambiar-estado, comentarios con form, adjuntos). Hereda shell, dark + brand
+- ✅ `core/templates/core/ticket_detail.html` (nuevo): detalle (header con estado, `dl` de metadatos, descripción `linebreaksbr`, colaboradores vía `ticket.ticketdesarrollador_set`, acciones tomar/cambiar-estado, comentarios con form, adjuntos, **sección Análisis IA con botón Analizar/Reanalizar + spinner + cards de resultado**). Hereda shell, dark + brand
 - ✅ **Logout arreglado**: el enlace "Salir" en `base.html` era `<a href>` (GET) pero `LogoutView` solo acepta POST → daba 405 y no cerraba sesión. Cambiado a `<form method="post">` con CSRF. La ruta `logout/` ya existía en `config/urls.py:10` (`auth_views.LogoutView(next_page="login")`)
 - ✅ **Bug bypass superuser en detalle resuelto**: `TicketDetailView.get_queryset()` NO tenía el bypass `is_superuser` que sí tiene el listado → un superuser con rol DESARROLLADOR y sin sistemas visibles recibía 404 en todos los tickets. Ahora `is_superuser` ve cualquier ticket (consistente con `TicketListView`)
 - ✅ Pendiente: HTMX partials para interacciones en detalle (tomar ticket, cambiar estado, comentar) — por ahora los forms del detalle hacen submit normal (redirect)
@@ -134,8 +135,8 @@ core/
     partials/estado_badge.html       # Badge de estado reutilizable
     partials/rol_badge.html          # Badge de rol (hoy sin uso)
 ai/
-  providers.py     # AIProvider abstracto + Groq/Gemini/OpenRouter (NotImplementedError)
-  tasks.py         # Huey task generar_analisis_ticket (Fase 2)
+  providers.py     # AIProvider abstracto + Groq/Gemini/OpenRouter/Ollama con llamada HTTP real
+  tasks.py         # _ejecutar_analisis() (logica pura) + @task() wrapper Huey
   models.py        # Vacio (modelos IA estan en core/models.py)
 ```
 
@@ -147,9 +148,15 @@ DATABASE_URL=postgresql://neondb_owner:...@ep-...neon.tech/incidencias?sslmode=r
 
 # Filtrado client-side (demo) vs server-side (produccion)
 MODO_FILTRO_CLIENTE=True
+
+# API keys IA (NUNCA commitear — .env esta en .gitignore)
+GROQ_API_KEY=gsk_...
+# GOOGLE_AI_API_KEY=...
+# OPENROUTER_API_KEY=...
 ```
 En `settings.py`: `DATABASES = {'default': env.db_url('DATABASE_URL')}`
 - `MODO_FILTRO_CLIENTE` = `env.bool('MODO_FILTRO_CLIENTE', default=True)` — cambiar a False y reiniciar el proceso para server-side.
+- API keys: `settings.py` propaga `GROQ_API_KEY`, `GOOGLE_AI_API_KEY`, `OPENROUTER_API_KEY` a `os.environ` para que `ai/providers.py` las lea.
 
 ## Comandos utiles
 ```bash
@@ -171,12 +178,9 @@ En `settings.py`: `DATABASES = {'default': env.db_url('DATABASE_URL')}`
 4. ✅ HTMX partials para interacciones en detalle (tomar ticket, cambiar estado, comentar) — PENDIENTE (los forms del detalle hacen submit normal por ahora)
 5. ✅ **Menu desplegable en el icono de usuario** (header): nombre, email, rol, **Administración** (solo superuser + rol DESARROLLADOR/COORDINADOR), **Cambiar contraseña** y **Salir**
 6. Tailwind config + build compilado (reemplazar CDN)
-7. `settings.HUEY` para activar cola de tareas
 
 - **Notas para proxima sesion**
 - No tocar modelos ni admin (estan cerrados)
-- Fase 2 **no** se implementa hasta cerrar Fase 1 completo
-- Huey ya configurado en tasks.py, falta settings.HUEY
 - `ai/models.py` vacio intencionalmente (modelos IA en core)
 - **Menu de usuario (header)**: avatar + chevron abre `#user-menu`. Bloque identidad con **barra vertical de color por rol** (`self-stretch w-1.5`, SOLICITANTE=brand-600 / DESARROLLADOR=emerald-600 / COORDINADOR=purple-600) + nombre, email y rol en texto debajo. Items: **Administración** (`gestionar` solo superuser o rol DEV/COOR; **el link NO sustenta `is_staff`** — si un DEV/COOR no es staff lo espera un 403/redirect en /admin/), **Cambiar contraseña**, **Salir**. JS: cierra con click afuera o Escape.
 - **is_staff vs rol (desacoplados a proposito)**: `rol` = permiso de negocio (vistas); `is_staff`/`is_superuser` = acceso a /admin/. Los seeds crean SOLO solicitantes (pasword `Solicitante123!`), ninguno staff. El unico staff/superuser del entorno es `patosimple` (creado a mano). Si un DEV/COOR necesita /admin/, hay que marcarle `is_staff` en el admin.
@@ -184,6 +188,10 @@ En `settings.py`: `DATABASES = {'default': env.db_url('DATABASE_URL')}`
 - **Zona horaria**: `config/settings.py` → `TIME_ZONE = 'America/Argentina/Buenos_Aires'` (UTC-3) + `USE_TZ = True`. Django guarda fechas en UTC y las renderiza en local vía el template filter `|date`. Si cambia el usuario principal, ajustar `TIME_ZONE`.
 - **Accesos a sistemas en admin**: `UsuarioSistemaInline` dentro de `UsuarioAdmin`. Duplicados los valida el formset nativo de Django antes de guardar (el `unique_together` de BD es respaldo). No hace falta `related_name` en `UsuarioSistema` por ahora.
 - El carrusel multiMCP tuvo problemas en sesion anterior: Groq/Cerebras con modelos deprecados, Kimi/SambaNova sin saldo, NVIDIA con funcion no encontrada, Gemini modelo deprecado. Revisar IDs de modelos.
+- **IA Fase 2 (estado actual)**: `_ejecutar_analisis()` en `ai/tasks.py` es la logica pura (sin wrapper Huey). La vista `analizar_ticket` la llama directamente para que las excepciones propaguen al try/except. Con `immediate=True` (default), la llamada es sincrona (2-8s con Groq). Modelo activo: `qwen/qwen3.8-27b` en Groq (el anterior `llama-3.3-70b-versatile` fue deprecado). Prompt: instrucciones + descripcion del ticket en un solo `user` message (sin `system`). Flash messages diferenciados: error=rojo (solicitante ve generico, dev ve detalle), success=brand azul. Boton Analizar/Reanalizar con spinner animado (icono gira + texto "Analizando..." durante la llamada). API keys en `.env` propagadas a `os.environ` en `settings.py`.
+- **IA Fase 2 pendiente**: prompt optimizado (separar system/user, saneear HTML de Quill antes de enviar, incluir contexto de sistema), auto-analisis al crear ticket (linea placeholder `views.py:219`), rotacion de modelos/API keys (round-robin o fallback), respaldo `response_format: json_object` para modelos que no lo soportan.
+- **Modelos Groq disponibles (09/2026)**: `qwen/qwen3.8-27b`, `qwen/qwen3.6-27b`, `groq/compound-mini`, `groq/compound`, `allam-2-7b`, `openai/gpt-oss-20b`, `openai/gpt-oss-120b`. Los `llama-3.x` ya NO existen en Groq free tier.
+- **Variables de entorno IA**: `GROQ_API_KEY`, `GOOGLE_AI_API_KEY`, `OPENROUTER_API_KEY` (en `.env`). `settings.py` las propaga a `os.environ` para que `ai/providers.py` las lea. Las que no estan quedan como string vacio.
 - **Dark mode**: Templates futuros (`ticket_form.html`, `ticket_detail.html`) deben crearse con clases `dark:` listas. Toggle implementado en `base.html` con `localStorage` + `prefers-color-scheme`, transición suave (`transition-colors duration-200` en body), iconos SVG inline sol/luna. Paleta: header `bg-brand-800` fijo (funciona en ambos temas), sidebar `bg-brand-950`, fondos neutrales dark: body `#172233` (tono intermedio), tarjetas/inputs `slate-800`/`slate-700`. Light: fondo `gray-100`, tarjetas `white`.
   - **Comportamiento del toggle**: default SIEMPRE light en primera visita (ignora pref del OS); el toggle guarda la eleccion en `localStorage` (`theme` = `'dark'`/`'light'`) y la aplica en futuras cargas. Script init: agregar clase `dark` solo si `localStorage.theme === 'dark'`. Toggle (vanilla JS, no HTMX): `document.documentElement.classList.toggle('dark')` + guardar valor.
 - **Links/titulos en modo light**: usar `text-brand-700 hover:text-brand-900` (NO `brand-400`, contrasta mal sobre fondo claro), con `dark:text-brand-400 dark:hover:text-brand-300` en modo oscuro. Ejemplo en el titulo del ticket en `partials/ticket_table.html`.
