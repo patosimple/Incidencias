@@ -1,5 +1,5 @@
 """
-Tarea en segundo plano (Huey) para generar el análisis conceptual de un ticket.
+Tarea en segundo plano (Huey) para generar el análisis técnico de un ticket.
 
 Se dispara al crear el ticket o al pedir "analizar" desde el detalle, y no
 bloquea la respuesta al usuario que carga el reporte cuando Huey corre con un
@@ -22,11 +22,11 @@ un worker hay que correr un proceso aparte; `immediate` lo evita.
 from huey.contrib.djhuey import task
 
 from core.models import Ticket, AnalisisIA, TipoAnalisis
-from .providers import get_active_provider
+from .providers import get_active_provider, VERSION_PROMPT
 
 
 def _ejecutar_analisis(ticket_id: int):
-    """Lógica pura: genera el análisis CONCEPTUAL y lo guarda en la DB.
+    """Lógica pura: genera el análisis TÉCNICO y lo guarda en la DB.
 
     Separa la lógica del wrapper de Huey para que la vista pueda llamarla
     directamente (sin que @task capture las excepciones).
@@ -34,14 +34,14 @@ def _ejecutar_analisis(ticket_id: int):
     ticket = Ticket.objects.get(pk=ticket_id)
     provider = get_active_provider()
 
-    resultado = provider.generar_analisis(ticket.descripcion_original, TipoAnalisis.CONCEPTUAL)
+    resultado = provider.generar_analisis(ticket.descripcion_original, TipoAnalisis.TECNICO)
 
-    # Borra los análisis conceptuales previos del ticket (reanalizar => reemplaza).
-    AnalisisIA.objects.filter(ticket=ticket, tipo=TipoAnalisis.CONCEPTUAL).delete()
+    # Borra los análisis previos del ticket (reanalizar => reemplaza).
+    AnalisisIA.objects.filter(ticket=ticket, tipo=TipoAnalisis.TECNICO).delete()
 
     AnalisisIA.objects.create(
         ticket=ticket,
-        tipo=TipoAnalisis.CONCEPTUAL,
+        tipo=TipoAnalisis.TECNICO,
         problema=resultado.problema,
         comportamiento_esperado=resultado.comportamiento_esperado,
         comportamiento_observado=resultado.comportamiento_observado,
@@ -49,6 +49,7 @@ def _ejecutar_analisis(ticket_id: int):
         datos_relevantes=resultado.datos_relevantes,
         informacion_faltante=resultado.informacion_faltante,
         modelo_ia=provider.modelo_ia,
+        version_prompt=VERSION_PROMPT,
     )
 
 

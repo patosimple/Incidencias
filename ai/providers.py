@@ -25,6 +25,12 @@ TIMEOUT = 60  # segundos: margen para el peor caso (OpenRouter free es lento)
 # reintenta mostrando "Reintento N" en el botón Analizar.
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
+# Versión del prompt de análisis. Subila MANUALMENTE cada vez que cambies el
+# texto de `_prompt_conceptual` (o el que use la app) para que `AnalisisIA.
+# version_prompt` registre con qué versión del prompt se generó cada análisis.
+# Hoy el prompt vive hardcodeado acá; no se lee de la DB (ver AGENTS.md).
+VERSION_PROMPT = "v2"
+
 
 class RetryableProviderError(Exception):
     """Error transitorio (429/5xx/timeout) que el cliente puede reintentar."""
@@ -32,7 +38,7 @@ class RetryableProviderError(Exception):
 
 @dataclass
 class AnalisisGenerado:
-    """Salida estructurada de un análisis conceptual (resumen técnico depurado).
+    """Salida estructurada de un análisis (resumen técnico depurado).
 
     `problema` es el resumen principal. El resto conserva la estructura del
     modelo `AnalisisIA` y se rellena con lo relevante depurado (o vacío).
@@ -73,26 +79,45 @@ class AIProvider(ABC):
 
     @abstractmethod
     def generar_analisis(self, texto_ticket: str, tipo: str) -> AnalisisGenerado:
-        """tipo: "CONCEPTUAL" (hoy solo este). Devuelve los campos ya separados,
+        """tipo: "TECNICO" (hoy solo este). Devuelve los campos ya separados,
         pidiéndole al modelo salida estructurada (JSON) y parseándola acá."""
         raise NotImplementedError
 
     def _prompt_conceptual(self, texto_ticket: str) -> str:
-        """Prompt del análisis conceptual: resume la descripción, elimina
+        """Prompt del análisis: resume la descripción, elimina
         información irrelevante (ejemplos, datos contables que no aportan al
         entendimiento del problema) y entrega una orientación más técnica, de
-        desarrollador. Pide salida en JSON con la estructura de AnalisisIA."""
+        desarrollador. Pide salida en JSON con la estructura de AnalisisIA.
+
+        PERSPECTIVA: el reporte lo escribe un USUARIO (sin acceso al backend),
+        pero lo va a leer un DESARROLLADOR. El modelo NO debe asumir ni pedir
+        conocimiento interno del sistema (flags en BD, flujo entre módulos,
+        dependencias de estado del informe, etc.). Solo debe trabajar con lo
+        que el usuario puede saber y reportar.
+
+        NOTA: hoy solo hay UN tipo de análisis (TÉCNICO). Este método se llama
+        para todos los `generar_analisis` actuales; el nombre refleja el origen."""
         return (
-            "Eres un analista técnico senior de un equipo de IT. Se te da la "
-            "descripción de un ticket/incidencia reportado por un usuario.\n\n"
-            "Tarea: producir UN análisis conceptual (un único resumen) con "
-            "orientación de desarrollador. Reglas:\n"
+            "Eres un analista técnico senior de un equipo de IT. Te dan la "
+            "descripción de un ticket/incidencia reportado por un USUARIO final.\n\n"
+            "Tarea: producir UN análisis técnico con orientación de desarrollador, "
+            "redactado desde la perspectiva de ese usuario (lo que vio y le pasó), "
+            "sin inventar internals del sistema que el usuario no puede conocer.\n\n"
+            "Reglas:\n"
             "- Eliminá información irrelevante o que no aporta (ejemplos largos, "
             "datos contables que no ayudan a entender el problema, relleno, "
             "tono informal).\n"
             "- Redactá el contexto en lenguaje técnico conciso (como lo haría un "
-            "dev al describir el bug).\n"
-            "- No inventes información que no esté en la descripción.\n\n"
+            "dev al describir el bug), pero CEÑIDO a lo que el usuario reportó.\n"
+            "- NO inventes ni asumas detalles internos del sistema que no están en "
+            "la descripción ni que un usuario no podría saber (estructura de tablas, "
+            "flujo entre módulos, dependencias de estado del informe, etc.).\n"
+            "- El campo 'informacion_faltante' debe listar SOLO lo que un usuario "
+            "podría aportar para entender el problema: datos de entrada que ingresó "
+            "o debería ingresar, qué pantalla/módulo/vista usaba, pasos exactos, "
+            "mensajes de error que vio, cómo se comporta a veces, frecuencia, "
+            "navegador/os, contexto de negocio relevante. NUNCA preguntes por "
+            "detalles internos del sistema que un usuario no puede ver.\n\n"
             "Respondé SOLO con un objeto JSON válido con estas claves "
             "(usa strings, vacíos si no aplica):\n"
             "{\n"
@@ -101,7 +126,7 @@ class AIProvider(ABC):
             '  "comportamiento_observado": "qué pasa realmente",\n'
             '  "pasos_reproducir": "cómo reproducirlo, si se puede inferir",\n'
             '  "datos_relevantes": "datos/contexto que SÍ aportan",\n'
-            '  "informacion_faltante": "qué falta para entenderlo mejor"\n'
+            '  "informacion_faltante": "qué datos adicionales pedirle al usuario para entenderlo mejor, sin internals del sistema"\n'
             "}\n\n"
             f"DESCRIPCIÓN DEL TICKET:\n{texto_ticket}"
         )

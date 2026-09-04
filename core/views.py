@@ -9,6 +9,7 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Prefetch
 from django.http import FileResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse_lazy, reverse
 from django.utils import timezone
 from django.views.generic import CreateView, DetailView, ListView
@@ -258,12 +259,18 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
         ctx["tomado_mi"] = self.object.ticketdesarrollador_set.filter(
             usuario=self.request.user, activo=True
         ).exists()
-        # Análisis conceptual (Fase 2): el más reciente de tipo CONCEPTUAL.
+        # Análisis IA (Fase 2): el más reciente de tipo TÉCNICO (único hoy).
+        # Por ahora NO disponible para solicitantes (dev/coord lo ven);
+        # opcional: que el solicitante lo vea y lo valide (prioridad de aprobación).
         analisis = list(
-            self.object.analisis.filter(tipo=TipoAnalisis.CONCEPTUAL)
+            self.object.analisis.filter(tipo=TipoAnalisis.TECNICO)
         )
         ctx["analisis_conceptual"] = analisis[0] if analisis else None
         ctx["puede_analizar"] = self._puede_actuar(self.request.user, self.object)
+        ctx["puede_ver_analisis"] = self.request.user.rol in (
+            RolUsuario.DESARROLLADOR,
+            RolUsuario.COORDINADOR,
+        )
         return ctx
 
     @staticmethod
@@ -505,7 +512,7 @@ def descargar_adjunto(request, pk):
 
 @login_required
 def analizar_ticket(request, pk):
-    """Dispara el análisis conceptual (IA) de un ticket.
+    """Dispara el análisis IA (técnico) de un ticket.
 
     Es un endpoint híbrido:
     - Por HTTP normal (sin fetch): flash + redirect al detalle (fallback).
@@ -516,6 +523,11 @@ def analizar_ticket(request, pk):
     if request.method != "POST":
         raise PermissionDenied
     ticket = get_object_or_404(Ticket, pk=pk)
+    # Por ahora el análisis IA es SOLO para dev/coord (no para solicitantes),
+    # consistente con la sección oculta en el detalle. Consiste en la misma
+    # condición de `puede_ver_analisis` del context del detalle.
+    if request.user.rol not in (RolUsuario.DESARROLLADOR, RolUsuario.COORDINADOR):
+        raise PermissionDenied("El análisis IA no está disponible para tu rol.")
     if not TicketDetailView._puede_actuar(request.user, ticket):
         raise PermissionDenied("No podés analizar este ticket.")
 
@@ -523,12 +535,25 @@ def analizar_ticket(request, pk):
 
     try:
         _ejecutar_analisis(ticket.pk)
-        mensaje = "Análisis conceptual actualizado."
+        mensaje = "Análisis actualizado."
         if es_ajax:
-            # El éxito AJAX se muestra inline en verde (#analizar-msg); no setear
-            # flash para no acumular un mensaje azul en el próximo GET.
-            return JsonResponse({"ok": True, "message": mensaje,
-                                 "redirect": reverse("ticket_detail", kwargs={"pk": ticket.pk})})
+            # Éxito AJAX: se muestra verde inline (#analizar-msg) y se devuelve el
+            # HTML del cuerpo de la tarjeta para refrescarla sin recargar la página.
+            # No se setea flash para no acumular un mensaje azul en el próximo GET.
+            analisis = ticket.analisis.filter(tipo=TipoAnalisis.TECNICO).first()
+            cuerpo = render_to_string(
+                "core/partials/analisis_cuerpo.html",
+                {
+                    "analisis_conceptual": analisis,
+                    "puede_analizar": TicketDetailView._puede_actuar(request.user, ticket),
+                },
+            )
+            return JsonResponse({
+                "ok": True,
+                "message": mensaje,
+                "cuerpo": cuerpo,
+                "redirect": reverse("ticket_detail", kwargs={"pk": ticket.pk}),
+            })
         messages.success(request, mensaje)
     except RetryableProviderError as exc:
         if es_ajax:

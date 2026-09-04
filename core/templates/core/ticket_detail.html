@@ -122,7 +122,9 @@
     <!-- Mensaje inline del análisis (entre la tarjeta del ticket y la de IA) -->
     <div id="analizar-msg" class="hidden space-y-2"></div>
 
-    <!-- Análisis IA (Fase 2) -->
+    <!-- Análisis IA (Fase 2): visible SOLO para dev/coord por ahora.
+         Opcional: que el solicitante lo vea y lo valide (prioridad de aprobación). -->
+    {% if puede_ver_analisis %}
     <div class="rounded-lg border border-brand-200 dark:border-brand-800 shadow-sm bg-brand-50 dark:bg-brand-900/20 overflow-hidden">
         <div class="flex items-center justify-between gap-3 px-4 sm:px-5 py-3">
             <div class="flex items-center gap-2 min-w-0">
@@ -135,7 +137,7 @@
                     </svg>
                 </button>
                 {% endif %}
-                <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Análisis IA · Conceptual</h2>
+                <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Análisis IA</h2>
             </div>
             {% if puede_analizar %}
             <div class="shrink-0">
@@ -153,61 +155,9 @@
             {% endif %}
         </div>
 
-        <div id="cuerpo-analizar">
-        {% if analisis_conceptual %}
-        <div class="space-y-4 text-sm px-4 sm:px-5 pb-5">
-            {% if analisis_conceptual.problema %}
-            <div>
-                <h3 class="text-xs uppercase tracking-wide text-brand-700 dark:text-brand-400 font-semibold mb-1">Resumen técnico</h3>
-                <p class="text-gray-800 dark:text-gray-100 leading-relaxed whitespace-pre-line">{{ analisis_conceptual.problema }}</p>
-            </div>
-            {% endif %}
-            {% if analisis_conceptual.comportamiento_esperado %}
-            <div>
-                <h3 class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold mb-1">Comportamiento esperado</h3>
-                <p class="text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-line">{{ analisis_conceptual.comportamiento_esperado }}</p>
-            </div>
-            {% endif %}
-            {% if analisis_conceptual.comportamiento_observado %}
-            <div>
-                <h3 class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold mb-1">Comportamiento observado</h3>
-                <p class="text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-line">{{ analisis_conceptual.comportamiento_observado }}</p>
-            </div>
-            {% endif %}
-            {% if analisis_conceptual.pasos_reproducir %}
-            <div>
-                <h3 class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold mb-1">Pasos para reproducir</h3>
-                <p class="text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-line">{{ analisis_conceptual.pasos_reproducir }}</p>
-            </div>
-            {% endif %}
-            {% if analisis_conceptual.datos_relevantes %}
-            <div>
-                <h3 class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold mb-1">Datos relevantes</h3>
-                <p class="text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-line">{{ analisis_conceptual.datos_relevantes }}</p>
-            </div>
-            {% endif %}
-            {% if analisis_conceptual.informacion_faltante %}
-            <div>
-                <h3 class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold mb-1">Información faltante</h3>
-                <p class="text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-line">{{ analisis_conceptual.informacion_faltante }}</p>
-            </div>
-            {% endif %}
-            <p class="text-xs text-gray-400 dark:text-gray-500">
-                Generado con {{ analisis_conceptual.modelo_ia }} · {{ analisis_conceptual.generado_en|date:"d/m/Y H:i" }}
-            </p>
-        </div>
-        {% else %}
-        <div class="px-4 sm:px-5 pb-5">
-            <p class="text-sm text-gray-500 dark:text-gray-400">
-                Este ticket todavía no tiene análisis generado.
-                {% if puede_analizar %}Usá el botón <span class="font-medium text-gray-700 dark:text-gray-200">Analizar</span> para crear el resumen conceptual automático.{% else %}
-                El creador o un desarrollador/coordinador puede generarlo.
-                {% endif %}
-            </p>
-        </div>
-        {% endif %}
-        </div>
+        {% include "core/partials/analisis_cuerpo.html" %}
     </div>
+    {% endif %}
 
     <!-- Comentarios -->
     <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm p-4 sm:p-6 space-y-4">
@@ -686,9 +636,21 @@
               setTimeout(function () { intentar(n + 1); }, 2000);
               return;
             }
-            // Éxito: mostrar mensaje verde inline en la misma ubicación que el error
+            // Éxito: mostrar mensaje verde inline y refrescar el contenido (sin recargar)
             if (data.ok) {
-              mostrarExito(data.message || 'Análisis conceptual actualizado.');
+              mostrarExito(data.message || 'Análisis actualizado.');
+              if (data.cuerpo) {
+                // Reemplazar el contenido: el HTML viene con su propio <div id=cuerpo-analizar>
+                var nuevo = document.createElement('div');
+                nuevo.innerHTML = data.cuerpo.trim();
+                var nuevoCuerpo = nuevo.firstElementChild;
+                if (nuevoCuerpo) {
+                  cuerpo.replaceWith(nuevoCuerpo);
+                  cuerpo = nuevoCuerpo; // mantener la referencia actualizada
+                }
+                // después del primer análisis ya no es "Analizar" sino "Reanalizar"
+                texto.textContent = 'Reanalizar';
+              }
               finalizar(null);
               return;
             }
