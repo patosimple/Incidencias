@@ -252,8 +252,9 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
         ).exists()
         ctx["puede_cerrar"] = self._puede_cerrar(self.request.user, self.object)
         ctx["puede_reabrir"] = self._puede_reabrir(self.request.user, self.object)
-        ctx["puede_gestionar_comentarios"] = _es_participante_activo(
-            self.request.user, self.object
+        ctx["puede_gestionar_comentarios"] = (
+            _es_participante_activo(self.request.user, self.object)
+            and self.object.estado != EstadoTicket.CERRADO
         )
         ctx["tomado"] = self.object.ticketdesarrollador_set.filter(activo=True).exists()
         ctx["tomado_mi"] = self.object.ticketdesarrollador_set.filter(
@@ -266,7 +267,10 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
             self.object.analisis.filter(tipo=TipoAnalisis.TECNICO)
         )
         ctx["analisis_conceptual"] = analisis[0] if analisis else None
-        ctx["puede_analizar"] = self._puede_actuar(self.request.user, self.object)
+        ctx["puede_analizar"] = (
+            _es_participante_activo(self.request.user, self.object)
+            and self.object.estado != EstadoTicket.CERRADO
+        )
         ctx["puede_ver_analisis"] = self.request.user.rol in (
             RolUsuario.DESARROLLADOR,
             RolUsuario.COORDINADOR,
@@ -447,6 +451,8 @@ def editar_comentario(request, pk):
         raise PermissionDenied("Solo el autor puede editar su comentario.")
     if not _es_participante_activo(request.user, comentario.ticket):
         raise PermissionDenied("Ya no participás activamente en este ticket.")
+    if comentario.ticket.estado == EstadoTicket.CERRADO:
+        raise PermissionDenied("El ticket está cerrado; no se pueden editar comentarios.")
     if request.method == "POST":
         form = ComentarioForm(request.POST, instance=comentario)
         if form.is_valid():
@@ -481,6 +487,8 @@ def eliminar_comentario(request, pk):
         raise PermissionDenied("Solo el autor puede eliminar su comentario.")
     if not _es_participante_activo(request.user, comentario.ticket):
         raise PermissionDenied("Ya no participás activamente en este ticket.")
+    if comentario.ticket.estado == EstadoTicket.CERRADO:
+        raise PermissionDenied("El ticket está cerrado; no se puede eliminar el comentario.")
     ticket_id = comentario.ticket_id
     comentario.soft_delete()
     messages.success(request, "Comentario eliminado.")
@@ -528,8 +536,10 @@ def analizar_ticket(request, pk):
     # condición de `puede_ver_analisis` del context del detalle.
     if request.user.rol not in (RolUsuario.DESARROLLADOR, RolUsuario.COORDINADOR):
         raise PermissionDenied("El análisis IA no está disponible para tu rol.")
-    if not TicketDetailView._puede_actuar(request.user, ticket):
-        raise PermissionDenied("No podés analizar este ticket.")
+    if not _es_participante_activo(request.user, ticket):
+        raise PermissionDenied("Solo colaboradores activos del ticket pueden analizar.")
+    if ticket.estado == EstadoTicket.CERRADO:
+        raise PermissionDenied("El ticket está cerrado; no se puede volver a analizar.")
 
     es_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
@@ -545,7 +555,7 @@ def analizar_ticket(request, pk):
                 "core/partials/analisis_cuerpo.html",
                 {
                     "analisis_conceptual": analisis,
-                    "puede_analizar": TicketDetailView._puede_actuar(request.user, ticket),
+                    "puede_analizar": _es_participante_activo(request.user, ticket),
                 },
             )
             return JsonResponse({

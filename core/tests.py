@@ -10,6 +10,7 @@ from core.models import (
     ModeloIA,
     Sistema,
     Ticket,
+    TicketDesarrollador,
     TipoAnalisis,
     UsuarioSistema,
     EstadoAprobacion,
@@ -53,6 +54,9 @@ class AnalisisIATest(TestCase):
             estado=EstadoTicket.PENDIENTE,
         )
         self.modelo = ModeloIA.objects.create(proveedor="Groq", modelo="test-model")
+        # El dev analiza/participa SOLO si es colaborador activo del ticket
+        # (misma regla que comentar/editar comentarios).
+        TicketDesarrollador.objects.create(ticket=self.ticket, usuario=self.dev, activo=True)
 
     def _login_dev(self):
         self.client.login(username="dev.testeo", password="clave123")
@@ -185,3 +189,27 @@ class AnalisisIATest(TestCase):
             )
         self.assertEqual(resp.status_code, 400)
         self.assertFalse(resp.json()["retryable"])
+
+    def test_cerrado_no_se_reanaliza_y_chevron_de_colapso_se_mantiene(self):
+        self._login_dev()
+        self.ticket.estado = EstadoTicket.CERRADO
+        self.ticket.save(update_fields=["estado"])
+        # El chevron de colapsar/expandir la tarjeta sigue visible, pero el botón
+        # Analizar/Reanalizar no.
+        resp = self.client.get(reverse("ticket_detail", args=[self.ticket.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'id="toggle-analizar"')
+        self.assertNotContains(resp, 'id="form-analizar"')
+        self.assertContains(resp, "Ticket cerrado (análisis inamovible)")
+        # Re-analizar vía POST queda bloqueado (403) en un ticket cerrado.
+        resp = self.client.post(reverse("ticket_analizar", args=[self.ticket.pk]))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_dev_no_colaborador_no_puede_analizar(self):
+        self._login_dev()
+        # Dev NO es colaborador activo del ticket: no ve el botón ni puede analizar.
+        TicketDesarrollador.objects.filter(ticket=self.ticket, usuario=self.dev).delete()
+        resp = self.client.post(reverse("ticket_analizar", args=[self.ticket.pk]))
+        self.assertEqual(resp.status_code, 403)
+        resp2 = self.client.get(reverse("ticket_detail", args=[self.ticket.pk]))
+        self.assertNotContains(resp2, 'id="form-analizar"')

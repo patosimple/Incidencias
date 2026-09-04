@@ -6,6 +6,18 @@
 
 {% block extra_head %}
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+<style>
+    /* Giro antihorario para el ícono del botón Analizar/Reanalizar: el
+       animate-spin de Tailwind gira en sentido horario y sus flechas
+       quedan "de cola" (parecen girar hacia atrás). */
+    @keyframes spin-reverse {
+        from { transform: rotate(360deg); }
+        to { transform: rotate(0deg); }
+    }
+    .animate-spin-reverse {
+        animation: spin-reverse 1s linear infinite;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -128,16 +140,17 @@
     <div class="rounded-lg border border-brand-200 dark:border-brand-800 shadow-sm bg-brand-50 dark:bg-brand-900/20 overflow-hidden">
         <div class="flex items-center justify-between gap-3 px-4 sm:px-5 py-3">
             <div class="flex items-center gap-2 min-w-0">
-                {% if puede_analizar %}
-                <button type="button" id="toggle-analizar"
+                <button type="button" id="toggle-analizar" data-ticket-id="{{ ticket.pk }}"
                         class="shrink-0 p-1 rounded text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-800 transition-colors"
                         title="Mostrar/ocultar análisis">
                     <svg class="w-4 h-4" id="chevron-analizar" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                     </svg>
                 </button>
-                {% endif %}
                 <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Análisis IA</h2>
+                {% if ticket.estado == 'CERRADO' %}
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400 hidden sm:inline">· Ticket cerrado (análisis inamovible)</span>
+                {% endif %}
             </div>
             {% if puede_analizar %}
             <div class="shrink-0">
@@ -582,43 +595,24 @@
         box.innerHTML = '';
         box.classList.add('hidden');
       }
-      function setBtn(estado) {
-        btn.disabled = estado;
-        if (estado) {
-          btn.classList.remove('bg-brand-600', 'hover:bg-brand-700');
-          btn.classList.add('bg-brand-400', 'cursor-wait');
-          icon.classList.add('animate-spin');
-        } else {
-          btn.classList.add('bg-brand-600', 'hover:bg-brand-700');
-          btn.classList.remove('bg-brand-400', 'cursor-wait');
-          icon.classList.remove('animate-spin');
+function setBtn(estado) {
+          btn.disabled = estado;
+          if (estado) {
+            btn.classList.remove('bg-brand-600', 'hover:bg-brand-700');
+            btn.classList.add('bg-brand-400', 'cursor-wait');
+            icon.classList.add('animate-spin-reverse');
+          } else {
+            btn.classList.add('bg-brand-600', 'hover:bg-brand-700');
+            btn.classList.remove('bg-brand-400', 'cursor-wait');
+            icon.classList.remove('animate-spin-reverse');
+          }
         }
-      }
       function finalizar(redirectUrl) {
         setBtn(false);
         texto.textContent = formAnalizar.getAttribute('data-original') || 'Analizar';
         if (redirectUrl) { window.setTimeout(function () { window.location.href = redirectUrl; }, 600); }
       }
       formAnalizar.setAttribute('data-original', texto.textContent);
-
-      // Colapsar/expandir la tarjeta de análisis
-      var toggle = document.getElementById('toggle-analizar');
-      var cuerpo = document.getElementById('cuerpo-analizar');
-      var chevron = document.getElementById('chevron-analizar');
-      if (toggle && cuerpo) {
-        var collapseKey = 'analisis-colapsado-' + formAnalizar.action;
-
-        // Si el usuario lo colapsó antes, arrancar colapsado
-        if (localStorage.getItem(collapseKey) === '1') {
-          cuerpo.classList.add('hidden');
-          chevron.classList.add('rotate-180');
-        }
-        toggle.addEventListener('click', function () {
-          var hidden = cuerpo.classList.toggle('hidden');
-          chevron.classList.toggle('rotate-180', hidden);
-          localStorage.setItem(collapseKey, hidden ? '1' : '0');
-        });
-      }
 
       function intentar(n) {
         fetch(formAnalizar.action, {
@@ -671,6 +665,26 @@
         setBtn(true);
         texto.textContent = 'Analizando...';
         intentar(0);
+      });
+    }
+
+    // Colapsar/expandir la tarjeta de análisis: fuera del if del form para que
+    // también funcione en tickets cerrados (donde no hay botón Analizar).
+    var toggle = document.getElementById('toggle-analizar');
+    var cuerpo = document.getElementById('cuerpo-analizar');
+    var chevron = document.getElementById('chevron-analizar');
+    if (toggle && cuerpo) {
+      var collapseKey = 'analisis-colapsado-' + (toggle.dataset.ticketId || '0');
+
+      // Si el usuario lo colapsó antes, arrancar colapsado
+      if (localStorage.getItem(collapseKey) === '1') {
+        cuerpo.classList.add('hidden');
+        chevron.classList.add('rotate-180');
+      }
+      toggle.addEventListener('click', function () {
+        var hidden = cuerpo.classList.toggle('hidden');
+        chevron.classList.toggle('rotate-180', hidden);
+        localStorage.setItem(collapseKey, hidden ? '1' : '0');
       });
     }
   })();
