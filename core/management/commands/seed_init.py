@@ -6,7 +6,7 @@ Uso: python manage.py seed_init
 
 from django.core.management.base import BaseCommand
 
-from core.models import Sistema, ModeloIA, ConfiguracionIA
+from core.models import Sistema, ModeloIA, ConfiguracionIA, AnalisisIA
 
 
 class Command(BaseCommand):
@@ -42,14 +42,64 @@ class Command(BaseCommand):
             {"proveedor": "Ollama", "modelo": "gemma2:2b"},
         ]
         primero = None
+        deseados = set()
+        config = ConfiguracionIA.objects.first()
+        activo_id = config.modelo_activo_id if config else None
+
+        def _borrable(m):
+            """Un modelo socarrable si no es el activo ni tiene análisis históricos."""
+            return m.pk != activo_id and not AnalisisIA.objects.filter(modelo_ia=m).exists()
+
         for datos in modelos:
-            modelo_ia, creado = ModeloIA.objects.get_or_create(
-                proveedor=datos["proveedor"], modelo=datos["modelo"]
-            )
+            proveedor = datos["proveedor"]
+            deseados.add(proveedor)
+            candidatos = list(ModeloIA.objects.filter(proveedor=proveedor).order_by("pk"))
+
+            # Preferir el registro que ya es el activo, si existe; si no, el primero.
+            objetivo = next((m for m in candidatos if m.pk == activo_id), None)
+            if objetivo is None and candidatos:
+                objetivo = candidatos[0]
+
+            if objetivo is None:
+                objetivo = ModeloIA.objects.create(proveedor=proveedor, modelo=datos["modelo"])
+                self.stdout.write(f"  ModeloIA {objetivo}: creado")
+            else:
+                # Eliminar duplicados del mismo proveedor (heredados de seeds viejos
+                # que con get_or_create acumulaban en vez de reemplazar).
+                for dup in candidatos:
+                    if dup.pk == objetivo.pk:
+                        continue
+                    if _borrable(dup):
+                        dup.delete()
+                        self.stdout.write(f"  ModeloIA {dup}: eliminado (duplicado de {proveedor})")
+                    else:
+                        self.stdout.write(self.style.WARNING(
+                            f"  ModeloIA {dup} (duplicado de {proveedor}): no se elimina "
+                            "(activo o con análisis)"))
+
+                if objetivo.modelo != datos["modelo"]:
+                    anterior = objetivo.modelo
+                    objetivo.modelo = datos["modelo"]
+                    objetivo.save()
+                    self.stdout.write(f"  ModeloIA {objetivo.proveedor}: actualizado "
+                                      f"({anterior} -> {objetivo.modelo})")
+                else:
+                    self.stdout.write(f"  ModeloIA {objetivo}: ya existía")
+
             if primero is None:
-                primero = modelo_ia
-            estado = "creado" if creado else "ya existía"
-            self.stdout.write(f"  ModeloIA {modelo_ia}: {estado}")
+                primero = objetivo
+
+        # Eliminar proveedores que ya no están en el catálogo (modelos deprecados),
+        # siempre que no sean el activo ni tengan análisis históricos asociados.
+        obsoletos = ModeloIA.objects.exclude(proveedor__in=deseados)
+        for obsoleto in obsoletos:
+            if _borrable(obsoleto):
+                obsoleto.delete()
+                self.stdout.write(f"  ModeloIA {obsoleto}: eliminado (fuera de catálogo)")
+            else:
+                motivo = "es el ACTIVO" if obsoleto.pk == activo_id else "tiene análisis históricos"
+                self.stdout.write(self.style.WARNING(
+                    f"  ModeloIA {obsoleto} no se elimina ({motivo}; cambiar en admin)"))
 
         # Deja activo el primero de la lista si todavía no hay configuración.
         if primero and not ConfiguracionIA.objects.exists():

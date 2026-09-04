@@ -524,10 +524,12 @@ def analizar_ticket(request, pk):
     try:
         _ejecutar_analisis(ticket.pk)
         mensaje = "Análisis conceptual actualizado."
-        messages.success(request, mensaje)
         if es_ajax:
+            # El éxito AJAX se muestra inline en verde (#analizar-msg); no setear
+            # flash para no acumular un mensaje azul en el próximo GET.
             return JsonResponse({"ok": True, "message": mensaje,
                                  "redirect": reverse("ticket_detail", kwargs={"pk": ticket.pk})})
+        messages.success(request, mensaje)
     except RetryableProviderError as exc:
         if es_ajax:
             mensaje = (str(exc) if request.user.rol != RolUsuario.SOLICITANTE

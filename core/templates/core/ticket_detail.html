@@ -136,14 +136,6 @@
                 </button>
                 {% endif %}
                 <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Análisis IA · Conceptual</h2>
-                {% if analisis_conceptual %}
-                <span class="px-2 py-0.5 rounded-full text-xs font-medium
-                    {% if analisis_conceptual.estado_aprobacion == 'ACEPTADO' %}bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300
-                    {% elif analisis_conceptual.estado_aprobacion == 'OBJETADO' %}bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300
-                    {% else %}bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300{% endif %}">
-                    {{ analisis_conceptual.get_estado_aprobacion_display }}
-                </span>
-                {% endif %}
             </div>
             {% if puede_analizar %}
             <div class="shrink-0">
@@ -626,6 +618,15 @@
         box.appendChild(div);
         box.classList.remove('hidden');
       }
+      function mostrarExito(mensaje) {
+        var box = msgBox();
+        box.innerHTML = '';
+        var div = document.createElement('div');
+        div.className = 'text-sm rounded px-3 py-2 bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-800';
+        div.textContent = mensaje;
+        box.appendChild(div);
+        box.classList.remove('hidden');
+      }
       function limpiarMsg() {
         var box = msgBox();
         box.innerHTML = '';
@@ -685,8 +686,12 @@
               setTimeout(function () { intentar(n + 1); }, 2000);
               return;
             }
-            // Éxito: redirigir (muestra el análisis nuevo + flash de éxito)
-            if (data.ok && data.redirect) { finalizar(data.redirect); return; }
+            // Éxito: mostrar mensaje verde inline en la misma ubicación que el error
+            if (data.ok) {
+              mostrarExito(data.message || 'Análisis conceptual actualizado.');
+              finalizar(null);
+              return;
+            }
             // Fallo final (agotó reintentos o error duro): mostrar el error inline
             mostrarError(data.message || 'No se pudo generar el análisis. Intentá de nuevo.');
             finalizar(null);
