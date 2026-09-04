@@ -39,6 +39,7 @@ class UsuarioAdmin(UserAdmin):
 class SistemaAdmin(admin.ModelAdmin):
     list_display = ("codigo", "nombre")
     search_fields = ("codigo", "nombre")
+    fields = ("codigo", "nombre", "prompt")
 
 
 @admin.register(UsuarioSistema)
@@ -88,7 +89,8 @@ class AdjuntoAdmin(admin.ModelAdmin):
 
 @admin.register(ModeloIA)
 class ModeloIAAdmin(admin.ModelAdmin):
-    list_display = ("proveedor", "modelo", "actualizado_en")
+    list_display = ("proveedor", "modelo", "formato_salida", "actualizado_en")
+    list_filter = ("proveedor", "formato_salida")
 
 
 @admin.register(ConfiguracionIA)

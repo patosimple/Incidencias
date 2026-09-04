@@ -43,6 +43,10 @@ class Usuario(AbstractUser):
 class Sistema(models.Model):
     nombre = models.CharField(max_length=100)
     codigo = models.CharField(max_length=20, unique=True)
+    # Contexto opcional para la IA: descripción de qué hace el sistema y datos
+    # que el usuario final conoce. Si tiene texto, se inyecta al prompt del
+    # análisis (system prompt) para orientar al modelo. Vacío = no se envía.
+    prompt = models.TextField(blank=True, help_text="Descripción del sistema para el análisis IA (opcional)")
 
     class Meta:
         verbose_name = "Sistema"
@@ -210,12 +214,27 @@ class Adjunto(models.Model):
 # Modelo de IA (catálogo abierto) y configuración activa
 # ---------------------------------------------------------------------------
 
+class FormatoSalidaIA(models.TextChoices):
+    RESPONSE_FORMAT = "RESPONSE_FORMAT", "JSON mode (response_format) del endpoint OpenAI-compatible"
+    NATIVO = "NATIVO", "Formato nativo del proveedor (p.ej. Ollama: format: json)"
+    NINGUNO = "NINGUNO", "Ninguno: se pide JSON por instrucción en el prompt"
+
+
 class ModeloIA(models.Model):
     """Catálogo abierto de proveedores/modelos de IA. No guarda API keys --
     esas viven en variables de entorno, mapeadas por el campo `proveedor`
-    (ver ai/providers.py)."""
+    (ver ai/providers.py).
+
+    `formato_salida` define cómo pedirle el JSON al modelo: algunos endpoints
+    OpenAI-compatibles no soportan `response_format` (Gemini/NVIDIA en la
+    práctica) y conviene no mandarlo; Ollama usa su `format: json` nativo."""
     proveedor = models.CharField(max_length=50, help_text="Ej: Groq, Gemini, OpenRouter")
     modelo = models.CharField(max_length=100, help_text="Ej: llama-3.3-70b, gemini-2.0-flash")
+    formato_salida = models.CharField(
+        max_length=20, choices=FormatoSalidaIA.choices,
+        default=FormatoSalidaIA.RESPONSE_FORMAT,
+        help_text="Cómo se le pide al modelo el JSON de salida",
+    )
     actualizado_en = models.DateTimeField(auto_now=True)
 
     class Meta:

@@ -18,14 +18,40 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Seed init completo."))
 
     def _seed_sistemas(self):
+        # El campo `prompt` es contexto opcional para la IA: describe qué hace
+        # el sistema y qué datos conoce el usuario final. Solo se escribe si el
+        # sistema es nuevo o no tiene prompt todavía (no pisa ediciones del admin).
         sistemas = [
-            {"codigo": "BALANCES", "nombre": "Balances"},
-            {"codigo": "FINANCIAMIENTO", "nombre": "Financiamiento"},
+            {
+                "codigo": "BALANCES",
+                "nombre": "Balances",
+                "prompt": (
+                    "Aplicación web de contabilidad donde los usuarios cargan y "
+                    "consultan balances e informes contables. El usuario final "
+                    "conoce qué pantalla/módulo usa (carga de asientos, consulta "
+                    "de balances, listados), qué período o ejercicio reporta y "
+                    "qué datos de entrada cargó."
+                ),
+            },
+            {
+                "codigo": "FINANCIAMIENTO",
+                "nombre": "Financiamiento",
+                "prompt": (
+                    "Aplicación web de gestión de financiamiento político: los "
+                    "usuarios cargan y consultan aportes, financiadores y "
+                    "reportes de financiamiento. El usuario final conoce qué "
+                    "pantalla/módulo usa (carga de aportes, consultas, informes), "
+                    "a qué campaña o período corresponde y qué datos cargó."
+                ),
+            },
         ]
         for datos in sistemas:
             sistema, creado = Sistema.objects.get_or_create(
                 codigo=datos["codigo"], defaults={"nombre": datos["nombre"]}
             )
+            if creado or not sistema.prompt:
+                sistema.prompt = datos["prompt"]
+                sistema.save(update_fields=["prompt"])
             estado = "creado" if creado else "ya existía"
             self.stdout.write(f"  Sistema {sistema.codigo}: {estado}")
 
@@ -34,12 +60,18 @@ class Command(BaseCommand):
         # queda como activo si todavía no hay ConfiguracionIA.
         # Ajustar el string de "modelo" al que efectivamente se use de cada proveedor.
         # Ollama es local (sin API key): solo funciona en desarrollo, no en Render.
+        #
+        # formato_salida: cómo pedirle el JSON al modelo:
+        #   RESPONSE_FORMAT -> response_format json_object (Groq/OpenRouter lo soportan)
+        #   NATIVO          -> format: json nativo (Ollama)
+        #   NINGUNO         -> sin campo de formato: se pide JSON por instrucción y se
+        #                     tolera el ruido en el parsing (Gemini/NVIDIA lo ignoran)
         modelos = [
-            {"proveedor": "Groq", "modelo": "qwen/qwen3.8-27b"},
-            {"proveedor": "Gemini", "modelo": "gemini-3.6-flash"},
-            {"proveedor": "OpenRouter", "modelo": "google/gemma-4-31b-it:free"},
-            {"proveedor": "NVIDIA", "modelo": "openai/gpt-oss-20b"},
-            {"proveedor": "Ollama", "modelo": "gemma2:2b"},
+            {"proveedor": "Groq", "modelo": "qwen/qwen3.8-27b", "formato_salida": "RESPONSE_FORMAT"},
+            {"proveedor": "Gemini", "modelo": "gemini-3.6-flash", "formato_salida": "NINGUNO"},
+            {"proveedor": "OpenRouter", "modelo": "google/gemma-4-31b-it:free", "formato_salida": "RESPONSE_FORMAT"},
+            {"proveedor": "NVIDIA", "modelo": "openai/gpt-oss-20b", "formato_salida": "NINGUNO"},
+            {"proveedor": "Ollama", "modelo": "gemma2:2b", "formato_salida": "NATIVO"},
         ]
         primero = None
         deseados = set()
@@ -61,7 +93,11 @@ class Command(BaseCommand):
                 objetivo = candidatos[0]
 
             if objetivo is None:
-                objetivo = ModeloIA.objects.create(proveedor=proveedor, modelo=datos["modelo"])
+                objetivo = ModeloIA.objects.create(
+                    proveedor=proveedor,
+                    modelo=datos["modelo"],
+                    formato_salida=datos["formato_salida"],
+                )
                 self.stdout.write(f"  ModeloIA {objetivo}: creado")
             else:
                 # Eliminar duplicados del mismo proveedor (heredados de seeds viejos
@@ -77,12 +113,17 @@ class Command(BaseCommand):
                             f"  ModeloIA {dup} (duplicado de {proveedor}): no se elimina "
                             "(activo o con análisis)"))
 
+                cambios = []
                 if objetivo.modelo != datos["modelo"]:
-                    anterior = objetivo.modelo
+                    cambios.append(f"modelo {objetivo.modelo} -> {datos['modelo']}")
                     objetivo.modelo = datos["modelo"]
+                if objetivo.formato_salida != datos["formato_salida"]:
+                    cambios.append(f"formato_salida {objetivo.formato_salida} -> {datos['formato_salida']}")
+                    objetivo.formato_salida = datos["formato_salida"]
+
+                if cambios:
                     objetivo.save()
-                    self.stdout.write(f"  ModeloIA {objetivo.proveedor}: actualizado "
-                                      f"({anterior} -> {objetivo.modelo})")
+                    self.stdout.write(f"  ModeloIA {objetivo.proveedor}: actualizado ({', '.join(cambios)})")
                 else:
                     self.stdout.write(f"  ModeloIA {objetivo}: ya existía")
 

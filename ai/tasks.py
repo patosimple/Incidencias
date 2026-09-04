@@ -22,7 +22,7 @@ un worker hay que correr un proceso aparte; `immediate` lo evita.
 from huey.contrib.djhuey import task
 
 from core.models import Ticket, AnalisisIA, TipoAnalisis
-from .providers import get_active_provider, VERSION_PROMPT
+from .providers import get_active_provider, VERSION_PROMPT, html_a_texto_plano
 
 
 def _ejecutar_analisis(ticket_id: int):
@@ -31,10 +31,19 @@ def _ejecutar_analisis(ticket_id: int):
     Separa la lógica del wrapper de Huey para que la vista pueda llamarla
     directamente (sin que @task capture las excepciones).
     """
-    ticket = Ticket.objects.get(pk=ticket_id)
+    ticket = Ticket.objects.select_related("sistema").get(pk=ticket_id)
     provider = get_active_provider()
 
-    resultado = provider.generar_analisis(ticket.descripcion_original, TipoAnalisis.TECNICO)
+    # La descripción se guarda como HTML (Quill). Al modelo le mandamos el
+    # texto plano: sin tags/entidades, ese texto es SOLO el dato a analizar.
+    texto_plano = html_a_texto_plano(ticket.descripcion_original)
+    resultado = provider.generar_analisis(
+        texto_plano,
+        TipoAnalisis.TECNICO,
+        titulo=ticket.titulo,
+        sistema_nombre=ticket.sistema.nombre,
+        prompt_sistema=ticket.sistema.prompt or "",
+    )
 
     # Borra los análisis previos del ticket (reanalizar => reemplaza).
     AnalisisIA.objects.filter(ticket=ticket, tipo=TipoAnalisis.TECNICO).delete()
