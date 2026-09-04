@@ -3,7 +3,7 @@
 ## Resumen del proyecto
 **Sistema de tickets** - Gestion interna de bugs para apps "Balances" y "Financiamiento" (financiamiento politico).
 - **Fase 1 (completa)**: Tickets convencional - login, listado, creacion, detalle, comentarios, adjuntos, toma colaborativa, cambio de estado, admin de sistemas/accesos.
-- **Fase 2 (parcial)**: Analisis conceptual IA via LLM - modo manual (boton Analizar/Reanalizar). Providers Groq/Gemini/OpenRouter/NVIDIA/Ollama con llamada HTTP real. Prompt unico (sin system/user). **Pendiente**: auto-analisis al crear ticket, rotacion de modelos/API keys, prompt optimizado.
+- **Fase 2 (parcial)**: Analisis conceptual IA via LLM - modo manual (boton Analizar/Reanalizar). Providers Groq/Gemini/OpenRouter/NVIDIA/Ollama con llamada HTTP real. **Prompt optimizado** (system/user separados, texto plano sin HTML, contexto de ticket/sistema, defensa anti-prompt-injection). **Pendiente**: auto-analisis al crear ticket, rotacion de modelos/API keys, admin de versiones de prompt, mostrar `informacion_faltante`.
 
 ## Stack
 - Django 5.2 + PostgreSQL (psycopg)
@@ -20,14 +20,16 @@
   - **Tipo único TÉCNICO**: el análisis se guarda SIEMPRE como `TipoAnalisis.TECNICO` (se eliminó el "Conceptual" de la UI y de la lógica; `_ejecutar_analisis` borra/crea solo `TECNICO`). Oculto para **solicitantes**: `puede_ver_analisis` (DEV/COORD) en el context del detalle + `analizar_ticket` lanza 403 a roles != DEV/COORD (server-side, no solo oculto en UI). Pendiente la opción de que el solicitante lo vea y lo **valide** (flujo de aprobación).
   - **"Información faltante" NO se muestra**: el modelo no tiene contexto del sistema sobre el que reporta el usuario, así que ese dato no aporta. Se sigue generando y guardando en la DB, pero el render (`partials/analisis_cuerpo.html`) lo omite.
   - **Refresco sin recargar**: el éxito AJAX devuelve el **HTML del cuerpo re-renderizado** (`render_to_string` del partial) en la clave `cuerpo` del JSON; el cliente reemplaza el nodo `#cuerpo-analizar` (no `.innerHTML`, porque el partial incluye su propio div) y cambia el botón a "Reanalizar".
-  - **`VERSION_PROMPT` manual**: constante `VERSION_PROMPT` en `ai/providers.py` (hoy `"v2"`). Se sube **a mano** cada vez que cambia el prompt; `_ejecutar_analisis` la guarda en `AnalisisIA.version_prompt`. NO se lee de la DB (elegir versiones por admin = PENDIENTE; riesgo de seguridad solo si se renderiza el prompt como template Django, no si se concatena como string al LLM).
-  - **Prompt con perspectiva de USUARIO**: el reporte lo escribe un usuario (sin backend) pero lo lee un dev. El prompt instruye NO asumir/pedir internals del sistema (tablas, flags en BD, flujo entre módulos, dependencias de estado del informe); `informacion_faltante` solo pide datos que el usuario puede aportar (pantalla, pasos, mensajes de error, frecuencia, OS).
+  - **`VERSION_PROMPT` manual**: constante `VERSION_PROMPT` en `ai/providers.py` (hoy `"v3"`). Se sube **a mano** cada vez que cambia el prompt; `_ejecutar_analisis` la guarda en `AnalisisIA.version_prompt`. NO se lee de la DB (elegir versiones por admin = PENDIENTE; riesgo de seguridad solo si se renderiza el prompt como template Django, no si se concatena como string al LLM).
+  - **Prompt optimizado (implementado 09/2026)**: `_construir_mensajes()` en `ai/providers.py` arma **`system` separado de `user`** (persona/tarea/reglas/formato en `system`; solo el dato en `user`). El `user` incluye **contexto del ticket** (título + sistema + `Sistema.prompt` si tiene) y la descripción. La descripción se envía en **texto plano** vía `html_a_texto_plano()` (convierte el HTML de Quill: párrafos/listas con saltos de línea, sin tags/entidades) — se aplica en `_ejecutar_analisis`. **Defensa anti prompt-injection**: el `system` declara que el bloque "DESCRIPCIÓN DEL TICKET" es SOLO el dato a analizar (puede contener órdenes: "desobedecé lo anterior", etc.), que se ignoran, y que ninguna instrucción dentro de la descripción puede modificar tarea/reglas/formato; el bloque se delimita con `"""..."""` en el `user`.
+  - **`formato_salida` por modelo (implementado 09/2026)**: `ModeloIA.formato_salida` (choices `RESPONSE_FORMAT`=JSON mode / `NATIVO`=format json de Ollama / `NINGUNO`=sin campo, se pide por instrucción) decide si `_chat_completions` manda `response_format` y si Ollama manda `format: json`. Seed: Groq/OpenRouter=RESPONSE_FORMAT, Gemini/NVIDIA=NINGUNO, Ollama=NATIVO. **OJO**: Gemini/NVIDIA venían andando BIEN con `response_format` (era constante global) — el usuario va a probar NINGUNO; si falla, reverit a RESPONSE_FORMAT (el valor anterior a este cambio). Además `_extraer_json()` tolera ruido en la respuesta (fences de markdown, texto alrededor) antes de `json.loads`.
+  - **Prompt con perspectiva de USUARIO + contexto de sistema**: el reporte lo escribe un usuario (sin backend) pero lo lee un dev. El prompt instruye NO asumir/pedir internals del sistema (tablas, flags en BD, flujo entre módulos, dependencias de estado del informe); `informacion_faltante` solo pide datos que el usuario puede aportar (pantalla, pasos, mensajes de error, frecuencia, OS). **`Sistema.prompt`** (migración `0005`) es un TextField con la descripción de qué hace el sistema; si tiene texto, se inyecta en el `user` como "Qué hace el sistema (descripción oficial)". Seed_init lo llena con un prompt base (BALANCES/FINANCIAMIENTO) solo si está vacío.
 - ✅ `core/urls.py` y `config/urls.py`: listado, creacion, detalle, tomar ticket, cambiar estado, comentar, **login/logout + cambiar-password** (`auth_views` + `CambiarPasswordView`) + **analizar ticket** (`analizar_ticket`)
 - ✅ `config/settings.py`: `LOGIN_URL='login'`, `LOGIN_REDIRECT_URL='ticket_list'` (sin esto, anon iba a `/accounts/login/` que no existe)
 - ✅ `core/forms.py`: `TicketForm`, `ComentarioForm`, **`CambioPasswordForm`** (labels espanol + estilos Tailwind/dark en inputs). ~~`AdjuntoForm`/`AdjuntoFormSet`~~ **ELIMINADOS** — ya no hay formset; los adjuntos se suben con un único `<input type="file" name="archivos" multiple>` manejado con `request.FILES.getlist("archivos")` en `core/views.py`)
 - ✅ `core/views.py`: `TicketListView`, `TicketCreateView`, `TicketDetailView`, `tomar_ticket`, `cambiar_estado_ticket`, `agregar_comentario` (permisos por rol aplicados) + **`CambiarPasswordView`** (`LoginRequiredMixin` + `PasswordChangeView`, success_url a `ticket_list` con mensaje flash)
 - ✅ `core/management/commands/seed_init.py`: seed base aplicado (Sistemas: BALANCES, FINANCIAMIENTO; ModeloIA: Groq/Gemini/OpenRouter/NVIDIA; ConfiguracionIA activa: Groq)
-- ✅ `core/management/commands/seed_tickets.py`: seed demo (5 solicitantes espanol + N tickets lorem, contables). **Password de los solicitantes: `Solicitante123!`** (usuarios: maria.lopez, carlos.gonzalez, lucia.fernandez, joaquin.rodriguez, valentina.martinez — todos con acceso a BALANCES + FINANCIAMIENTO)
+- ✅ `core/management/commands/seed_tickets.py`: seed demo (5 solicitantes espanol + N tickets lorem, contables). **Password de los solicitantes: `soli`** (usuarios: maria.lopez, carlos.gonzalez, lucia.fernandez, joaquin.rodriguez, valentina.martinez — todos con acceso a BALANCES + FINANCIAMIENTO)
 - ✅ `core/templates/core/base.html`: layout general responsive (sidebar desktop colapsable a iconos + off-canvas movil), Tailwind CDN + HTMX, **dark mode con toggle sol/luna**, **paleta de marca `brand` (base #007AC3)** en `tailwind.config` inline, `{% block extra_js %}` al final, **menu desplegable de usuario en el avatar** (nombre, email, rol, Administración, Cambiar contraseña, Salir; cierra con click afuera/Escape). El badge flotante de breakpoint fue ELIMINADO. **Flash messages diferenciadas**: error=rojo, warning=ambar, success/info=brand azul (via `message.tags`)
 - ✅ `core/templates/core/login.html` (nuevo): pantalla de login que hereda el shell de base (dark mode + paleta brand), error en español ("Usuario o contraseña incorrectos."), pista de password demo
 - ✅ `core/templates/core/password_change.html` (nuevo): cambio de password (card responsive, hereda shell, dark ready)
@@ -78,12 +80,12 @@
 | Modelo | Clave |
 |--------|-------|
 | `Usuario` | Extiende `AbstractUser`, campo `rol` (SOLICITANTE/DESARROLLADOR/COORDINADOR) |
-| `Sistema` | Catalogo (Balances, Financiamiento) |
+| `Sistema` | Catalogo (Balances, Financiamiento). **`prompt`** (migración `0005`): TextField opcional, descripción del sistema para el análisis IA; si tiene texto se inyecta al prompt del `user` |
 | `UsuarioSistema` | M2M usuario-sistema (accesos) |
 | `Ticket` | titulo, sistema, solicitante, descripcion_original, estado, `estado_previo` (previo a sesión EN_PROCESO, para restaurar al liberar), desarrolladores (M2M through `TicketDesarrollador`) |
 | `Comentario` | ticket, usuario, cuerpo, `modificado_en` (NULL hasta editar), `eliminado_en` (soft delete; `objects` oculta los borrados, `all_objects` los ve) |
 | `Adjunto` | ticket XOR comentario (CheckConstraint), archivo, tipo (IMAGEN/DOCUMENTO) |
-| `ModeloIA` | Catalogo proveedores/modelos (Fase 2) |
+| `ModeloIA` | Catalogo proveedores/modelos (Fase 2). **`formato_salida`** (migración `0006`): `RESPONSE_FORMAT`/`NATIVO`/`NINGUNO`, decide si se manda `response_format` (o `format: json` en Ollama) |
 | `ConfiguracionIA` | Singleton, `modelo_activo` FK a ModeloIA (Fase 2) |
 | `AnalisisIA` | ticket, tipo (**TECNICO** — único hoy; el "Conceptual" se quitó de la UI y la lógica), salida estructurada, estado_aprobacion, modelo_ia, version_prompt (Fase 2) |
 
@@ -96,6 +98,7 @@
 - **Encoding**: SIEMPRE escribir templates con `[System.IO.File]::WriteAllText(..., UTF8)` en PowerShell. Nunca usar `Set-Content` (produce Windows-1252 y rompe Django con UnicodeDecodeError)
 - Correr manage.py con `.\venv\Scripts\python.exe manage.py <comando>` (el activate.bat no persiste en PowerShell)
 - **Antes de commitear**: preguntar SIEMPRE al usuario si quiere actualizar `AGENTS.md` (el usuario no lo pide solo; el agente debe ofrecerlo). Se trabaja en varias maquinas y este archivo es el contexto compartido.
+- **README.md**: si un cambio afecta arranque del proyecto, setup, variables de entorno, comandos (`seed_init`, `seed_tickets`, `run_huey`, etc.), estructura como corre un desarrollador nuevo → recordarle al usuario que `README.md` quedó desactualizado y proponerle actualizarlo (si es un cambio menor, ofrecerlo directamente).
 
 ## Responsive (NORMA OBLIGATORIA) — convenciones de layout
 > **Regla**: TODA vista/template nueva debe ser responsive y heredar el shell de `base.html`. Los templates pendientes (`ticket_form.html`, `ticket_detail.html`) DEBEN cumplir estas normas.
@@ -147,6 +150,8 @@ ai/
 ```
 
 ## Configuracion DB (.env)
+> Plantilla de referencia con TODAS las variables (obligatorias y opcionales): **`.env.example`** en la raíz (committeado). Copiar a `.env` y completar.
+
 ```bash
 # Solo una activa, comentar/descomentar:
 DATABASE_URL=postgresql://neondb_owner:...@ep-...neon.tech/incidencias?sslmode=require
@@ -155,14 +160,22 @@ DATABASE_URL=postgresql://neondb_owner:...@ep-...neon.tech/incidencias?sslmode=r
 # Filtrado client-side (demo) vs server-side (produccion)
 MODO_FILTRO_CLIENTE=True
 
+# Huey síncrono (demo, sin worker) vs cola real (AI_IMMEDIATE=False + run_huey)
+AI_IMMEDIATE=True
+
+# Hosts permitidos: OJO no comentar para "restringir" (default de settings = ['*']).
+# Para SOLO local: DJANGO_ALLOWED_HOSTS=  (vacía) -> .onrender.com/localhost/127.0.0.1
+DJANGO_ALLOWED_HOSTS=*
+
 # API keys IA (NUNCA commitear — .env esta en .gitignore)
 GROQ_API_KEY=gsk_...
 # GOOGLE_AI_API_KEY=...
 # OPENROUTER_API_KEY=...
+# NVIDIA_API_KEY=...
 ```
 En `settings.py`: `DATABASES = {'default': env.db_url('DATABASE_URL')}`
 - `MODO_FILTRO_CLIENTE` = `env.bool('MODO_FILTRO_CLIENTE', default=True)` — cambiar a False y reiniciar el proceso para server-side.
-- API keys: `settings.py` propaga `GROQ_API_KEY`, `GOOGLE_AI_API_KEY`, `OPENROUTER_API_KEY` a `os.environ` para que `ai/providers.py` las lea.
+- API keys: `settings.py` propaga `GROQ_API_KEY`, `GOOGLE_AI_API_KEY`, `OPENROUTER_API_KEY`, `NVIDIA_API_KEY` a `os.environ` para que `ai/providers.py` las lea. `OLLAMA_HOST` (default `http://localhost:11434`) solo lo usa Ollama (sin key).
 
 ## Comandos utiles
 ```bash
@@ -173,6 +186,7 @@ En `settings.py`: `DATABASES = {'default': env.db_url('DATABASE_URL')}`
 .\venv\Scripts\python.exe manage.py shell
 .\venv\Scripts\python.exe manage.py seed_init      # sistemas + catalogos IA (base)
 .\venv\Scripts\python.exe manage.py seed_tickets    # solicitantes + tickets demo (opcional --reset, --tickets N)
+.\venv\Scripts\python.exe manage.py run_huey        # worker de tareas (con AI_IMMEDIATE=False); usa la misma DB
 # seed_tickets --reset borra SOLO los tickets de los 5 solicitantes del seed + esos 5 usuarios (no toca otros usuarios)
 # on_delete de Ticket.solicitante -> Usuario es PROTECT: no se puede borrar un usuario con tickets asociados
 ```
@@ -189,13 +203,13 @@ En `settings.py`: `DATABASES = {'default': env.db_url('DATABASE_URL')}`
 - No tocar modelos ni admin (estan cerrados)
 - `ai/models.py` vacio intencionalmente (modelos IA en core)
 - **Menu de usuario (header)**: avatar + chevron abre `#user-menu`. Bloque identidad con **barra vertical de color por rol** (`self-stretch w-1.5`, SOLICITANTE=brand-600 / DESARROLLADOR=emerald-600 / COORDINADOR=purple-600) + nombre, email y rol en texto debajo. Items: **Administración** (`gestionar` solo superuser o rol DEV/COOR; **el link NO sustenta `is_staff`** — si un DEV/COOR no es staff lo espera un 403/redirect en /admin/), **Cambiar contraseña**, **Salir**. JS: cierra con click afuera o Escape.
-- **is_staff vs rol (desacoplados a proposito)**: `rol` = permiso de negocio (vistas); `is_staff`/`is_superuser` = acceso a /admin/. Los seeds crean SOLO solicitantes (pasword `Solicitante123!`), ninguno staff. El unico staff/superuser del entorno es `patosimple` (creado a mano). Si un DEV/COOR necesita /admin/, hay que marcarle `is_staff` en el admin.
+- **is_staff vs rol (desacoplados a proposito)**: `rol` = permiso de negocio (vistas); `is_staff`/`is_superuser` = acceso a /admin/. Los seeds crean SOLO solicitantes (password `soli`), ninguno staff. El unico staff/superuser del entorno es `patosimple` (creado a mano). Si un DEV/COOR necesita /admin/, hay que marcarle `is_staff` en el admin.
 - **Settings y .env**: `DATABASE_URL` y `MODO_FILTRO_CLIENTE` se leen SOLO al arrancar el proceso. Cambiarlos (en `.env` o `settings.py`) requiere reiniciar/redeploy (Gunicorn/Render). No cambian en caliente.
 - **Zona horaria**: `config/settings.py` → `TIME_ZONE = 'America/Argentina/Buenos_Aires'` (UTC-3) + `USE_TZ = True`. Django guarda fechas en UTC y las renderiza en local vía el template filter `|date`. Si cambia el usuario principal, ajustar `TIME_ZONE`.
 - **Accesos a sistemas en admin**: `UsuarioSistemaInline` dentro de `UsuarioAdmin`. Duplicados los valida el formset nativo de Django antes de guardar (el `unique_together` de BD es respaldo). No hace falta `related_name` en `UsuarioSistema` por ahora.
 - El carrusel multiMCP tuvo problemas en sesion anterior: Groq/Cerebras con modelos deprecados, Kimi/SambaNova sin saldo, NVIDIA con funcion no encontrada, Gemini modelo deprecado. Revisar IDs de modelos.
-- **IA Fase 2 (estado actual)**: `_ejecutar_analisis()` en `ai/tasks.py` es la logica pura (sin wrapper Huey). La vista `analizar_ticket` es **híbrida AJAX/fallback**: `fetch` (manda `X-Requested-With: XMLHttpRequest`) → responde JSON; sin fetch → flash + redirect (fallback). La vista llama `_ejecutar_analisis` directamente para que las excepciones propaguen al try/except. Con `immediate=True` (default), la llamada es sincrona (2-8s con Groq). Modelo activo: `qwen/qwen3.8-27b` en Groq. Prompt: instrucciones + descripcion del ticket en un solo `user` message (sin `system`), **perspectiva de usuario** (ver arriba). **Reintentos client-side visibles**: `_ejecutar_analisis`/`_chat_completions` **NO reintenta** (lanza `RetryableProviderError` ante 429/5xx/timeout); el **cliente** reintenta con fetch mostrando "Reintento N..." en el botón (máx 3 extra, backoff 2s), el server devuelve **503** en transitorio y **400** en error duro. **Solo DEV/COORD analizan** (los solicitantes reciben 403 y no ven la sección); por eso el mensaje de error siempre es de detalle (str de la excepción / proveedor) — el branch de "genérico para solicitante" quedó como dead code. Boton Analizar/Reanalizar con spinner animado + **la tarjeta de análisis es colapsable** (chevron, estado por ticket en `localStorage`) con **fondo celeste `bg-brand-50`**; el mensaje inline de éxito/error se muestra **encima de la tarjeta** (`#analizar-msg`). API keys en `.env` propagadas a `os.environ` en `settings.py`.
-- **IA Fase 2 pendiente**: prompt optimizado (separar system/user, saneear HTML de Quill antes de enviar, incluir contexto de sistema), auto-analisis al crear ticket (linea placeholder `views.py:219`), rotacion de modelos/API keys (round-robin o fallback), respaldo `response_format: json_object` para modelos que no lo soportan, **que el solicitante pueda ver el análisis y validarlo** (flujo de aprobación Aceptar/Objetar sobre `estado_aprobacion`; hoy está oculto para solicitantes y sin botones de aprobación).
+- **IA Fase 2 (estado actual)**: `_ejecutar_analisis()` en `ai/tasks.py` es la logica pura (sin wrapper Huey). La vista `analizar_ticket` es **híbrida AJAX/fallback**: `fetch` (manda `X-Requested-With: XMLHttpRequest`) → responde JSON; sin fetch → flash + redirect (fallback). La vista llama `_ejecutar_analisis` directamente para que las excepciones propaguen al try/except. Con `immediate=True` (default), la llamada es sincrona (2-8s con Groq). Modelo activo: `qwen/qwen3.8-27b` en Groq. Prompt: **system/user separados** (`_construir_mensajes()`), descripcion en **texto plano** (`html_a_texto_plano()`), contexto de ticket/sistema (`titulo`, `sistema`, `Sistema.prompt`) y **defensa anti prompt-injection** en el `system` (ver arriba). **Reintentos client-side visibles**: `_ejecutar_analisis`/`_chat_completions` **NO reintenta** (lanza `RetryableProviderError` ante 429/5xx/timeout); el **cliente** reintenta con fetch mostrando "Reintento N..." en el botón (máx 3 extra, backoff 2s), el server devuelve **503** en transitorio y **400** en error duro. **Solo DEV/COORD analizan** (los solicitantes reciben 403 y no ven la sección); por eso el mensaje de error siempre es de detalle (str de la excepción / proveedor) — el branch de "genérico para solicitante" quedó como dead code. Boton Analizar/Reanalizar con spinner animado + **la tarjeta de análisis es colapsable** (chevron, estado por ticket en `localStorage`) con **fondo celeste `bg-brand-50`**; el mensaje inline de éxito/error se muestra **encima de la tarjeta** (`#analizar-msg`). API keys en `.env` propagadas a `os.environ` en `settings.py`.
+- **IA Fase 2 pendiente**: auto-analisis al crear ticket (linea placeholder `views.py:219`), rotacion de modelos/API keys (round-robin o fallback), **admin de versiones de prompt** (`VERSION_PROMPT` sigue siendo constante a mano; elegir versión desde admin = pendiente), **mostrar `informacion_faltante`** (el usuario decidió dejarlo oculto por ahora; con `Sistema.prompt` ya habría contexto para que ese campo aporte), **que el solicitante pueda ver el análisis y validarlo** (flujo de aprobación Aceptar/Objetar sobre `estado_aprobacion`; hoy está oculto para solicitantes y sin botones de aprobación). **`formato_salida` NINGUNO en Gemini/NVIDIA**: el usuario va a probar si andan igual que antes (venían bien con `response_format` global); si fallan, revertir a `RESPONSE_FORMAT` en seed + BD.
 - **Modelos Groq disponibles (09/2026)**: `qwen/qwen3.8-27b`, `qwen/qwen3.6-27b`, `groq/compound-mini`, `groq/compound`, `allam-2-7b`, `openai/gpt-oss-20b`, `openai/gpt-oss-120b`. Los `llama-3.x` ya NO existen en Groq free tier.
 - **NVIDIA (agregado 09/2026)**: registro `ModeloIA(proveedor='NVIDIA', modelo='openai/gpt-oss-20b')` en BD y seed. Base URL `https://integrate.api.nvidia.com/v1` (OpenAI-compatible). **Tier free inestable** (500/timeouts under demanda; `meta/llama-3.3-70b-instruct` y `nvidia/llama-3.1-nemotron-70b-instruct` devuelven 404/410; el que funciona es `openai/gpt-oss-20b`, tarda hasta 40s). El activo sigue siendo Groq.
 - **Variables de entorno IA**: `GROQ_API_KEY`, `GOOGLE_AI_API_KEY`, `OPENROUTER_API_KEY`, `NVIDIA_API_KEY` (en `.env`). `settings.py` las propaga a `os.environ` para que `ai/providers.py` las lea. Las que no estan quedan como string vacio.

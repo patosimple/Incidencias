@@ -8,8 +8,8 @@
 ## Contexto del proyecto (qué construimos)
 
 - **Sistema de tickets** interno para gestión de bugs de las apps "Balances" y "Financiamiento".
-- **Fase 1 (actual)**: tickets convencionales — login, listado, creación, detalle, comentarios, adjuntos, toma colaborativa, cambio de estado, admin de sistemas/accesos. Sin IA.
-- **Fase 2 (futura)**: capa IA (análisis Conceptual/Técnico vía LLM). Esqueleto ya existe en `ai/`.
+- **Fase 1 (completa)**: tickets convencionales — login, listado, creación, detalle, comentarios, adjuntos, toma colaborativa, cambio de estado, admin de sistemas/accesos.
+- **Fase 2 (parcial)**: capa IA (análisis TÉCNICO vía LLM, tipo único) — providers Groq/Gemini/OpenRouter/NVIDIA/Ollama con llamada HTTP real, análisis manual (Analizar/Reanalizar), prompt optimizado (system/user, texto plano, anti-inyección) y `formato_salida` por modelo. Lógica en `ai/`; **modelos IA en `core`** (decisión del 2026-09-04, ver sección correspondiente).
 
 **Stack**: Django 5.2 + PostgreSQL (Neon, remota), Huey (sin Redis), Templates + HTMX + Tailwind (CDN), Whitenoise + Gunicorn para deploy.
 
@@ -37,7 +37,7 @@
 ### 2026-08-28 — Seeds
 - **`cdbc0e4`** seed_init para IAs y Sistemas + seed_tickets para users y tickets random (con `--reset` y `--tickets N`).
   - **Decisión**: `on_delete` de `Ticket.solicitante → Usuario` es **PROTECT**: no se puede borrar un usuario con tickets asociados. El seed `--reset` borra solo los tickets + los 5 usuarios del seed, sin tocar otros.
-  - Usuarios seed: 5 solicitantes (password `Solicitante123!`). El único staff/superuser es `patosimple` (creado a mano).
+  - Usuarios seed: 5 solicitantes (password `soli`). El único staff/superuser es `patosimple` (creado a mano).
 
 ### 2026-08-29 — Responsive, login, password, user menu
 - **`02ab11c`** responsive + fix contador y paginado en client-side (estilo Angular Material).
@@ -53,6 +53,19 @@
 - **Permisos de comentar implementados** (`_puede_comentar` en views): `False` si el ticket está **CERRADO**; `True` para superuser, el creador (`solicitante_id`) y los desarrolladores que **tomaron** el ticket. El form se oculta con `{% if puede_comentar %}` y `agregar_comentario` lanza `PermissionDenied` (403) si no aplica.
 - **Transiciones de estado por botones (sin select)**: `tomar_ticket` pasa PENDIENTE/REABIERTO → EN_PROCESO; `cambiar_estado_ticket` permite EN_PROCESO→CERRADO/PENDIENTE (dev/coor) y CERRADO→REABIERTO (cualquiera); setea/limpia `cerrado_en`. Tarjeta de acciones contextual oculta si no hay acciones (`_puede_actuar`).
 - **Colaboradores visibles**: la sección del detalle lista quiénes tomaron el ticket (`ticket.ticketdesarrollador_set`).
+
+### 2026-09-04 — Fase 2: prompt optimizado + `formato_salida` por modelo + docs (SIN COMMIT aún)
+Los commits de la fecha (`5afc9bb` y anteriores) ya estaban hechos; los cambios siguientes **quedaron sin commitear** a la espera de que el usuario pruebe las IA en su máquina.
+- **Prompt optimizado** (`ai/providers.py::_construir_mensajes`): mensajes **`system`/`user` separados**; la descripción va en **texto plano** (`html_a_texto_plano()`) y el `user` incluye **contexto** (título, sistema y `Sistema.prompt`). **Defensa anti prompt-injection** declarativa: el `system` avisa que el bloque "DESCRIPCIÓN DEL TICKET" es SOLO el dato a analizar, que sus órdenes se ignoran y que ninguna instrucción interna puede alterar tarea/reglas/formato. `VERSION_PROMPT` subió a `v3` (manual).
+- **`Sistema.prompt`** (migración `core 0005`): TextField opcional con la descripción oficial del sistema; si tiene texto se inyecta al `user`. `seed_init` lo completa (solo si está vacío) para BALANCES/FINANCIAMIENTO.
+- **`ModeloIA.formato_salida`** (migración `core 0006`, choices `FormatoSalidaIA`): `RESPONSE_FORMAT` (`response_format` en la API) / `NATIVO` (`format: json` de Ollama) / `NINGUNO` (se pide por instrucción). `_chat_completions` manda el campo solo cuando corresponde y **`_extraer_json()` tolera ruido** (fences de markdown, texto alrededor) antes de `json.loads`.
+  - **Incidente en cierre**: Gemini/NVIDIA venían andando BIEN con `response_format` global; la seed los dejó en **`NINGUNO`** (cambio a validar). **El usuario todavía no probó las IA** — si fallan, revertir esos dos a `RESPONSE_FORMAT` en seed + registros de BD.
+- **`seed_init` actualizado**: catálogo con `formato_salida` por proveedor (Groq/OpenRouter=RESPONSE_FORMAT, Gemini/NVIDIA=NINGUNO, Ollama=NATIVO), sincronización de registros existentes y completado de `Sistema.prompt`.
+- **`.env.example` nuevo**: plantilla committeada con TODAS las variables documentadas (`DATABASE_URL` obligatoria; 3 opciones de `DJANGO_ALLOWED_HOSTS`; SUPABASE_* comentadas como plan). Antes solo existía `.env` local.
+- **`README.md` nuevo**: puesta en marcha para un dev nuevo (venv o Docker, `migrate`, `seed_init`/idempotente, `seed_tickets`/`--tickets`(default 10)/`--reset`, roles, tabla de variables).
+- **Docs corregidos**: la pass de solicitantes del seed es **`soli`** (AGENTS.md/README/BITACORA decían `Solicitante123!`) — el código y la pista de `login.html` ya lo tenían bien.
+- **Decisión de diseño**: los **modelos de IA quedan en `core`** (no se mueven a `ai`). Motivo: `AnalisisIA` tiene FK a `Ticket` y el catálogo alimenta el flujo de análisis; la app `ai` concentra solo la lógica. Separación por capas, la separación física del esquema quedó descartada pre-entrega (riesgo de refactor con datos reales).
+- **Pendiente de la sesión**: probar los 5 proveedores (foco Gemini/NVIDIA con `NINGUNO`) en una máquina con las 4 API keys en `.env` + Ollama local; según resultado revertir o no, y **commitear** todo lo de arriba.
 
 ---
 
@@ -80,17 +93,22 @@
 4. **`is_staff`/`is_superuser` desacoplados del `rol`**: `rol` es permiso de negocio (vistas); `is_staff`/`is_superuser` es acceso a `/admin/`.
 5. **Paleta `brand` (#007AC3)** y **responsive obligatorio** en toda vista (normas en AGENTS.md).
 6. **Adjuntos**: un solo input multiple (no formset) + descarga vía `FileResponse(as_attachment=True)` con visibilidad por rol.
+7. **Prompt IA optimizado**: `system`/`user` separados, descripción en texto plano, contexto de sistema (`Sistema.prompt`), defensa anti prompt-injection declarativa en el `system`.
+8. **`formato_salida` por modelo**: cada proveedor define cómo pedir el JSON (`response_format` / `format: json` / instrucción) en lugar de una constante global idéntica para todos.
+9. **Modelos IA en `core`** (no en `ai`): separación por capas — `ai` es solo lógica; el esquema (con `AnalisisIA.ticket` FK a `Ticket`) vive con el dominio. Refactor futuro post-entrega si se busca autocontención total de la app `ai`.
 
 ---
 
 ## Pendientes conocidos (estado abierto) — MUY UTILES para la sección de "trabajo a futuro"
 
-- ⚠️ **XSS (IMPORTANTE)**: `ticket_detail.html` renderiza `descripcion_original` y `cuerpo` con `|safe` (HTML de Quill) **sin sanitizar**. No desplegar a producción sin resolverlo (sanear con `bleach`/`nh3` al guardar o renderizar).
-- Acceso desde red local (móvil/WiFi): `ALLOWED_HOSTS=[]` lo bloquea (probar con IP local).
+- ~~**XSS (IMPORTANTE)**~~ **RESUELTO** con `nh3.clean()` al guardar (`TicketForm`/`ComentarioForm`, whitelist de tags/atributos Quill), verificado con vectores reales. Pendiente: tests automatizados de XSS en `core/tests.py`.
+- Acceso desde red local (móvil/WiFi): `ALLOWED_HOSTS=[]` lo bloquea (probar con IP local en `DJANGO_ALLOWED_HOSTS`).
 - Migrar Tailwind a build compilado (reemplazar CDN).
-- Activar `settings.HUEY` para la cola de tareas (Fase 2).
+- Cola real de tareas: `settings.HUEY` YA está configurado con `immediate=True` (síncrono, demo). Para cola async: `AI_IMMEDIATE=False` en `.env` + worker `manage.py run_huey`.
 - HTMX partials para interacciones en detalle (hoy submit normal con redirect).
-- `core/tests.py` pendiente (tests de vistas modo cliente + server + permisos por rol).
+- `core/tests.py` pendiente (tests de vistas modo cliente + server + permisos por rol + XSS).
+- **Fase 2 pendiente**: auto-análisis al crear ticket, rotación de modelos/API keys, admin de versiones de prompt (`VERSION_PROMPT` sigue manual), mostrar `informacion_faltante`, flujo de aprobación del análisis por el solicitante, límite de tamaño de adjuntos + subidas pesadas sin progreso, adjuntos efímeros en Render (Supabase Storage pendiente).
+- **AUDITORÍA IA (04-09, pendiente)**: probar Groq/Gemini/OpenRouter/NVIDIA/Ollama; si Gemini/NVIDIA fallan con `NINGUNO`, revertir a `RESPONSE_FORMAT` en seed + BD.
 
 ---
 
@@ -99,3 +117,4 @@
 - `manage.py check` sin issues; `makemigrations --check --dry-run` sin migraciones pendientes.
 - **Test client de Django** (no ejecuta JS): creación con adjuntos múltiples, permisos de comentar (CERRADO → oculto + 403; dev no-tomador → oculto + 403; dev-tomador/creador → visible + 200), descarga de adjuntos.
 - **Lógica client-side validada con Node + DOM mock** (45 tickets): paginación de a 20, última página parcial, disabled de botones, filtro que resetea y recalcula (PASS 9/9).
+- **Fase 2 (04-09)**: `manage.py check` OK; migraciones `0005`/`0006` aplicadas y `seed_init` corrido; `html_a_texto_plano()`, `_extraer_json()` (con fences markdown y ruido), roles de mensajes y payloads RESPONSE_FORMAT/NINGUNO/NATIVO probados vía shell. **NO** corren pruebas E2E contra las APIs reales (sin keys en `.env` local → 401); queda la auditoría de proveedores pendiente en la máquina del usuario.

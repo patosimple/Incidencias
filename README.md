@@ -1,74 +1,180 @@
-# Setup inicial — Sistema de tickets
+# Sistema de tickets — Incidencias
 
-Este paquete ya trae resuelto: entorno Docker, dependencias, y el modelo de
-datos completo. Los pasos con 🤖 son buenos candidatos para delegarle a
-Antigravity; los demás son comandos fijos, no hace falta gastar tokens de
-razonamiento en ellos.
+Sistema interno de gestión de incidencias/errores para las apps **Balances** y
+**Financiamiento**. Incluye login por roles (solicitante / desarrollador /
+coordinador), tickets, comentarios con edición/soft-delete, adjuntos y una capa
+de **análisis IA** que resume cada ticket usando un LLM (Groq / Gemini /
+OpenRouter / NVIDIA / Ollama).
 
-## 1. Preparar el entorno
+- Backend: **Django 5.x** + **PostgreSQL** (`psycopg 3`)
+- Cola de tareas: **Huey + PostgresHuey** (no requiere Redis)
+- Frontend: templates Django + **HTMX** + **Tailwind CDN** (dark mode incluido)
+- Deploy: **Render** (Gunicorn + Whitenoise) + **Neon** (Postgres) — ver `render.yaml`
+
+---
+
+## Primeros pasos
+
+### 1. Requisitos
+
+- Python **3.11 o superior** (el `Dockerfile` usa `python:3.12-slim`)
+- PostgreSQL (local) **o** Docker (para el `docker-compose.yml` provisto)
+- (Opcional, solo para IA) una API key de al menos un proveedor
+
+### 2. Clonar y preparar el entorno
 
 ```bash
-git init
+git clone <url-del-repo>
+cd Incidencias
 cp .env.example .env
-# editar .env con una DJANGO_SECRET_KEY real (cualquier string largo random sirve para dev)
 ```
 
-## 2. Arrancar el proyecto Django (comando fijo)
+> `.env` NO se commitea (está en `.gitignore`). `.env.example` es la plantilla
+> con todas las variables documentadas. Completá al menos `DATABASE_URL` (sin
+> esta variable el sitio no arranca).
 
-Si todavía no existe el proyecto Django en este repo:
+#### Opción A — venv local (recomendado en dev)
 
 ```bash
-docker compose run --rm web django-admin startproject config .
-docker compose run --rm web python manage.py startapp core
-docker compose run --rm web python manage.py startapp ai
+# Windows
+python -m venv venv
+.\venv\Scripts\activate              # PowerShell: .\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+# Linux/macOS
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
-## 3. Copiar los archivos ya armados
-
-Copiar `core/models.py`, `core/admin.py`, `ai/providers.py` y `ai/tasks.py`
-(los que están en este paquete) a las carpetas correspondientes del
-proyecto recién creado, pisando los archivos vacíos que genera Django.
-
-## 4. Configurar settings.py 🤖
-
-Antigravity puede completar esto rápido siguiendo estos puntos (ya
-definidos, sin ambigüedad):
-
-- `AUTH_USER_MODEL = "core.Usuario"` (¡antes de la primera migración!)
-- Agregar `"core"`, `"ai"`, `"django_htmx"` a `INSTALLED_APPS`
-- Configurar `DATABASES` contra Postgres usando las variables de `.env`
-  (vía `python-decouple`, ya está en requirements.txt)
-- Agregar el middleware de `django_htmx`
-- Configurar `HUEY` como se indica en el docstring de `ai/tasks.py`
-
-## 5. Migraciones (comando fijo)
+Para correr todo comando de Django usá el Python del venv:
 
 ```bash
-docker compose up -d db
-docker compose run --rm web python manage.py makemigrations
-docker compose run --rm web python manage.py migrate
-docker compose run --rm web python manage.py createsuperuser
+# Windows
+.\venv\Scripts\python.exe manage.py <comando>
+# Linux/macOS
+venv/bin/python manage.py <comando>
 ```
 
-## 6. Cargar los proveedores de IA evaluados
+#### Opción B — Docker
 
-Desde el admin (`/admin/`), una vez levantado el server, cargar manualmente
-3 filas en `ModeloIA` (una por Groq/Gemini/OpenRouter) y crear la fila de
-`ConfiguracionIA` apuntando a la que quieras probar primero. Las API keys
-van en `.env`, no en el admin.
-
-## 7. Levantar todo
+El `docker-compose.yml` levanta un **Postgres 16** (`db`) y la **app** (`web`).
+Con Docker, la `DATABASE_URL` apunta al servicio `db` de la red de compose:
 
 ```bash
-docker compose up
+# en .env
+DATABASE_URL=postgresql://tickets:tickets@db:5432/tickets
 ```
 
-La app queda en `http://localhost:8000`, el admin en `/admin/`.
+```bash
+docker compose up --build
+```
 
-## 8. A partir de acá, delegar a Antigravity 🤖
+La app queda en `http://localhost:8000` y el admin en `http://localhost:8000/admin/`.
 
-- Vistas + templates + HTMX/Tailwind siguiendo las pantallas del prototipo Figma
-- Implementación real de `GroqProvider`, `GeminiProvider`, `OpenRouterProvider`
-  en `ai/providers.py` (las firmas ya están, solo falta la llamada HTTP)
-- Conectar `generar_analisis_ticket` al guardar un ticket nuevo
-- Deploy en Railway/Render (pedime los archivos de config cuando llegues a ese paso)
+> ¿Solo Postgres local y la app en el venv? Levantá únicamente la BD:
+> `docker compose up -d db` y andá por la **Opción A** apuntando
+> `DATABASE_URL` a `postgresql://tickets:tickets@localhost:5432/tickets`.
+
+### 3. Arrancar la base y migrar
+
+```bash
+.\venv\Scripts\python.exe manage.py migrate
+.\venv\Scripts\python.exe manage.py createsuperuser   # el único usuario con acceso a /admin/
+```
+
+### 4. Cargar datos base (`seed_init`)
+
+```bash
+.\venv\Scripts\python.exe manage.py seed_init
+```
+
+**Qué hace `seed_init`** (puede correrse las veces que quieras; es idempotente):
+
+- Crea los **Sistemas** del catálogo: `BALANCES` y `FINANCIAMIENTO`, cada uno con
+  su campo `prompt` (descripción del sistema usada como contexto por la IA).
+  Solo lo completa si está vacío (no pisa ediciones del admin).
+- Crea el **catálogo de `ModeloIA`**: Groq, Gemini, OpenRouter, NVIDIA y Ollama,
+  cada uno con su `formato_salida` (cómo pedirle el JSON de salida al modelo).
+- Crea la fila singleton de **`ConfiguracionIA`** con el modelo **Groq** como
+  activo (si todavía no hay configuración).
+
+> El **modelo/proveedor de IA activo** se cambia desde el admin
+> (`/admin/core/configuracionia/`) → elegís qué `ModeloIA` se usa al analizar.
+> Las **API keys** van en `.env`, nunca en la base.
+
+### 5. (Opcional) Tickets de demostración (`seed_tickets`)
+
+```bash
+.\venv\Scripts\python.exe manage.py seed_tickets            # 5 solicitantes + N tickets
+.\venv\Scripts\python.exe manage.py seed_tickets --tickets 20
+.\venv\Scripts\python.exe manage.py seed_tickets --reset    # borra SOLO lo del seed
+```
+
+**Qué hace `seed_tickets`**: crea **5 usuarios solicitantes** de prueba (todos
+con acceso a BALANCES + FINANCIAMIENTO, password `soli`) y una tanda
+de tickets demo contables. El flag `--tickets N` controla la cantidad de
+tickets demo a crear (`--tickets 20` crea 20; **default: 10**).
+
+| Usuario solicitante | |
+|---|---|
+| `maria.lopez`, `carlos.gonzalez`, `lucia.fernandez`, `joaquin.rodriguez`, `valentina.martinez` | password: `soli` |
+
+`--reset` borra exclusivamente esos 5 usuarios y sus tickets (no toca otros
+usuarios). Tip: `on_delete` de `Ticket.solicitante` es `PROTECT`, no se puede
+borrar un usuario que tenga tickets asociados.
+
+### 6. Levantar la app
+
+```bash
+.\venv\Scripts\python.exe manage.py runserver
+```
+
+Web: `http://localhost:8000` · Admin: `http://localhost:8000/admin/`
+
+---
+
+## Roles y acceso
+
+- `rol` en el usuario = permiso de negocio (Solicitante / Desarrollador /
+  Coordinador). `is_staff` / `is_superuser` = acceso al panel `/admin/`. Están
+  desacoplados a propósito: un dev puede no ser staff.
+- **Solicitante**: ve y reporta sus tickets, comenta, cierra/reabre los propios.
+- **Desarrollador** (y Coordinador): ve tickets de sus sistemas, toma/libera
+  tickets, comenta, cierra/reabre, genera el **análisis IA**.
+- **Superuser**: ve todo sin restricciones de rol/sistema.
+
+## Variable clave de `.env`
+
+| Variable | Qué hace |
+|---|---|
+| `DATABASE_URL` | **Obligatoria**. URL de Postgres (Neon en producción o local). |
+| `DJANGO_SECRET_KEY` | Clave secreta de Django. En dev se usa un default inseguro si falta. |
+| `DJANGO_DEBUG` | `True` en dev / `False` en producción. |
+| `DJANGO_ALLOWED_HOSTS` | Hosts permitidos. `*` abre a cualquier host (no comentar para "restringir": el default es `['*']`). Vacía = solo `localhost`/`127.0.0.1`/`.onrender.com`. |
+| `GROQ_API_KEY`, `GOOGLE_AI_API_KEY`, `OPENROUTER_API_KEY`, `NVIDIA_API_KEY` | API keys de IA (solo se usa la del proveedor activo). |
+| `OLLAMA_HOST` | Host de Ollama (opcional, default `http://localhost:11434`). |
+| `MODO_FILTRO_CLIENTE` | `True` = filtrado/paginación en el navegador; `False` = server-side con HTMX. |
+| `AI_IMMEDIATE` | `True` = Huey síncrono (sin worker); `False` = cola real, levantar el worker con `manage.py run_huey`. |
+
+## IA — análisis de tickets
+
+- Un **desarrollador/coordinador** abre un ticket → botón **Analizar/Reanalizar**
+  → la app llama al proveedor activo (2-8 s típicos con Groq) y guarda un
+  `AnalisisIA` de tipo TÉCNICO con la salida estructurada.
+- El prompt usa **mensajes `system`/`user` separados**: la descripción del
+  ticket se envía en **texto plano**, con **contexto** (título, sistema y su
+  `Sistema.prompt`) y con **defensa anti prompt-injection** (la descripción es
+  SOLO el dato a analizar, nunca instrucciones).
+- El campo `informacion_faltante` se genera y guarda en la DB pero no se muestra
+  en la UI por ahora.
+- Si el proveedor activo no tiene API key configurada, verás un error (ej.
+  `401`) al analizar.
+
+## Extras útiles
+
+- **Worker de cola real** (con `AI_IMMEDIATE=False`): `.\venv\Scripts\python.exe manage.py run_huey`
+- **Adjuntos**: se guardan en `media/` (storage local/efímero). En producción
+  (Render) los archivos físicos no persisten entre redeploys; la BD conserva los
+  registros. Migración a Supabase Storage es un pendiente.
+- El detalle del contexto del proyecto y la arquitectura vive en `AGENTS.md`.
