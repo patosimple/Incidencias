@@ -36,8 +36,9 @@ class Command(BaseCommand):
         # Ollama es local (sin API key): solo funciona en desarrollo, no en Render.
         modelos = [
             {"proveedor": "Groq", "modelo": "qwen/qwen3.8-27b"},
-            {"proveedor": "Gemini", "modelo": "gemini-2.0-flash"},
-            {"proveedor": "OpenRouter", "modelo": "meta-llama/llama-3.3-70b-instruct:free"},
+            {"proveedor": "Gemini", "modelo": "gemini-3.6-flash"},
+            {"proveedor": "OpenRouter", "modelo": "google/gemma-4-31b-it:free"},
+            {"proveedor": "NVIDIA", "modelo": "openai/gpt-oss-20b"},
             {"proveedor": "Ollama", "modelo": "gemma2:2b"},
         ]
         primero = None

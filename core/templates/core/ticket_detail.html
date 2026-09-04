@@ -119,10 +119,22 @@
         {% endif %}
     </div>
 
+    <!-- Mensaje inline del análisis (entre la tarjeta del ticket y la de IA) -->
+    <div id="analizar-msg" class="hidden space-y-2"></div>
+
     <!-- Análisis IA (Fase 2) -->
-    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm p-4 sm:p-6">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <div class="flex items-center gap-2">
+    <div class="rounded-lg border border-brand-200 dark:border-brand-800 shadow-sm bg-brand-50 dark:bg-brand-900/20 overflow-hidden">
+        <div class="flex items-center justify-between gap-3 px-4 sm:px-5 py-3">
+            <div class="flex items-center gap-2 min-w-0">
+                {% if puede_analizar %}
+                <button type="button" id="toggle-analizar"
+                        class="shrink-0 p-1 rounded text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-800 transition-colors"
+                        title="Mostrar/ocultar análisis">
+                    <svg class="w-4 h-4" id="chevron-analizar" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                {% endif %}
                 <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Análisis IA · Conceptual</h2>
                 {% if analisis_conceptual %}
                 <span class="px-2 py-0.5 rounded-full text-xs font-medium
@@ -134,21 +146,24 @@
                 {% endif %}
             </div>
             {% if puede_analizar %}
-            <form method="post" action="{% url 'ticket_analizar' ticket.pk %}" id="form-analizar">
-                {% csrf_token %}
-                <button type="submit" id="btn-analizar"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
-                    <svg class="w-4 h-4" id="icon-analizar" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                    </svg>
-                    <span id="texto-analizar">{% if analisis_conceptual %}Reanalizar{% else %}Analizar{% endif %}</span>
-                </button>
-            </form>
+            <div class="shrink-0">
+                <form method="post" action="{% url 'ticket_analizar' ticket.pk %}" id="form-analizar">
+                    {% csrf_token %}
+                    <button type="submit" id="btn-analizar"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
+                        <svg class="w-4 h-4" id="icon-analizar" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        <span id="texto-analizar">{% if analisis_conceptual %}Reanalizar{% else %}Analizar{% endif %}</span>
+                    </button>
+                </form>
+            </div>
             {% endif %}
         </div>
 
+        <div id="cuerpo-analizar">
         {% if analisis_conceptual %}
-        <div class="space-y-4 text-sm">
+        <div class="space-y-4 text-sm px-4 sm:px-5 pb-5">
             {% if analisis_conceptual.problema %}
             <div>
                 <h3 class="text-xs uppercase tracking-wide text-brand-700 dark:text-brand-400 font-semibold mb-1">Resumen técnico</h3>
@@ -190,13 +205,16 @@
             </p>
         </div>
         {% else %}
-        <p class="text-sm text-gray-500 dark:text-gray-400">
-            Este ticket todavía no tiene análisis generado.
-            {% if puede_analizar %}Usá el botón <span class="font-medium text-gray-700 dark:text-gray-200">Analizar</span> para crear el resumen conceptual automático.{% else %}
-            El creador o un desarrollador/coordinador puede generarlo.
-            {% endif %}
-        </p>
+        <div class="px-4 sm:px-5 pb-5">
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+                Este ticket todavía no tiene análisis generado.
+                {% if puede_analizar %}Usá el botón <span class="font-medium text-gray-700 dark:text-gray-200">Analizar</span> para crear el resumen conceptual automático.{% else %}
+                El creador o un desarrollador/coordinador puede generarlo.
+                {% endif %}
+            </p>
+        </div>
         {% endif %}
+        </div>
     </div>
 
     <!-- Comentarios -->
@@ -582,18 +600,110 @@
       });
     });
 
-    // Spinner del botón Analizar/Reanalizar
+    // Spinner del botón Analizar/Reanalizar + reinientos con fetch
     var formAnalizar = document.getElementById('form-analizar');
     if (formAnalizar) {
-      formAnalizar.addEventListener('submit', function () {
-        var btn = document.getElementById('btn-analizar');
-        var icon = document.getElementById('icon-analizar');
-        var texto = document.getElementById('texto-analizar');
-        btn.disabled = true;
-        btn.classList.remove('bg-brand-600', 'hover:bg-brand-700');
-        btn.classList.add('bg-brand-400', 'cursor-wait');
-        icon.classList.add('animate-spin');
+      var MAX_REINTENTOS = 3;   // intentos extra sobre el primero
+      var btn = document.getElementById('btn-analizar');
+      var icon = document.getElementById('icon-analizar');
+      var texto = document.getElementById('texto-analizar');
+      var csrf = formAnalizar.querySelector('[name=csrfmiddlewaretoken]').value;
+
+      function ocultarFlash() {
+        document.querySelectorAll('main > .mb-4 > div').forEach(function (el) {
+          el.style.display = 'none';
+        });
+      }
+      function msgBox() {
+        return document.getElementById('analizar-msg');
+      }
+      function mostrarError(mensaje) {
+        var box = msgBox();
+        box.innerHTML = '';
+        var div = document.createElement('div');
+        div.className = 'text-sm rounded px-3 py-2 bg-red-50 text-red-800 border border-red-200 dark:bg-red-900/30 dark:text-red-200 dark:border-red-800';
+        div.textContent = mensaje;
+        box.appendChild(div);
+        box.classList.remove('hidden');
+      }
+      function limpiarMsg() {
+        var box = msgBox();
+        box.innerHTML = '';
+        box.classList.add('hidden');
+      }
+      function setBtn(estado) {
+        btn.disabled = estado;
+        if (estado) {
+          btn.classList.remove('bg-brand-600', 'hover:bg-brand-700');
+          btn.classList.add('bg-brand-400', 'cursor-wait');
+          icon.classList.add('animate-spin');
+        } else {
+          btn.classList.add('bg-brand-600', 'hover:bg-brand-700');
+          btn.classList.remove('bg-brand-400', 'cursor-wait');
+          icon.classList.remove('animate-spin');
+        }
+      }
+      function finalizar(redirectUrl) {
+        setBtn(false);
+        texto.textContent = formAnalizar.getAttribute('data-original') || 'Analizar';
+        if (redirectUrl) { window.setTimeout(function () { window.location.href = redirectUrl; }, 600); }
+      }
+      formAnalizar.setAttribute('data-original', texto.textContent);
+
+      // Colapsar/expandir la tarjeta de análisis
+      var toggle = document.getElementById('toggle-analizar');
+      var cuerpo = document.getElementById('cuerpo-analizar');
+      var chevron = document.getElementById('chevron-analizar');
+      if (toggle && cuerpo) {
+        var collapseKey = 'analisis-colapsado-' + formAnalizar.action;
+
+        // Si el usuario lo colapsó antes, arrancar colapsado
+        if (localStorage.getItem(collapseKey) === '1') {
+          cuerpo.classList.add('hidden');
+          chevron.classList.add('rotate-180');
+        }
+        toggle.addEventListener('click', function () {
+          var hidden = cuerpo.classList.toggle('hidden');
+          chevron.classList.toggle('rotate-180', hidden);
+          localStorage.setItem(collapseKey, hidden ? '1' : '0');
+        });
+      }
+
+      function intentar(n) {
+        fetch(formAnalizar.action, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': csrf,
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          credentials: 'same-origin'
+        }).then(function (resp) {
+          return resp.json().then(function (data) {
+            // Error transitorio: reintentar mientras queden intentos
+            if (resp.status === 503 && data.retryable && n < MAX_REINTENTOS) {
+              texto.textContent = 'Reintento ' + (n + 1) + '...';
+              setTimeout(function () { intentar(n + 1); }, 2000);
+              return;
+            }
+            // Éxito: redirigir (muestra el análisis nuevo + flash de éxito)
+            if (data.ok && data.redirect) { finalizar(data.redirect); return; }
+            // Fallo final (agotó reintentos o error duro): mostrar el error inline
+            mostrarError(data.message || 'No se pudo generar el análisis. Intentá de nuevo.');
+            finalizar(null);
+          });
+        }).catch(function () {
+          mostrarError('Error de conexión. Revisá tu red e intentá de nuevo.');
+          finalizar(null);
+        });
+      }
+
+      formAnalizar.addEventListener('submit', function (e) {
+        e.preventDefault();
+        ocultarFlash();           // ocultar la etiqueta de éxito/error previa
+        limpiarMsg();             // ocultar mensajes inline previos
+        setBtn(true);
         texto.textContent = 'Analizando...';
+        intentar(0);
       });
     }
   })();

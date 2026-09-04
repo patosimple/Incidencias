@@ -83,3 +83,59 @@ class AnalisisIATest(TestCase):
         self.assertEqual(resp.status_code, 302)
         resp2 = self.client.get(reverse("ticket_detail", args=[self.ticket.pk]))
         self.assertContains(resp2, "No se pudo generar el análisis")
+
+    def test_analizar_ajax_exito_devuelve_redirect(self):
+        self.client.login(username="ana.testeo", password="clave123")
+        with patch("core.views._ejecutar_analisis") as mock_task:
+            resp = self.client.post(
+                reverse("ticket_analizar", args=[self.ticket.pk]),
+                HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()["ok"])
+        self.assertEqual(resp.json()["redirect"], reverse("ticket_detail", args=[self.ticket.pk]))
+
+    def test_analizar_ajax_retryable_devuelve_503(self):
+        from ai.providers import RetryableProviderError
+
+        self.client.login(username="ana.testeo", password="clave123")
+        with patch("core.views._ejecutar_analisis", side_effect=RetryableProviderError("500")):
+            resp = self.client.post(
+                reverse("ticket_analizar", args=[self.ticket.pk]),
+                HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            )
+        self.assertEqual(resp.status_code, 503)
+        self.assertTrue(resp.json()["retryable"])
+
+    def test_analizar_ajax_retryable_solicitante_ve_mensaje_generico(self):
+        from ai.providers import RetryableProviderError
+
+        self.client.login(username="ana.testeo", password="clave123")
+        with patch("core.views._ejecutar_analisis", side_effect=RetryableProviderError("500 del proveedor NVIDIA")):
+            resp = self.client.post(
+                reverse("ticket_analizar", args=[self.ticket.pk]),
+                HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            )
+        self.assertEqual(resp.status_code, 503)
+        self.assertNotIn("NVIDIA", resp.json()["message"])
+        self.assertIn("temporalmente saturado", resp.json()["message"])
+
+    def test_analizar_ajax_error_solicitante_ve_mensaje_generico(self):
+        self.client.login(username="ana.testeo", password="clave123")
+        with patch("core.views._ejecutar_analisis", side_effect=RuntimeError("API caida detalle interno")):
+            resp = self.client.post(
+                reverse("ticket_analizar", args=[self.ticket.pk]),
+                HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            )
+        self.assertEqual(resp.status_code, 400)
+        self.assertNotIn("API caida", resp.json()["message"])
+
+    def test_analizar_ajax_error_duro_devuelve_400(self):
+        self.client.login(username="ana.testeo", password="clave123")
+        with patch("core.views._ejecutar_analisis", side_effect=RuntimeError("boom")):
+            resp = self.client.post(
+                reverse("ticket_analizar", args=[self.ticket.pk]),
+                HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            )
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(resp.json()["retryable"])

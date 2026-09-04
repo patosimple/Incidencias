@@ -20,6 +20,15 @@ from core.models import ModeloIA, ConfiguracionIA
 
 TIMEOUT = 60  # segundos: margen para el peor caso (OpenRouter free es lento)
 
+# Códigos HTTP considerados transitorios (429/5xx) que se pueden reintentar.
+# Los tiers free de NVIDIA/OpenRouter/Gemini son inestables; el cliente los
+# reintenta mostrando "Reintento N" en el botón Analizar.
+RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+
+
+class RetryableProviderError(Exception):
+    """Error transitorio (429/5xx/timeout) que el cliente puede reintentar."""
+
 
 @dataclass
 class AnalisisGenerado:
@@ -43,6 +52,7 @@ API_KEY_ENV_VARS = {
     "Groq": "GROQ_API_KEY",
     "Gemini": "GOOGLE_AI_API_KEY",
     "OpenRouter": "OPENROUTER_API_KEY",
+    "NVIDIA": "NVIDIA_API_KEY",
     "Ollama": None,
 }
 
@@ -51,6 +61,7 @@ _BASE_URLS = {
     "Groq": "https://api.groq.com/openai/v1",
     "OpenRouter": "https://openrouter.ai/api/v1",
     "Gemini": "https://generativelanguage.googleapis.com/v1beta/openai",
+    "NVIDIA": "https://integrate.api.nvidia.com/v1",
 }
 
 
@@ -97,7 +108,12 @@ class AIProvider(ABC):
 
     def _chat_completions(self, prompt: str) -> str:
         """POST al endpoint OpenAI-compatible del proveedor activo.
-        Devuelve el texto del primer mensaje de respuesta."""
+        Devuelve el texto del primer mensaje de respuesta.
+
+        Ante un error transitorio (429/5xx/timeout) lanza `RetryableProviderError`
+        para que el cliente decida reintentar (y mostrar el progreso). No reintenta
+        acá: el reintento lo maneja la UI para verlo en el botón.
+        """
         url = f"{_BASE_URLS[self.modelo_ia.proveedor]}/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -109,8 +125,14 @@ class AIProvider(ABC):
             "temperature": 0.2,
             "response_format": {"type": "json_object"},  # Groq/OpenRouter lo aceptan
         }
-        resp = requests.post(url, headers=headers, json=payload, timeout=TIMEOUT)
-        resp.raise_for_status()
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=TIMEOUT)
+            if resp.status_code in RETRYABLE_STATUS:
+                raise RetryableProviderError(f"{resp.status_code} del proveedor {self.modelo_ia.proveedor}")
+            resp.raise_for_status()
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
+            raise RetryableProviderError(f"timeout/conexión con {self.modelo_ia.proveedor}") from exc
+
         data = resp.json()
         return data["choices"][0]["message"]["content"]
 
@@ -147,6 +169,12 @@ class OpenRouterProvider(AIProvider):
         return self._analisis_desde_json(raw)
 
 
+class NVIDIAProvider(AIProvider):
+    def generar_analisis(self, texto_ticket: str, tipo: str) -> AnalisisGenerado:
+        raw = self._chat_completions(self._prompt_conceptual(texto_ticket))
+        return self._analisis_desde_json(raw)
+
+
 class OllamaProvider(AIProvider):
     def __init__(self, modelo_ia: ModeloIA):
         super().__init__(modelo_ia)
@@ -171,6 +199,7 @@ _PROVIDER_CLASSES = {
     "Groq": GroqProvider,
     "Gemini": GeminiProvider,
     "OpenRouter": OpenRouterProvider,
+    "NVIDIA": NVIDIAProvider,
     "Ollama": OllamaProvider,
 }
 

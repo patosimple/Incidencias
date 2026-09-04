@@ -25,7 +25,7 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 DATABASE_URL = env('DATABASE_URL')
 
 # API keys de IA: las guardo en os.environ para que ai/providers.py las lea.
-for _key in ('GROQ_API_KEY', 'GOOGLE_AI_API_KEY', 'OPENROUTER_API_KEY'):
+for _key in ('GROQ_API_KEY', 'GOOGLE_AI_API_KEY', 'OPENROUTER_API_KEY', 'NVIDIA_API_KEY'):
     _val = env(_key, default='')
     if _val:
         os.environ.setdefault(_key, _val)

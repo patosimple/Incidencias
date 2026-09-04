@@ -7,14 +7,15 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import PasswordChangeView
 from django.core.exceptions import PermissionDenied
 from django.db.models import Prefetch
-from django.http import FileResponse
+from django.http import FileResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.utils import timezone
 from django.views.generic import CreateView, DetailView, ListView
 
 from .forms import CambioPasswordForm, ComentarioForm, TicketForm
 from ai.tasks import _ejecutar_analisis
+from ai.providers import RetryableProviderError
 from .models import (
     Adjunto,
     AnalisisIA,
@@ -504,12 +505,13 @@ def descargar_adjunto(request, pk):
 
 @login_required
 def analizar_ticket(request, pk):
-    """Dispara el análisis conceptual (IA) de un ticket y redirige al detalle.
+    """Dispara el análisis conceptual (IA) de un ticket.
 
-    Con HUEY.immediate=True (demo/Render free) la task corre en este mismo
-    request, por lo que la respuesta tarda lo que tarde la llamada a la IA
-    (con Groq suele ser de 2 a 8 segundos). Si en el futuro se corre un worker
-    (AI_IMMEDIATE=False), esto vuelve a ser asíncrono de fondo.
+    Es un endpoint híbrido:
+    - Por HTTP normal (sin fetch): flash + redirect al detalle (fallback).
+    - Via XMLHttpRequest (fetch desde el botón Analizar): responde JSON para
+      que la UI muestre el progreso y los reintentos. Los errores transitorios
+      (429/5xx) devuelven 503 para que el cliente reintente; los duros, 400.
     """
     if request.method != "POST":
         raise PermissionDenied
@@ -517,12 +519,32 @@ def analizar_ticket(request, pk):
     if not TicketDetailView._puede_actuar(request.user, ticket):
         raise PermissionDenied("No podés analizar este ticket.")
 
+    es_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
     try:
         _ejecutar_analisis(ticket.pk)
-        messages.success(request, "Análisis conceptual actualizado.")
+        mensaje = "Análisis conceptual actualizado."
+        messages.success(request, mensaje)
+        if es_ajax:
+            return JsonResponse({"ok": True, "message": mensaje,
+                                 "redirect": reverse("ticket_detail", kwargs={"pk": ticket.pk})})
+    except RetryableProviderError as exc:
+        if es_ajax:
+            mensaje = (str(exc) if request.user.rol != RolUsuario.SOLICITANTE
+                       else "Servicio de IA temporalmente saturado. Intentá de nuevo más tarde.")
+            return JsonResponse({"ok": False, "retryable": True, "message": mensaje}, status=503)
+        mensaje = "No se pudo generar el análisis (servicio de IA temporalmente saturado). Intentá de nuevo."
+        messages.error(request, mensaje)
     except Exception as exc:
+        if es_ajax:
+            mensaje = ("No se pudo generar el análisis. Intentá de nuevo más tarde."
+                       if request.user.rol == RolUsuario.SOLICITANTE
+                       else f"No se pudo generar el análisis: {exc}")
+            return JsonResponse({"ok": False, "retryable": False, "message": mensaje}, status=400)
         if request.user.rol == RolUsuario.SOLICITANTE:
             messages.error(request, "No se pudo generar el análisis. Intentá de nuevo más tarde.")
         else:
             messages.error(request, f"No se pudo generar el análisis: {exc}")
+
+    # Sólo llega acá en el fallback sin JS: los paths AJAX retornan antes.
     return redirect("ticket_detail", pk=ticket.pk)
