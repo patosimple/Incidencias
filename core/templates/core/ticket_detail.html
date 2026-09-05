@@ -28,88 +28,77 @@
         <div class="min-w-0">
             <a href="{% url 'ticket_list' %}"
                class="text-sm text-brand-700 dark:text-brand-400 hover:underline">← Mis Tickets</a>
-            <h1 class="mt-1 text-lg font-semibold text-gray-800 dark:text-gray-100 leading-snug">
-                #{{ ticket.pk }} · {{ ticket.titulo }}
-            </h1>
+            <div class="mt-1 flex flex-wrap items-center gap-2 text-lg font-semibold text-gray-800 dark:text-gray-100 leading-snug">
+                <span class="inline-block bg-brand-950 text-white text-xs font-medium uppercase px-2 py-0.5 rounded">{{ ticket.sistema.nombre }}</span>
+                <span>#{{ ticket.pk }} · {{ ticket.titulo }}</span>
+            </div>
         </div>
         <div class="shrink-0">
             {% include "core/partials/estado_badge.html" with estado=ticket.estado tomado=tomado tomado_mi=tomado_mi %}
         </div>
     </div>
 
-    <!-- Acciones -->
-    {% if puede_actuar %}
-    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm p-4 sm:p-6">
-    {% if ticket.estado == 'CERRADO' %}
-        {% if puede_reabrir %}
-        <form method="post" action="{% url 'ticket_cambiar_estado' ticket.pk %}">
-            {% csrf_token %}
-            <button type="submit" name="estado" value="REABIERTO"
-                    class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
-                Reabrir
-            </button>
-        </form>
-        {% endif %}
-    {% else %}
-        <div class="flex flex-col sm:flex-row gap-2">
-            {% if user.rol == 'DESARROLLADOR' and not puede_liberar %}
-            <form method="post" action="{% url 'ticket_tomar' ticket.pk %}">
-                {% csrf_token %}
-                <button type="submit"
-                        class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
-                    Tomar ticket
-                </button>
-            </form>
-            {% endif %}
-            {% if puede_cerrar %}
-            <form method="post" action="{% url 'ticket_cambiar_estado' ticket.pk %}">
-                {% csrf_token %}
-                <button type="submit" name="estado" value="CERRADO"
-                        class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
-                    Cerrar
-                </button>
-            </form>
-            {% endif %}
-            {% if puede_liberar %}
-            <form method="post" action="{% url 'ticket_liberar' ticket.pk %}">
-                {% csrf_token %}
-                <button type="submit"
-                        class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">
-                    Liberar
-                </button>
-            </form>
-            {% endif %}
-        </div>
-    {% endif %}
-    </div>
-    {% endif %}
-
-    <!-- Detalle del ticket -->
+    <!-- Detalle del ticket: autor + fecha estilo comentario, delante del texto -->
     <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 sm:p-6 border-b border-gray-100 dark:border-slate-700">
-            <div>
-                <dt class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Sistema</dt>
-                <dd class="mt-0.5 text-sm font-medium text-gray-800 dark:text-gray-100">{{ ticket.sistema.nombre }}</dd>
+        <div class="p-4 sm:p-6 border-b border-gray-100 dark:border-slate-700">
+            {% with solicitante=ticket.solicitante %}
+            {% with rol=solicitante.rol %}
+            <div class="mb-3">
+                <div class="flex items-center justify-between gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    <span class="font-medium text-gray-700 dark:text-gray-200">
+                        <span class="inline-block w-2 h-2 rounded-full align-middle {% if rol == 'DESARROLLADOR' %}bg-emerald-600{% elif rol == 'COORDINADOR' %}bg-purple-600{% else %}bg-brand-600{% endif %} mr-1.5"></span>
+                        {{ solicitante.get_full_name|default:solicitante.username }}
+                        <span class="ml-1.5 font-normal italic text-xs">{{ ticket.creado_en|date:"d/m/Y H:i" }}</span>
+                    </span>
+                    {% if puede_actuar %}
+                    <span class="flex flex-row items-center gap-1.5">
+                        {% if ticket.estado == 'CERRADO' and puede_reabrir %}
+                            <form method="post" action="{% url 'ticket_cambiar_estado' ticket.pk %}">
+                                {% csrf_token %}
+                                <button type="submit" name="estado" value="REABIERTO"
+                                        class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
+                                    Reabrir
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% if ticket.estado != 'CERRADO' %}
+                                {% if user.rol == 'DESARROLLADOR' and not puede_liberar %}
+                                <form method="post" action="{% url 'ticket_tomar' ticket.pk %}">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
+                                        Tomar ticket
+                                    </button>
+                                </form>
+                                {% endif %}
+                                {% if puede_cerrar %}
+                                <form method="post" action="{% url 'ticket_cambiar_estado' ticket.pk %}">
+                                    {% csrf_token %}
+                                    <button type="submit" name="estado" value="CERRADO"
+                                            class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium text-white bg-red-600 hover:bg-red-700 transition-colors">
+                                        Cerrar
+                                    </button>
+                                </form>
+                                {% endif %}
+                                {% if puede_liberar %}
+                                <form method="post" action="{% url 'ticket_liberar' ticket.pk %}">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium text-gray-800 dark:text-gray-100 bg-gray-200 dark:bg-slate-600 hover:bg-gray-300 dark:hover:bg-slate-500 transition-colors">
+                                        Liberar
+                                    </button>
+                                </form>
+                                {% endif %}
+                            {% endif %}
+                        </span>
+                        {% endif %}
+                </div>
+                <div class="prose-sm text-sm text-gray-700 dark:text-gray-200 break-words leading-relaxed">
+                    {{ ticket.descripcion_original|safe }}
+                </div>
             </div>
-            <div>
-                <dt class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Solicitante</dt>
-                <dd class="mt-0.5 text-sm font-medium text-gray-800 dark:text-gray-100">{{ ticket.solicitante.get_full_name|default:ticket.solicitante.username }}</dd>
-            </div>
-            <div>
-                <dt class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Creado</dt>
-                <dd class="mt-0.5 text-sm text-gray-800 dark:text-gray-100">{{ ticket.creado_en|date:"d/m/Y H:i" }}</dd>
-            </div>
-            <div>
-                <dt class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Estado</dt>
-                <dd class="mt-0.5 text-sm text-gray-800 dark:text-gray-100">{{ ticket.get_estado_display }}</dd>
-            </div>
-        </dl>
-
-        <div class="p-4 sm:p-6">
-            <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">Descripción</h2>
-            <div class="prose-sm text-sm text-gray-700 dark:text-gray-200 break-words leading-relaxed">
-                {{ ticket.descripcion_original|safe }}
-            </div>
+            {% endwith %}
+            {% endwith %}
         </div>
 
         <!-- Colaboradores (desarrolladores) -->
@@ -147,7 +136,12 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                     </svg>
                 </button>
-                <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Análisis IA</h2>
+                <h2 class="flex items-center gap-1.5 text-sm font-semibold text-gray-800 dark:text-gray-100">
+                    Análisis IA
+                    <svg class="w-4 h-4 text-brand-600 dark:text-brand-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z"/>
+                    </svg>
+                </h2>
                 {% if ticket.estado == 'CERRADO' %}
                 <span class="text-xs font-medium text-gray-500 dark:text-gray-400 hidden sm:inline">· Ticket cerrado (análisis inamovible)</span>
                 {% endif %}
@@ -157,7 +151,7 @@
                 <form method="post" action="{% url 'ticket_analizar' ticket.pk %}" id="form-analizar">
                     {% csrf_token %}
                     <button type="submit" id="btn-analizar"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
+                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
                         <svg class="w-4 h-4" id="icon-analizar" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                         </svg>
@@ -250,9 +244,9 @@
                     </div>
                     <div class="flex justify-end gap-2">
                         <button type="button" data-cancelar-editar="{{ comentario.pk }}"
-                                class="px-3 py-1.5 rounded text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">Cancelar</button>
+                                class="px-2.5 py-1 rounded text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">Cancelar</button>
                         <button type="submit"
-                                class="px-3 py-1.5 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">Guardar</button>
+                                class="px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">Guardar</button>
                     </div>
                 </form>
                 {% endif %}

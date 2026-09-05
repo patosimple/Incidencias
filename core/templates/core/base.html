@@ -71,23 +71,22 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                 </svg>
-                <span>Mis Tickets</span>
+                <span class="whitespace-nowrap">Mis Tickets</span>
             </a>
             <a href="{% url 'ticket_create' %}" title="Crear Ticket"
                class="flex items-center gap-2 px-3 py-2 rounded hover:bg-brand-800 {% block nav_crear_active %}{% endblock %}">
                 <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                <span>Crear Ticket</span>
+                <span class="whitespace-nowrap">Crear Ticket</span>
             </a>
         </nav>
 
         <button id="sidebar-desktop-toggle" type="button" title="Colapsar menú"
-                class="mx-2 mb-2 p-2 rounded hover:bg-brand-800 flex items-center gap-2 px-3">
+                class="mx-2 mb-2 p-2 rounded flex items-center px-3">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
             </svg>
-            <span id="sidebar-collapse-label">Colapsar</span>
         </button>
     </aside>
 
@@ -268,26 +267,27 @@
   // Sidebar desktop: colapsar a iconos
   var sidebarToggle = document.getElementById('sidebar-desktop-toggle');
   var sidebarDesktop = document.getElementById('sidebar-desktop');
+  var sidebarTextTimer = null;
+  function setSidebarTexts(visible) {
+    var brandText = document.getElementById('sidebar-brand-text');
+    if (brandText) brandText.classList.toggle('hidden', !visible);
+    sidebarDesktop.querySelectorAll('#sidebar-nav span').forEach(function (span) {
+      span.classList.toggle('hidden', !visible);
+    });
+  }
   function applySidebarDesktopState() {
     if (!sidebarDesktop) return;
     var collapsed = sidebarDesktop.classList.contains('collapsed');
     sidebarDesktop.classList.toggle('w-16', collapsed);
     sidebarDesktop.classList.toggle('w-56', !collapsed);
-    var brand = document.getElementById('sidebar-brand');
-    if (brand) {
-      brand.classList.toggle('justify-center', collapsed);
-      brand.classList.toggle('px-0', collapsed);
-      var brandText = document.getElementById('sidebar-brand-text');
-      if (brandText) brandText.classList.toggle('hidden', collapsed);
+    if (sidebarTextTimer) { clearTimeout(sidebarTextTimer); sidebarTextTimer = null; }
+    if (collapsed) {
+      // Cerrar: primero desaparece el texto, luego anima el ancho.
+      setSidebarTexts(false);
+    } else {
+      // Abrir: primero anima el ancho, el texto aparece al terminar (200ms).
+      sidebarTextTimer = setTimeout(function () { setSidebarTexts(true); }, 200);
     }
-    sidebarDesktop.querySelectorAll('#sidebar-nav a').forEach(function (a) {
-      a.classList.toggle('justify-center', collapsed);
-      a.classList.toggle('px-0', collapsed);
-      var span = a.querySelector('span');
-      if (span) span.classList.toggle('hidden', collapsed);
-    });
-    var collapseLabel = document.getElementById('sidebar-collapse-label');
-    if (collapseLabel) collapseLabel.classList.toggle('hidden', collapsed);
   }
   if (sidebarToggle && sidebarDesktop) {
     sidebarToggle.addEventListener('click', function () {
