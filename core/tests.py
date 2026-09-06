@@ -6,6 +6,7 @@ from django.urls import reverse
 
 from core.models import (
     AnalisisIA,
+    Comentario,
     EstadoTicket,
     ModeloIA,
     Sistema,
@@ -205,11 +206,133 @@ class AnalisisIATest(TestCase):
         resp = self.client.post(reverse("ticket_analizar", args=[self.ticket.pk]))
         self.assertEqual(resp.status_code, 403)
 
-    def test_dev_no_colaborador_no_puede_analizar(self):
+    def test_dev_no_colaborador_puede_analizar(self):
+        # Desde 09/2026 el análisis IA está disponible para CUALQUIER dev/coord,
+        # aunque no sea colaborador activo del ticket (se quitó esa restricción).
         self._login_dev()
-        # Dev NO es colaborador activo del ticket: no ve el botón ni puede analizar.
         TicketDesarrollador.objects.filter(ticket=self.ticket, usuario=self.dev).delete()
         resp = self.client.post(reverse("ticket_analizar", args=[self.ticket.pk]))
-        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.status_code, 302)
         resp2 = self.client.get(reverse("ticket_detail", args=[self.ticket.pk]))
-        self.assertNotContains(resp2, 'id="form-analizar"')
+        self.assertContains(resp2, 'id="form-analizar"')
+
+
+@override_settings(
+    STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+)
+class TicketDetailHtmxTest(TestCase):
+    """Las acciones del detalle (tomar/liberar/estado/comentarios) responden el
+    partial #ticket-pagina cuando llegan con header HX-Request (swap HTMX), y
+    siguen redirigiendo como fallback sin JS."""
+
+    def setUp(self):
+        Usuario = get_user_model()
+        self.sistema = Sistema.objects.create(codigo="BALANCES", nombre="Balances")
+        self.solicitante = Usuario.objects.create_user(
+            username="dueño.htmx",
+            password="clave123",
+            rol="SOLICITANTE",
+            first_name="Dueño",
+            last_name="Htmx",
+        )
+        UsuarioSistema.objects.create(usuario=self.solicitante, sistema=self.sistema)
+        self.dev = Usuario.objects.create_user(
+            username="dev.htmx",
+            password="clave123",
+            rol="DESARROLLADOR",
+            first_name="Dev",
+            last_name="Htmx",
+        )
+        UsuarioSistema.objects.create(usuario=self.dev, sistema=self.sistema)
+        self.ticket = Ticket.objects.create(
+            titulo="Pantalla en blanco",
+            sistema=self.sistema,
+            solicitante=self.solicitante,
+            descripcion_original="Al abrir el informe la pantalla queda en blanco.",
+            estado=EstadoTicket.PENDIENTE,
+        )
+
+    def _login(self, usuario):
+        self.client.login(username=usuario.username, password="clave123")
+
+    def test_tomar_htmx_devuelve_partial(self):
+        self._login(self.dev)
+        resp = self.client.post(
+            reverse("ticket_tomar", args=[self.ticket.pk]),
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(resp.status_code, 200)
+        # Respuesta parcial (no redirect): trae el wrapper #ticket-pagina.
+        self.assertContains(resp, 'id="ticket-pagina"')
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.estado, EstadoTicket.EN_PROCESO)
+        # Badge actualizado dentro del partial: ya no muestra el form de tomar.
+        self.assertNotContains(resp, "Tomar ticket")
+
+    def test_tomar_sin_htmx_redirige(self):
+        self._login(self.dev)
+        resp = self.client.post(reverse("ticket_tomar", args=[self.ticket.pk]))
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(
+            resp["Location"],
+            reverse("ticket_detail", args=[self.ticket.pk]),
+        )
+
+    def test_cerrar_htmx_devuelve_partial(self):
+        self._login(self.dev)
+        resp = self.client.post(
+            reverse("ticket_cambiar_estado", args=[self.ticket.pk]),
+            {"estado": "CERRADO"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'id="ticket-pagina"')
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.estado, EstadoTicket.CERRADO)
+        # Al cerrar, el form de comentar se oculta (puede_comentar=False) en el partial.
+        self.assertNotContains(resp, 'id="comentario-form"')
+
+    def test_comentar_htmx_devuelve_partial_con_comentario(self):
+        self._login(self.solicitante)
+        resp = self.client.post(
+            reverse("ticket_comentar", args=[self.ticket.pk]),
+            {"cuerpo": "<p>Comentario con HTMX</p>"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'id="ticket-pagina"')
+        self.assertContains(resp, "Comentario con HTMX")
+
+    def test_eliminar_comentario_htmx_devuelve_partial(self):
+        self._login(self.solicitante)
+        com = Comentario.objects.create(
+            ticket=self.ticket, usuario=self.solicitante, cuerpo="<p>Hola</p>"
+        )
+        resp = self.client.post(
+            reverse("comentario_eliminar", args=[com.pk]),
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'id="ticket-pagina"')
+        self.assertNotContains(resp, "Hola")
+        com.refresh_from_db()
+        self.assertIsNotNone(com.eliminado_en)
+
+    def test_editar_comentario_htmx_devuelve_partial(self):
+        self._login(self.solicitante)
+        com = Comentario.objects.create(
+            ticket=self.ticket, usuario=self.solicitante, cuerpo="<p>Antes</p>"
+        )
+        resp = self.client.post(
+            reverse("comentario_editar", args=[com.pk]),
+            {"cuerpo": "<p>Después</p>"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'id="ticket-pagina"')
+        self.assertContains(resp, "Después")
+        com.refresh_from_db()
+        self.assertEqual(com.cuerpo, "<p>Después</p>")

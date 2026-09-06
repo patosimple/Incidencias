@@ -1,0 +1,312 @@
+<div id="ticket-pagina" class="max-w-3xl mx-auto space-y-4">
+
+    <!-- Header del ticket -->
+    <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+            <a href="{% url 'ticket_list' %}"
+               class="text-sm text-brand-700 dark:text-brand-400 hover:underline">← Mis Tickets</a>
+            <div class="mt-1 flex flex-wrap items-center gap-2 text-lg font-semibold text-gray-800 dark:text-gray-100 leading-snug">
+                <span class="inline-block bg-brand-950 text-white text-xs font-medium uppercase px-2 py-0.5 rounded">{{ ticket.sistema.nombre }}</span>
+                <span>#{{ ticket.pk }} · {{ ticket.titulo }}</span>
+            </div>
+        </div>
+        <div class="shrink-0">
+            {% include "core/partials/estado_badge.html" with estado=ticket.estado tomado=tomado tomado_mi=tomado_mi %}
+        </div>
+    </div>
+
+    <!-- Detalle del ticket: autor + fecha estilo comentario, delante del texto -->
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div class="p-4 sm:p-6 border-b border-gray-100 dark:border-slate-700">
+            {% with solicitante=ticket.solicitante %}
+            {% with rol=solicitante.rol %}
+            <div class="mb-3">
+                <div class="flex items-center justify-between gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    <span class="font-medium text-gray-700 dark:text-gray-200">
+                        <span class="inline-block w-2 h-2 rounded-full align-middle {% if rol == 'DESARROLLADOR' %}bg-emerald-600{% elif rol == 'COORDINADOR' %}bg-purple-600{% else %}bg-brand-600{% endif %} mr-1.5"></span>
+                        {{ solicitante.get_full_name|default:solicitante.username }}
+                        <span class="ml-1.5 font-normal italic text-xs">{{ ticket.creado_en|date:"d/m/Y H:i" }}</span>
+                    </span>
+                    {% if puede_actuar %}
+                    <span class="flex flex-row items-center gap-1.5">
+                        {% if ticket.estado == 'CERRADO' and puede_reabrir %}
+                            <form method="post" action="{% url 'ticket_cambiar_estado' ticket.pk %}"
+                                  hx-post="{% url 'ticket_cambiar_estado' ticket.pk %}" hx-target="#ticket-pagina" hx-swap="outerHTML"
+                                  hx-indicator="this">
+                                {% csrf_token %}
+                                <button type="submit" name="estado" value="REABIERTO"
+                                        class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
+                                    Reabrir
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% if ticket.estado != 'CERRADO' %}
+                                {% if user.rol == 'DESARROLLADOR' and not puede_liberar %}
+                                <form method="post" action="{% url 'ticket_tomar' ticket.pk %}"
+                                      hx-post="{% url 'ticket_tomar' ticket.pk %}" hx-target="#ticket-pagina" hx-swap="outerHTML"
+                                      hx-indicator="this">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
+                                        Tomar ticket
+                                    </button>
+                                </form>
+                                {% endif %}
+                                {% if puede_cerrar %}
+                                <form method="post" action="{% url 'ticket_cambiar_estado' ticket.pk %}"
+                                      hx-post="{% url 'ticket_cambiar_estado' ticket.pk %}" hx-target="#ticket-pagina" hx-swap="outerHTML"
+                                      hx-indicator="this">
+                                    {% csrf_token %}
+                                    <button type="submit" name="estado" value="CERRADO"
+                                            class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium text-white bg-red-600 hover:bg-red-700 transition-colors">
+                                        Cerrar
+                                    </button>
+                                </form>
+                                {% endif %}
+                                {% if puede_liberar %}
+                                <form method="post" action="{% url 'ticket_liberar' ticket.pk %}"
+                                      hx-post="{% url 'ticket_liberar' ticket.pk %}" hx-target="#ticket-pagina" hx-swap="outerHTML"
+                                      hx-indicator="this">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium text-gray-800 dark:text-gray-100 bg-gray-200 dark:bg-slate-600 hover:bg-gray-300 dark:hover:bg-slate-500 transition-colors">
+                                        Liberar
+                                    </button>
+                                </form>
+                                {% endif %}
+                            {% endif %}
+                        </span>
+                        {% endif %}
+                </div>
+                <div class="prose-sm text-sm text-gray-700 dark:text-gray-200 break-words leading-relaxed">
+                    {{ ticket.descripcion_original|safe }}
+                </div>
+            </div>
+            {% endwith %}
+            {% endwith %}
+        </div>
+
+        <!-- Colaboradores (desarrolladores) -->
+        {% if ticket.ticketdesarrollador_set.all %}
+        <div class="p-4 sm:p-6 border-t border-gray-100 dark:border-slate-700">
+            <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">Colaboradores</h2>
+            <ul class="space-y-2">
+                {% for td in ticket.ticketdesarrollador_set.all %}
+                <li class="flex items-center justify-between gap-3 text-sm">
+                    <span class="text-gray-700 dark:text-gray-200 {% if not td.activo %}line-through opacity-60{% endif %}">{{ td.usuario.get_full_name|default:td.usuario.username }}</span>
+                    <span class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        {% if not td.activo %}<span class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-gray-400">Liberado</span>{% endif %}
+                        <span>{{ td.tomado_en|date:"d/m/Y H:i" }}</span>
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Mensaje inline del análisis (entre la tarjeta del ticket y la de IA) -->
+    <div id="analizar-msg" class="hidden space-y-2"></div>
+
+    <!-- Análisis IA (Fase 2): visible SOLO para dev/coord por ahora.
+         Opcional: que el solicitante lo vea y lo valide (prioridad de aprobación). -->
+    {% if puede_ver_analisis %}
+    <div class="rounded-lg border border-brand-200 dark:border-brand-800 shadow-sm bg-brand-50 dark:bg-brand-900/20 overflow-hidden">
+        <div class="flex items-center justify-between gap-3 px-4 sm:px-5 py-3">
+            <div class="flex items-center gap-2 min-w-0">
+                <button type="button" id="toggle-analizar" data-ticket-id="{{ ticket.pk }}"
+                        class="shrink-0 p-1 rounded text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-800 transition-colors"
+                        title="Mostrar/ocultar análisis">
+                    <svg class="w-4 h-4" id="chevron-analizar" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <h2 class="flex items-center gap-1.5 text-sm font-semibold text-gray-800 dark:text-gray-100">
+                    Análisis IA
+                    <svg class="w-4 h-4 text-brand-600 dark:text-brand-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z"/>
+                    </svg>
+                </h2>
+                {% if ticket.estado == 'CERRADO' %}
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400 hidden sm:inline">· Ticket cerrado (análisis inamovible)</span>
+                {% endif %}
+            </div>
+            {% if puede_analizar %}
+            <div class="shrink-0">
+                <form method="post" action="{% url 'ticket_analizar' ticket.pk %}" id="form-analizar">
+                    {% csrf_token %}
+                    <button type="submit" id="btn-analizar"
+                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
+                        <svg class="w-4 h-4" id="icon-analizar" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        <span id="texto-analizar">{% if analisis_conceptual %}Reanalizar{% else %}Analizar{% endif %}</span>
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+        {% include "core/partials/analisis_cuerpo.html" %}
+    </div>
+    {% endif %}
+
+    <!-- Comentarios -->
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm p-4 sm:p-6 space-y-4">
+        <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Comentarios ({{ ticket.comentarios.count }})</h2>
+
+        <div class="space-y-4" id="comentarios-lista">
+            {% for comentario in ticket.comentarios.all %}
+            {% with rol=comentario.usuario.rol %}
+            <div class="border-l-2 {% if rol == 'DESARROLLADOR' %}border-emerald-600{% elif rol == 'COORDINADOR' %}border-purple-600{% else %}border-brand-600{% endif %} pl-3" id="comentario-{{ comentario.pk }}">
+                <div class="flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    <span class="font-medium text-gray-700 dark:text-gray-200">
+                        {{ comentario.usuario.get_full_name|default:comentario.usuario.username }}
+                    </span>
+                    <span>
+                        {{ comentario.creado_en|date:"d/m/Y H:i" }}
+                        {% if comentario.modificado_en %}<span class="italic text-gray-400 dark:text-gray-500">· editado {{ comentario.modificado_en|date:"d/m/Y H:i" }}</span>{% endif %}
+                    </span>
+                </div>
+                <div class="mt-1 text-sm text-gray-700 dark:text-gray-200 break-words leading-relaxed comentario-cuerpo">
+                    {{ comentario.cuerpo|safe }}
+                </div>
+                {% if user.is_authenticated and comentario.usuario == user and puede_gestionar_comentarios %}
+                <div class="mt-1.5 flex items-center gap-2 text-xs">
+                    <span class="flex gap-1.5" data-comentario-acciones="{{ comentario.pk }}">
+                        <button type="button" data-editar-comentario="{{ comentario.pk }}" title="Editar"
+                                class="p-1.5 rounded text-brand-700 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-slate-700 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                        </button>
+                        <form method="post" action="{% url 'comentario_eliminar' comentario.pk %}"
+                              hx-post="{% url 'comentario_eliminar' comentario.pk %}" hx-target="#ticket-pagina" hx-swap="outerHTML"
+                              class="inline eliminar-comentario-form" data-pk="{{ comentario.pk }}">
+                            {% csrf_token %}
+                            <button type="submit" title="Eliminar"
+                                    class="p-1.5 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
+                        </form>
+                    </span>
+                </div>
+                <form method="post" action="{% url 'comentario_editar' comentario.pk %}"
+                      hx-post="{% url 'comentario_editar' comentario.pk %}" hx-target="#ticket-pagina" hx-swap="outerHTML"
+                      class="hidden mt-2 space-y-2 editar-comentario-form" data-form-comentario="{{ comentario.pk }}" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+                    <textarea name="cuerpo" class="hidden">{{ comentario.cuerpo }}</textarea>
+                    <div class="quill-editor bg-white dark:bg-slate-700"></div>
+                    <div class="pt-1">
+                        <div class="flex items-center gap-2">
+                            <input type="file" id="archivos-edit-{{ comentario.pk }}" name="archivos" multiple class="hidden">
+                            <button type="button" id="btn-adjuntar-edit-{{ comentario.pk }}"
+                                    class="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400 hover:text-brand-900 dark:hover:text-brand-300">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                                Adjuntar archivos
+                            </button>
+                        </div>
+                        <ul id="adjuntos-edit-lista-{{ comentario.pk }}" class="mt-2 space-y-1">
+                            {% for adj in comentario.adjuntos.all %}
+                            <li class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200" data-adj-existente="{{ adj.pk }}">
+                                <span class="w-4 h-4 shrink-0 text-gray-400">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                </span>
+                                <span>{{ adj.nombre_archivo }}</span>
+                                <span class="ml-auto">
+                                    <button type="button" title="Quitar" data-quitar-existente="{{ adj.pk }}"
+                                            class="p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                </span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        <input type="hidden" name="adjuntos_eliminar" value="">
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Podés agregar archivos o quitar los existentes (se borran del servidor).</p>
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" data-cancelar-editar="{{ comentario.pk }}"
+                                class="px-2.5 py-1 rounded text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">Cancelar</button>
+                        <button type="submit"
+                                class="px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">Guardar</button>
+                    </div>
+                </form>
+                {% endif %}
+                {% if comentario.adjuntos.all %}
+                <div class="mt-2 flex flex-wrap gap-2 comentario-adjuntos">
+                    {% for adj in comentario.adjuntos.all %}
+                    <a href="{% url 'adjunto_descargar' adj.pk %}"
+                       class="inline-flex items-center gap-1.5 text-xs text-brand-700 dark:text-brand-400 hover:underline">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        {{ adj.nombre_archivo }}
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endwith %}
+            {% empty %}
+            <p class="text-sm text-gray-500 dark:text-gray-400">Sin comentarios todavía.</p>
+            {% endfor %}
+        </div>
+
+        {% if puede_comentar %}
+        <form id="comentario-form" method="post" enctype="multipart/form-data"
+              action="{% url 'ticket_comentar' ticket.pk %}"
+              hx-post="{% url 'ticket_comentar' ticket.pk %}" hx-target="#ticket-pagina" hx-swap="outerHTML"
+              class="space-y-2" novalidate>
+            {% csrf_token %}
+            {{ comentario_form.cuerpo }}
+            <div id="quill-comentario" class="bg-white dark:bg-slate-700"></div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <input type="file" id="archivos-comentario" name="archivos" multiple class="hidden">
+                    <button type="button" id="btn-adjuntar-comentario"
+                            class="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400 hover:text-brand-900 dark:hover:text-brand-300">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Adjuntar archivos
+                    </button>
+                </div>
+                <ul id="adjuntos-lista" class="mt-2 space-y-1"></ul>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Opcional. Podés elegir varios archivos de a uno.</p>
+            </div>
+            <div class="flex justify-end">
+                <button type="submit"
+                        class="inline-flex items-center justify-center px-4 py-2 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
+                    Comentar
+                </button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+
+    <!-- Adjuntos -->
+    {% if ticket.adjuntos.all %}
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm p-4 sm:p-6">
+        <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-3">Adjuntos</h2>
+        <ul class="space-y-2">
+            {% for adj in ticket.adjuntos.all %}
+            <li class="text-sm text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                <a href="{% url 'adjunto_descargar' adj.pk %}"
+                   class="inline-flex items-center gap-2 text-brand-700 dark:text-brand-400 hover:underline">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    {{ adj.nombre_archivo }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+</div>

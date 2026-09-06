@@ -88,6 +88,54 @@ def _sistemas_visibles(usuario):
     return Sistema.objects.filter(usuariosistema__usuario=usuario)
 
 
+def _contexto_detalle(request, ticket, comentario_form=None):
+    """Contexto completo del detalle, compartido entre la vista GET y los
+    re-renders de HTMX. Al mutar el ticket (tomar/liberar/estado/comentarios)
+    los flags se recalculan acá con el estado ya actualizado."""
+    ctx = {
+        "ticket": ticket,
+        "comentario_form": comentario_form if comentario_form is not None else ComentarioForm(),
+        "puede_actuar": TicketDetailView._puede_actuar(request.user, ticket),
+        "puede_comentar": _puede_comentar(request.user, ticket),
+        "puede_liberar": ticket.ticketdesarrollador_set.filter(
+            usuario=request.user, activo=True
+        ).exists(),
+        "puede_cerrar": TicketDetailView._puede_cerrar(request.user, ticket),
+        "puede_reabrir": TicketDetailView._puede_reabrir(request.user, ticket),
+        "puede_gestionar_comentarios": (
+            _es_participante_activo(request.user, ticket)
+            and ticket.estado != EstadoTicket.CERRADO
+        ),
+        "tomado": ticket.ticketdesarrollador_set.filter(activo=True).exists(),
+        "tomado_mi": ticket.ticketdesarrollador_set.filter(
+            usuario=request.user, activo=True
+        ).exists(),
+        # Análisis IA: el más reciente de tipo TÉCNICO (único hoy). Por ahora
+        # NO disponible para solicitantes (dev/coord lo ven).
+        "puede_analizar": (
+            request.user.rol in (RolUsuario.DESARROLLADOR, RolUsuario.COORDINADOR)
+            and ticket.estado != EstadoTicket.CERRADO
+        ),
+        "puede_ver_analisis": request.user.rol in (
+            RolUsuario.DESARROLLADOR,
+            RolUsuario.COORDINADOR,
+        ),
+    }
+    analisis = list(ticket.analisis.filter(tipo=TipoAnalisis.TECNICO))
+    ctx["analisis_conceptual"] = analisis[0] if analisis else None
+    return ctx
+
+
+def _render_ticket_pagina(request, ticket, comentario_form=None):
+    """Renderiza el partial del detalle completo (#ticket-pagina), que HTMX
+    usa para swappear la página sin recargar tras una acción."""
+    return render(
+        request,
+        "core/partials/ticket_pagina.html",
+        _contexto_detalle(request, ticket, comentario_form),
+    )
+
+
 class CambiarPasswordView(LoginRequiredMixin, PasswordChangeView):
     template_name = "core/password_change.html"
     form_class = CambioPasswordForm
@@ -244,37 +292,7 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["comentario_form"] = ComentarioForm()
-        ctx["puede_actuar"] = self._puede_actuar(self.request.user, self.object)
-        ctx["puede_comentar"] = _puede_comentar(self.request.user, self.object)
-        ctx["puede_liberar"] = self.object.ticketdesarrollador_set.filter(
-            usuario=self.request.user, activo=True
-        ).exists()
-        ctx["puede_cerrar"] = self._puede_cerrar(self.request.user, self.object)
-        ctx["puede_reabrir"] = self._puede_reabrir(self.request.user, self.object)
-        ctx["puede_gestionar_comentarios"] = (
-            _es_participante_activo(self.request.user, self.object)
-            and self.object.estado != EstadoTicket.CERRADO
-        )
-        ctx["tomado"] = self.object.ticketdesarrollador_set.filter(activo=True).exists()
-        ctx["tomado_mi"] = self.object.ticketdesarrollador_set.filter(
-            usuario=self.request.user, activo=True
-        ).exists()
-        # Análisis IA (Fase 2): el más reciente de tipo TÉCNICO (único hoy).
-        # Por ahora NO disponible para solicitantes (dev/coord lo ven);
-        # opcional: que el solicitante lo vea y lo valide (prioridad de aprobación).
-        analisis = list(
-            self.object.analisis.filter(tipo=TipoAnalisis.TECNICO)
-        )
-        ctx["analisis_conceptual"] = analisis[0] if analisis else None
-        ctx["puede_analizar"] = (
-            self.request.user.rol in (RolUsuario.DESARROLLADOR, RolUsuario.COORDINADOR)
-            and self.object.estado != EstadoTicket.CERRADO
-        )
-        ctx["puede_ver_analisis"] = self.request.user.rol in (
-            RolUsuario.DESARROLLADOR,
-            RolUsuario.COORDINADOR,
-        )
+        ctx.update(_contexto_detalle(self.request, self.object))
         return ctx
 
     @staticmethod
@@ -330,6 +348,8 @@ def tomar_ticket(request, pk):
         ticket.estado_previo = ticket.estado
         ticket.estado = EstadoTicket.EN_PROCESO
         ticket.save(update_fields=["estado", "estado_previo"])
+    if request.headers.get("HX-Request"):
+        return _render_ticket_pagina(request, ticket)
     return redirect("ticket_detail", pk=pk)
 
 
@@ -360,6 +380,8 @@ def liberar_ticket(request, pk):
             ticket.estado = ticket.estado_previo or EstadoTicket.PENDIENTE
         ticket.estado_previo = None
         ticket.save(update_fields=["estado", "estado_previo"])
+    if request.headers.get("HX-Request"):
+        return _render_ticket_pagina(request, ticket)
     return redirect("ticket_detail", pk=pk)
 
 
@@ -418,6 +440,8 @@ def cambiar_estado_ticket(request, pk):
 
     ticket.estado = nuevo_estado
     ticket.save(update_fields=["estado", "cerrado_en", "estado_previo"])
+    if request.headers.get("HX-Request"):
+        return _render_ticket_pagina(request, ticket)
     return redirect("ticket_detail", pk=pk)
 
 
@@ -439,6 +463,13 @@ def agregar_comentario(request, pk):
             comentario=comentario,
             usuario=request.user,
         )
+        if request.headers.get("HX-Request"):
+            return _render_ticket_pagina(request, ticket)
+        return redirect("ticket_detail", pk=pk)
+    # Form inválido: en HTMX devolver la página con los errores del form;
+    # como fallback sin JS, redirigir (comportamiento histórico).
+    if request.headers.get("HX-Request"):
+        return _render_ticket_pagina(request, ticket, comentario_form=form)
     return redirect("ticket_detail", pk=pk)
 
 
@@ -471,6 +502,8 @@ def editar_comentario(request, pk):
                 a_eliminar = comentario.adjuntos.filter(pk__in=eliminar_pks)
                 _eliminar_adjuntos(a_eliminar)
             messages.success(request, "Comentario actualizado.")
+        if request.headers.get("HX-Request"):
+            return _render_ticket_pagina(request, comentario.ticket)
         return redirect("ticket_detail", pk=comentario.ticket_id)
     return redirect("ticket_detail", pk=comentario.ticket_id)
 
@@ -492,6 +525,8 @@ def eliminar_comentario(request, pk):
     ticket_id = comentario.ticket_id
     comentario.soft_delete()
     messages.success(request, "Comentario eliminado.")
+    if request.headers.get("HX-Request"):
+        return _render_ticket_pagina(request, comentario.ticket)
     return redirect("ticket_detail", pk=ticket_id)
 
 

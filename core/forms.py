@@ -102,7 +102,7 @@ class ComentarioForm(forms.ModelForm):
         model = Comentario
         fields = ["cuerpo"]
         widgets = {
-            "cuerpo": forms.Textarea(attrs={"rows": 3, "placeholder": "Escriba una respuesta..."}),
+            "cuerpo": forms.Textarea(attrs={"rows": 3, "placeholder": "Escriba una respuesta...", "class": "hidden"}),
         }
 
     def clean_cuerpo(self):
