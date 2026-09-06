@@ -638,6 +638,7 @@ function setBtn(estado) {
                 }
                 // después del primer análisis ya no es "Analizar" sino "Reanalizar"
                 texto.textContent = 'Reanalizar';
+                formAnalizar.setAttribute('data-original', 'Reanalizar');
               }
               finalizar(null);
               return;

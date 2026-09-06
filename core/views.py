@@ -268,7 +268,7 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
         )
         ctx["analisis_conceptual"] = analisis[0] if analisis else None
         ctx["puede_analizar"] = (
-            _es_participante_activo(self.request.user, self.object)
+            self.request.user.rol in (RolUsuario.DESARROLLADOR, RolUsuario.COORDINADOR)
             and self.object.estado != EstadoTicket.CERRADO
         )
         ctx["puede_ver_analisis"] = self.request.user.rol in (
@@ -536,8 +536,6 @@ def analizar_ticket(request, pk):
     # condición de `puede_ver_analisis` del context del detalle.
     if request.user.rol not in (RolUsuario.DESARROLLADOR, RolUsuario.COORDINADOR):
         raise PermissionDenied("El análisis IA no está disponible para tu rol.")
-    if not _es_participante_activo(request.user, ticket):
-        raise PermissionDenied("Solo colaboradores activos del ticket pueden analizar.")
     if ticket.estado == EstadoTicket.CERRADO:
         raise PermissionDenied("El ticket está cerrado; no se puede volver a analizar.")
 
@@ -555,7 +553,10 @@ def analizar_ticket(request, pk):
                 "core/partials/analisis_cuerpo.html",
                 {
                     "analisis_conceptual": analisis,
-                    "puede_analizar": _es_participante_activo(request.user, ticket),
+                    "puede_analizar": (
+                        request.user.rol in (RolUsuario.DESARROLLADOR, RolUsuario.COORDINADOR)
+                        and ticket.estado != EstadoTicket.CERRADO
+                    ),
                 },
             )
             return JsonResponse({

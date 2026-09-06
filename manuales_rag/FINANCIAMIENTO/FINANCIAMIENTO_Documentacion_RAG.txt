@@ -1,0 +1,259 @@
+# FINANCIAMIENTO
+
+## OBJETIVO
+
+El objetivo de este documento es orientar a los usuarios que realicen la carga de los informes para que puedan navegar de forma efectiva a través de la aplicación y tengan presente todas las funcionalidades disponibles.
+
+## PANTALLA DE INGRESO
+
+En esta pantalla contamos únicamente con 2 acciones posibles:
+
+1. Ingresar a la web utilizando el mail que tengamos registrado como usuario y la contraseña.
+
+Para el caso de la contraseña, existe la posibilidad de hacer click sobre el ojo tachado en el margen derecho del campo, para poder ver lo que estamos escribiendo. Esto resulta útil cuando el acceso es denegado por error en la contraseña, para validar que el ingreso de la misma sea correcto.
+
+2. Recuperar la contraseña, en caso que la hayamos olvidado.
+
+## PROCESO DE RECUPERACIÓN DE CONTRASEÑA
+
+En primer lugar se debe hacer click sobre el mensaje “¿Olvidó su contraseña?”
+
+Esto nos lleva a la siguiente pantalla, donde deberemos especificar el correo electrónico que utilizamos para ingresar. A este mismo mail estarán llegando las instrucciones para restablecer la contraseña.
+
+Luego de ingresar el correo electrónico y clickear en el botón que dice “Enviar mail”, la web mostrará una pantalla de confirmación donde se indica que se envió el correo de recuperación.
+
+El mail de recuperación se ve de la siguiente manera.
+
+Luego de clickear en el link del mail, será redireccionado a la web, donde establecerá una nueva contraseña para la cuenta. Habiendo confirmado esto último, podrá hacer el ingreso a la web nuevamente con la contraseña generada.
+
+## PANTALLA PRINCIPAL
+
+En la pantalla principal podemos identificar a simple vista 2 apartados principales.
+
+El primero, en la parte superior de la pantalla, está asociado a la administración de nuestro usuario.
+
+Aquí se podrá cerrar sesión o cambiar la contraseña. Para cualquiera de estas 2 opciones es necesario hacer click sobre el icono circular que se encuentra en el margen derecho.
+
+Adicionalmente, en la misma barra superior, es posible hacer click en la palabra “Informes” para regresar a la pantalla principal, si es que estamos en otro apartado de la web.
+
+Por ejemplo, desde la pantalla de cambio de contraseña, podemos hacer click ahí y volver a la pantalla inicial de la que venimos hablando.
+
+El segundo apartado, y tal vez el más importante, es el que permite administrar los informes.
+
+A continuación se detallará cada una de las acciones disponibles.
+
+## AGREGAR INFORMES
+
+Para agregar un informe, debemos hacer click en el botón “agregar”, ubicado en la esquina superior derecha del apartado de informes.
+
+Esto nos conduce a una presentación distinta del recuadro, donde en primera instancia deberemos elegir que tipo de informe queremos generar.
+
+Para ello, es requisito optar por un conjunto de opciones divididas del siguiente modo:
+
+El acto electoral hace referencia a unas elecciones concretas, para las cuales queremos generar el reporte (ej: Elecciones Nacionales 2021).
+
+La etapa hace referencia a la instancia de las elecciones previamente seleccionadas para la cual deseamos generar el informe (ej: Segunda vuelta).
+
+Una vez que seleccionamos acto electoral y etapa, se habilita un tercer campo que nos permite seleccionar el tipo de informe que queremos crear. Algunos tipos de informes sólo se encuentran disponibles para etapas específicas de la elección.
+
+Para el caso de elecciones primarias los informes disponibles son “lista” y “agrupación”.
+
+Para el caso de elecciones generales y segunda vuelta los informes disponibles son “previo” y “final”.
+
+Habiendo seleccionado las opciones correspondientes al tipo de informe que pretendemos generar, el recuadro muestra todas los posibles informes que tenemos disponibles en función de los partidos/alianzas/listas que se encuentran asociados al usuario que se está utilizando.
+
+Para crear el informe, se debe hacer click sobre el icono con el “+” que se encuentra sobre el margen derecho.
+
+Esto nos redirigirá directo a la pantalla del informe, para que completemos los formularios que contiene.
+
+A medida que completamos los formularios, podemos guardar los cambios presionando en el botón “siguiente”.
+
+Una vez llegado al último apartado, el botón “finalizar” (ubicado en la misma posición que “siguiente”) nos permitirá guardar la información y cerrar el formulario.
+
+Ya sea que hayamos llegado hasta esta última instancia, o aun habiendo salido del formulario por otro medio (lo recomendable es salir con el botón “finalizar”), este ya estará disponible en la pantalla principal y se encontrará en estado “borrador”, siendo posible editarlo o hacer la presentación del mismo.
+
+[Imagen: pantalla de selección de acto electoral, etapa y tipo de informe, seguida de la lista de informes disponibles para seleccionar mediante el icono “+”.]
+
+## GENERACIÓN DE INFORMES FINALES
+
+Existe una particularidad que vale la pena destacar respecto de la generación de informes finales. En caso que exista un informe “previo” generado para un determinado partido/alianza en un cargo puntual, la información de este podrá migrarse de forma parcial al informe “final” del mismo partido en dicho cargo, para simplificar el proceso de carga.
+
+Los informes finales de PRESIDENTE Y VICEPRESIDENTE admiten la migración de un informe previo del mismo cargo.
+
+Los informes finales de SENADORES o DIPUTADOS admiten la migración de un informe previo de senadores, diputados o ambos, siempre que pertenezcan a la misma agrupación política y acto electoral.
+
+Para los casos en que esta acción sea posible, el sistema informará lo con el siguiente mensaje.
+
+Al confirmar la intención de importar los datos, una nueva ventana nos mostrará 1 o varios desplegables (para el caso de legisladores) donde podremos especificar el informe desde el cual queremos importar la información.
+
+Una vez seleccionado alguno, se habilitará la opción “importar informe”, que nos redirigirá al informe final, teniendo este varios de los campos completos con información obtenida desde el informe previo. En caso que no queramos importar ninguno de los informes previos disponibles, simplemente se puede usar el botón “continuar sin importar” para avanzar hacia el informe final sin información previa.
+
+## IMPRESIÓN DE INFORMES
+
+La impresión puede realizarse sobre cualquier informe creado, indistintamente de su estado (borrador, presentado o recibido).
+
+Para acceder a esta opción, se debe hacer click sobre el icono de la impresora.
+
+Esto nos redirige a la pantalla de impresión, donde se mostrará una vista previa del documento. Aquí podremos clickear en el icono para imprimir.
+
+Esto nos mostrará la ventana de configuración de la impresión, donde podremos elegir cuántas copias realizar, a qué impresora delegar la impresión, entre otras opciones.
+
+Otra opción disponible en la pantalla previa es la de descargar el informe.
+
+Esto permite descargar una copia del pdf en nuestra propia PC.
+
+## BORRAR INFORMES
+
+Para borrar un informe, es requisito que el mismo se encuentre en estado “borrador” o “preparado” (no recibido).
+
+El borrado se realiza clickeando en el icono rojo.
+
+Antes de borrar el informe, el sistema nos advierte que la acción es irreversible, y nos pide la confirmación definitiva.
+
+## EDITAR INFORMES
+
+La edición de informes como tal, solo se encuentra disponible para informes en estado “borrador”. No obstante, existen formas de editar informes presentados/recibidos, pero profundizaremos en esto en otro apartado de este manual.
+
+Para acceder a la edición de un informe se debe hacer click sobre el icono del lápiz.
+
+Esto nos redirige inmediatamente a la pantalla donde se encuentran todos los formularios asociados al tipo de informe seleccionado.
+
+Aquí podremos editar de forma total o parcial el informe existente y guardar los cambios realizados mediante el botón “siguiente” que se encuentra en la parte superior derecha, y “finalizar” en el caso de encontrarse en el último apartado del informe.
+
+## PRESENTAR INFORMES
+
+La presentación de un informe creado se realiza mediante el botón “presentar”.
+
+Previo a concretar la presentación, el sistema nos pide una confirmación definitiva de la acción.
+
+La presentación implica el cambio de estado en el informe, de “borrador” a “preparado”.
+
+Una vez presentado el informe, se deberá imprimir y suscribir el mismo por parte de los responsables, conforme lo establecido por Ley 26.215 en cada caso. Una vez firmado, es necesario digitalizar el informe y presentarlo a través del sistema Lex100.
+
+## VOLVER A BORRADOR
+
+Un informe en estado “preparado” implica que el mismo está disponible para ser recibido por la secretaría, pero aún no fue concretada esta acción.
+
+En esta instancia tenemos la posibilidad de volver el informe al estado “borrador” para hacer las correcciones que sean necesarias y deshabilitando la posibilidad de recepción por parte de la secretaría hasta tanto no lo volvamos a presentar.
+
+El botón “borrador” es el que nos permite esto.
+
+## RECTIFICAR INFORMES
+
+La rectificación de informes se encuentra disponible solo para informes en estado “recibido”.
+
+En caso que optemos por rectificar un informe, lo que sucederá es que el informe presentado se clonará, generando un nuevo informe con la información que disponía aquel que rectificamos. Este nuevo informe se genera en estado “borrador” y opera del mismo modo que cualquier otro informe en dicho estado.
+
+Para acceder a la rectificación debemos clickear en el botón “rectificar”.
+
+El sistema nos solicitará la confirmación de la acción, y una vez confirmado nos redirigirá al nuevo informe.
+
+La validez del nuevo informe se encuentra supeditada a la recepción del mismo por parte de la secretaría, por lo que una vez hechas las modificaciones pertinentes, será necesario presentarlo para disponibilizar su recepción, y aguardar a que el mismo pase a estado recibido una vez que la secretaría lo confirme.
+
+## FILTRAR LA VISTA DE INFORMES
+
+La vista principal brinda la posibilidad de filtrar los informes de 2 maneras que pueden ser utilizadas individualmente o en conjunto.
+
+La primera es la selección de acto electoral, etapa o el propio código de informe.
+
+La otra opción es utilizar la barra de búsqueda que se encuentra debajo, donde podremos ingresar cualquier texto, haciendo que los resultados se vayan filtrando a medida que escribimos.
+
+## ORDENAR LAS COLUMNAS
+
+Otra forma de organizar la información mostrada en la pantalla principal es utilizando el ordenamiento de las columnas. El ordenamiento se da por orden alfabético o numérico, según corresponda.
+
+Para esto es necesario hacer click sobre el nombre de la columna, que a su derecha mostrará una flecha apuntando hacia arriba o hacia abajo, indicando si el orden es ascendente o descendente.
+
+El ordenamiento también es compatible con la utilización de los filtros mencionados en el punto anterior.
+
+## MODIFICAR LA CANTIDAD DE INFORMES MOSTRADOS
+
+Es importante tener presente que la cantidad de informes que se muestran por defecto es 5, por lo que a primera vista puede que no se visualicen algunos informes a menos que avancemos por las páginas de resultados o aumentemos la cantidad de informes a mostrar en simultáneo.
+
+Para modificar el número de informes a visualizar, es necesario ir al pie del recuadro y sobre el margen derecho modificar la opción que indica “items por página”.
+
+## MOVERSE A TRAVÉS DE LAS PÁGINAS DE RESULTADOS
+
+En caso que no decidamos ampliar la cantidad de resultados, o que esto no resulte suficiente para ver todos los resultados, podemos avanzar a través de las páginas de resultados desde las flechas que se muestran a la derecha de “items por página”, en el pie del recuadro.
+
+Las flechas de los extremos sirven para ir a la primera o a la última página, y las centrales son para avanzar/retroceder las páginas de a una.
+
+Adicionalmente se puede ver a la izquierda de las flechas el número total de resultados y el subgrupo de páginas que están siendo mostradas en ese momento.
+
+Esto indica que nos encontramos viendo los resultados que van del 16 al 20 inclusive, de un total de 112 resultados, en una configuración de 5 items por página.
+
+## INFORMES
+
+En este apartado estaremos repasando la estructura de los informes y algunas funcionalidades que pueden llegar a simplificar la carga de los mismos.
+
+## MOVERSE POR EL INFORME
+
+En puntos previos pudimos ver que los informes poseen unos botones de navegación en la parte superior para avanzar o retroceder entre los formularios que lo componen.
+
+No obstante, también existe un menú lateral que nos permite dirigirnos a un apartado puntual del informe, sin necesidad de transitar los intermedios. Con hacer un click en cualquiera de los segmentos, se cargará el formulario correspondiente.
+
+Dentro de algunos apartados, también contaremos con pestañas que nos habilitan diferentes tipos de cargas.
+
+## INFORME FINAL DE DIPUTADOS
+
+Tomemos como ejemplo un informe FINAL de DIPUTADOS.
+
+En el apartado de ingresos de campaña vamos a contar con 2 pestañas:
+
+- Contribuciones y donaciones
+- Transf. otros organos o distritos
+
+La pestaña activa se ve identificada por una línea azul debajo del nombre.
+
+[Imagen: pantalla de un informe FINAL de DIPUTADOS mostrando el apartado de ingresos de campaña y las pestañas “Contribuciones y donaciones” y “Transf. otros organos o distritos”.]
+
+## SECCIONES EXPANDIBLES
+
+Para el caso de Contribuciones y donaciones también podemos observar que posee 2 secciones internas sobre las cuales debemos hacer click para que se expandan y así poder hacer la carga.
+
+sin expandir
+
+expandiendo
+
+Estas secciones expandibles se encuentran presentes en otros apartados de diferentes informes. Un rasgo que las identifica es que poseen un icono de una flecha en el margen derecho.
+
+[Imagen: sección de “Contribuciones y donaciones” en estado contraído y expandido, mostrando que las secciones internas se despliegan mediante un icono de flecha.]
+
+## IMPORTACIÓN DE ARCHIVOS
+
+En algunos casos el sistema nos permite hacer importaciones de archivos externos que son utilizados para la carga de los informes.
+
+Un ejemplo de esto sería el caso del informe FINAL de DIPUTADOS, en el apartado de ingresos de campaña donde disponemos del módulo para la carga de contribuciones y donaciones privadas de personas humanas.
+
+El botón de importar nos mostrará la siguiente ventana.
+
+Es importante tener en cuenta que para poder obtener los datos necesarios para el informe, el archivo que importemos debe respetar un formato particular. Dicho formato se puede consultar haciendo click en donde dice “Descargar excel con formato de importación”.
+
+Esto descargara un archivo de excel con las características requeridas para que la importación se efectúe de forma correcta.
+
+Vale aclarar que además del formato, los campos completados deben ser válidos. Consideraciones a tener en cuenta:
+
+- El CUIT no debe poseer guiones
+- Campos como localidad, distrito, tipo de aporte y género sólo admiten determinados valores.
+
+Para corroborar los valores posibles para estos campos obligatorios, se puede consultar el formulario de carga manual haciendo click sobre el botón “agregar” que se encuentra a la derecha del botón para importar la planilla.
+
+Con el formulario abierto, podemos hacer click sobre alguno de los campos mencionados y ver cuales son las opciones disponibles.
+
+[Imagen: ventana de importación de archivos para la carga de información en un informe.]
+
+## CARGA Y EDICIÓN DE REGISTROS IMPORTADOS
+
+Una vez cargados los registros necesarios, sea de forma manual o mediante importación de otro archivo, los mismos aparecerán contenidos en el apartado sobre el cual hacemos la carga, y podrán ser editados o eliminados (individualmente o masivamente).
+
+## VISTAS PREVIAS
+
+En prácticamente todos los apartados (salvo contadas excepciones) contamos con un botón de “vista previa” ubicado en el margen inferior derecho.
+
+Dependiendo de donde nos encontremos ubicados en el informe, este botón mostrará diferentes opciones de visualización del estado del informe hasta el momento.
+
+Para el caso de Ingresos para la campaña podemos ver algo como lo siguiente.
+
+Donde además de ver el estado actual del reporte en ese apartado particular, podremos descargar o imprimir el mismo desde los iconos ubicados en la esquina superior derecha de la pantalla.
+
+Los casos donde las opciones de la vista previa se encuentran grisadas es debido a que no existen datos cargados en ese segmento del informe.
