@@ -12,36 +12,78 @@ from core.models import Sistema, ModeloIA, ConfiguracionIA, AnalisisIA
 class Command(BaseCommand):
     help = "Carga los datos iniciales del sistema (sistemas y catálogo de modelos de IA)."
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--update_prompt",
+            action="store_true",
+            help="Actualiza el prompt existente de los sistemas aunque ya tengan "
+                 "uno (por defecto solo se escribe si el sistema es nuevo o está vacío).",
+        )
+
     def handle(self, *args, **options):
+        self.update_prompt = options["update_prompt"]
         self._seed_sistemas()
         self._seed_modelos_ia()
         self.stdout.write(self.style.SUCCESS("Seed init completo."))
 
     def _seed_sistemas(self):
         # El campo `prompt` es contexto opcional para la IA: describe qué hace
-        # el sistema y qué datos conoce el usuario final. Solo se escribe si el
-        # sistema es nuevo o no tiene prompt todavía (no pisa ediciones del admin).
+        # el sistema y qué datos conoce el usuario final. Por defecto solo se
+        # escribe si el sistema es nuevo o no tiene prompt todavía (no pisa
+        # ediciones del admin). Con --update_prompt se sobrescribe siempre con la
+        # versión del seed (útil para sincronizar un entorno, ej. Neon).
         sistemas = [
+            # Los prompts reflejan la descripción que el usuario setea desde el
+            # admin (se sincronizaron con la DB el 06/09/2026).
             {
                 "codigo": "BALANCES",
                 "nombre": "Balances",
                 "prompt": (
-                    "Aplicación web de contabilidad donde los usuarios cargan y "
-                    "consultan balances e informes contables. El usuario final "
-                    "conoce qué pantalla/módulo usa (carga de asientos, consulta "
-                    "de balances, listados), qué período o ejercicio reporta y "
-                    "qué datos de entrada cargó."
+                    "Aplicación web destinada a la gestión y presentación de "
+                    "estados contables anuales de agrupaciones políticas. Permite "
+                    "a los usuarios registrados crear, completar, administrar, "
+                    "controlar, presentar y rectificar estados contables "
+                    "correspondientes a distintos ejercicios económicos. El "
+                    "usuario puede referirse al estado contable como balance "
+                    "tambien. Permite: gestión de estados contables, carga de "
+                    "saldos de cuentas patrimoniales y de resultados, carga de "
+                    "información mediante registros detallados, incorporación de "
+                    "notas y aportes privados, importación de información desde "
+                    "archivos externos, control del balanceo contable, generación "
+                    "y visualización de reportes, carga del Estado de Flujo de "
+                    "Efectivo, incorporación de anexos voluntarios, notas y Anexo "
+                    "de Capacitación, carga del Informe del Auditor y presentación "
+                    "de los estados contables. Los estados pueden encontrarse en "
+                    "estado Borrador, ser presentados y posteriormente recibidos "
+                    "por la Secretaría Electoral. Una vez presentados dejan de ser "
+                    "editables, salvo que sean rechazados por la Secretaría "
+                    "Electoral y devueltos a estado borrador. También permite "
+                    "realizar rectificaciones de estados contables previamente "
+                    "recibidos. Los reportes pueden descargarse en formato PDF "
+                    "para su control, impresión y firma."
                 ),
             },
             {
                 "codigo": "FINANCIAMIENTO",
                 "nombre": "Financiamiento",
                 "prompt": (
-                    "Aplicación web de gestión de financiamiento político: los "
-                    "usuarios cargan y consultan aportes, financiadores y "
-                    "reportes de financiamiento. El usuario final conoce qué "
-                    "pantalla/módulo usa (carga de aportes, consultas, informes), "
-                    "a qué campaña o período corresponde y qué datos cargó."
+                    "Aplicación web destinada a la gestión y presentación de "
+                    "informes vinculados al financiamiento de campañas de actos "
+                    "electorales. Permite a los usuarios registrados generar, "
+                    "completar, administrar, presentar y consultar informes "
+                    "correspondientes a distintas elecciones, etapas y tipos de "
+                    "informe.\n"
+                    "Permite: Gestion básica de usuarios, Generacion de informes "
+                    "de distintos tipos segun la etapa de la cada eleccion. El "
+                    "user puede editar sus informes en estado BORRADOR, y los "
+                    "puede presentar (estado PREPARADO), los puede volver a pasar "
+                    "a estado BORRADOR, y la secretaría electoral puede recibirlos "
+                    "(etado RECIBIDO). Los informes RECIBIDOS pueden ser "
+                    "RECTIFICADOS por usuario. El user puede importar información "
+                    "desde archivos externos, cuando el tipo de informe lo "
+                    "permite. Se pueden generar vistas previas del informe "
+                    "completo y de cada seccion. Los informes pueden ser impresos "
+                    "y exportados/descargados en formato PDF."
                 ),
             },
         ]
@@ -49,10 +91,12 @@ class Command(BaseCommand):
             sistema, creado = Sistema.objects.get_or_create(
                 codigo=datos["codigo"], defaults={"nombre": datos["nombre"]}
             )
-            if creado or not sistema.prompt:
+            if creado or not sistema.prompt or self.update_prompt:
                 sistema.prompt = datos["prompt"]
                 sistema.save(update_fields=["prompt"])
             estado = "creado" if creado else "ya existía"
+            if self.update_prompt and not creado:
+                estado += " · prompt actualizado"
             self.stdout.write(f"  Sistema {sistema.codigo}: {estado}")
 
     def _seed_modelos_ia(self):

@@ -87,13 +87,16 @@ La app queda en `http://localhost:8000` y el admin en `http://localhost:8000/adm
 
 ```bash
 .\venv\Scripts\python.exe manage.py seed_init
+.\venv\Scripts\python.exe manage.py seed_init --update_prompt   # pisa el prompt existente
 ```
 
 **Qué hace `seed_init`** (puede correrse las veces que quieras; es idempotente):
 
 - Crea los **Sistemas** del catálogo: `BALANCES` y `FINANCIAMIENTO`, cada uno con
   su campo `prompt` (descripción del sistema usada como contexto por la IA).
-  Solo lo completa si está vacío (no pisa ediciones del admin).
+  Solo lo completa si está vacío (no pisa ediciones del admin). El flag
+  `--update_prompt` sobrescribe **siempre** el prompt con la versión del seed
+  (útil para sincronizar el prompt en un entorno como Neon desde un `.py` nuevo).
 - Crea el **catálogo de `ModeloIA`**: Groq, Gemini, OpenRouter, NVIDIA y Ollama,
   cada uno con su `formato_salida` (cómo pedirle el JSON de salida al modelo).
 - Crea la fila singleton de **`ConfiguracionIA`** con el modelo **Groq** como
