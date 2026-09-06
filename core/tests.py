@@ -320,6 +320,8 @@ class TicketDetailHtmxTest(TestCase):
         self.assertNotContains(resp, "Hola")
         com.refresh_from_db()
         self.assertIsNotNone(com.eliminado_en)
+        # Confirmación vía toast (fuera del flujo) en el partial.
+        self.assertContains(resp, 'data-toast="Comentario eliminado."')
 
     def test_editar_comentario_htmx_devuelve_partial(self):
         self._login(self.solicitante)
@@ -336,3 +338,4 @@ class TicketDetailHtmxTest(TestCase):
         self.assertContains(resp, "Después")
         com.refresh_from_db()
         self.assertEqual(com.cuerpo, "<p>Después</p>")
+        self.assertContains(resp, 'data-toast="Comentario actualizado."')

@@ -88,10 +88,13 @@ def _sistemas_visibles(usuario):
     return Sistema.objects.filter(usuariosistema__usuario=usuario)
 
 
-def _contexto_detalle(request, ticket, comentario_form=None):
+def _contexto_detalle(request, ticket, comentario_form=None, toast=None):
     """Contexto completo del detalle, compartido entre la vista GET y los
     re-renders de HTMX. Al mutar el ticket (tomar/liberar/estado/comentarios)
-    los flags se recalculan acá con el estado ya actualizado."""
+    los flags se recalculan acá con el estado ya actualizado.
+    `toast` (opcional) es un texto de confirmación que se muestra como notificación
+    flotante (no en flujo, para no empujar el layout) cuando la acción ya se
+    confirma visualmente con el propio swap HTMX."""
     ctx = {
         "ticket": ticket,
         "comentario_form": comentario_form if comentario_form is not None else ComentarioForm(),
@@ -120,19 +123,20 @@ def _contexto_detalle(request, ticket, comentario_form=None):
             RolUsuario.DESARROLLADOR,
             RolUsuario.COORDINADOR,
         ),
+        "toast": toast,
     }
     analisis = list(ticket.analisis.filter(tipo=TipoAnalisis.TECNICO))
     ctx["analisis_conceptual"] = analisis[0] if analisis else None
     return ctx
 
 
-def _render_ticket_pagina(request, ticket, comentario_form=None):
+def _render_ticket_pagina(request, ticket, comentario_form=None, toast=None):
     """Renderiza el partial del detalle completo (#ticket-pagina), que HTMX
     usa para swappear la página sin recargar tras una acción."""
     return render(
         request,
         "core/partials/ticket_pagina.html",
-        _contexto_detalle(request, ticket, comentario_form),
+        _contexto_detalle(request, ticket, comentario_form, toast),
     )
 
 
@@ -501,6 +505,10 @@ def editar_comentario(request, pk):
             if eliminar_pks:
                 a_eliminar = comentario.adjuntos.filter(pk__in=eliminar_pks)
                 _eliminar_adjuntos(a_eliminar)
+            if request.headers.get("HX-Request"):
+                return _render_ticket_pagina(
+                    request, comentario.ticket, toast="Comentario actualizado."
+                )
             messages.success(request, "Comentario actualizado.")
         if request.headers.get("HX-Request"):
             return _render_ticket_pagina(request, comentario.ticket)
@@ -524,9 +532,11 @@ def eliminar_comentario(request, pk):
         raise PermissionDenied("El ticket está cerrado; no se puede eliminar el comentario.")
     ticket_id = comentario.ticket_id
     comentario.soft_delete()
-    messages.success(request, "Comentario eliminado.")
     if request.headers.get("HX-Request"):
-        return _render_ticket_pagina(request, comentario.ticket)
+        return _render_ticket_pagina(
+            request, comentario.ticket, toast="Comentario eliminado."
+        )
+    messages.success(request, "Comentario eliminado.")
     return redirect("ticket_detail", pk=ticket_id)
 
 

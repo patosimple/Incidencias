@@ -296,6 +296,14 @@
         function onConfirmar(e) {
           e.preventDefault();
           var dark = document.documentElement.classList.contains('dark');
+          // Pin del scroll: swal2 manipula el scroll del contenedor al abrir
+          // (scrollIntoViewLike) y puede saltar la pantalla arriba; se congela
+          // la posición del <main> antes de abrir y se restaura al renderizar.
+          var main = document.getElementById('main') || document.querySelector('main');
+          var scrollAntes = main ? main.scrollTop : null;
+          function fijarScroll() {
+            if (main) main.scrollTop = scrollAntes;
+          }
           Swal.fire({
             title: '¿Eliminar comentario?',
             text: 'Esta acción no se puede deshacer.',
@@ -306,7 +314,13 @@
             confirmButtonText: 'Sí, eliminar',
             cancelButtonText: 'Cancelar',
             background: dark ? '#1f2937' : '#ffffff',
-            color: dark ? '#f3f4f6' : '#111827'
+            color: dark ? '#f3f4f6' : '#111827',
+            scrollbarPadding: false,
+            willOpen: fijarScroll,
+            didOpen: function () {
+              fijarScroll();
+              requestAnimationFrame(fijarScroll);
+            }
           }).then(function (result) {
             if (result.isConfirmed) {
               btn.removeEventListener('click', onConfirmar); // evitar loop

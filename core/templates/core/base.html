@@ -37,6 +37,18 @@
     </script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 
+    <style>
+      /* SweetAlert2 agrega al <body> las clases swal2-shown + swal2-height-auto
+         al abrir, y su CSS (body.swal2-height-auto { height: auto !important })
+         rompe la cadena h-full del layout: #main deja de ser scrollable y el
+         scroll salta al documento (la pantalla "se va arriba"). Se fuerza
+         height:100% con mayor especificidad (.swal2-shown + .swal2-height-auto)
+         para que #main siga siendo el único scrollable del shell. */
+      body.swal2-shown.swal2-height-auto {
+        height: 100% !important;
+      }
+    </style>
+
     {% block extra_head %}{% endblock %}
 
     <script>
@@ -210,7 +222,7 @@
         </div>
 
         <!-- Contenido -->
-        <main class="flex-1 overflow-y-auto p-4 sm:p-6">
+        <main id="main" class="flex-1 overflow-y-auto p-4 sm:p-6">
             {% if messages %}
                 <div class="mb-4 space-y-2">
                     {% include "core/partials/mensajes.html" %}
@@ -221,6 +233,12 @@
         </main>
     </div>
 </div>
+
+<!-- Toast de confirmación: fixed, fuera del flujo (no empuja el layout ni toca el
+     scroll). Lo llenan las acciones HTMX que ya se confirman visualmente con el
+     swap (p. ej. editar/eliminar comentario). -->
+<div id="toast" class="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2 pointer-events-none"></div>
+
 <script>
   // Tema (dark/light)
   document.getElementById('theme-toggle')?.addEventListener('click', function () {
@@ -331,6 +349,35 @@
   }
   if (mobileToggle) mobileToggle.addEventListener('click', function () { setMobileOpen(true); });
   if (overlay) overlay.addEventListener('click', function () { setMobileOpen(false); });
+
+  // Toast: notificación efímera (auto-dismiss) fuera del flujo del documento.
+  // Las acciones HTMX que ya se confirman con el swap la disparan vía el
+  // atributo data-toast del nodo #ticket-pagina recién llegado.
+  function mostrarToast(texto) {
+    var c = document.getElementById('toast');
+    if (!c || !texto) return;
+    var t = document.createElement('div');
+    t.className = 'max-w-xs px-4 py-3 rounded-lg shadow-lg bg-brand-950 text-white text-sm transition-opacity duration-300 opacity-0';
+    t.textContent = texto;
+    c.appendChild(t);
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { t.classList.remove('opacity-0'); });
+    });
+    setTimeout(function () {
+      t.classList.add('opacity-0');
+      setTimeout(function () {
+        if (t.parentNode) t.parentNode.removeChild(t);
+      }, 320);
+    }, 2600);
+  }
+  document.body.addEventListener('htmx:afterSettle', function () {
+    var nodo = document.getElementById('ticket-pagina');
+    var texto = nodo && nodo.getAttribute('data-toast');
+    if (texto) {
+      nodo.removeAttribute('data-toast');
+      mostrarToast(texto);
+    }
+  });
 </script>
 {% block extra_js %}{% endblock %}
 </body>
