@@ -1,0 +1,15 @@
+{% for message in messages %}
+    {% if 'error' in message.tags %}
+    <div class="text-sm rounded px-3 py-2 bg-red-50 text-red-800 border border-red-200 dark:bg-red-900/30 dark:text-red-200 dark:border-red-800">
+        {{ message }}
+    </div>
+    {% elif 'warning' in message.tags %}
+    <div class="text-sm rounded px-3 py-2 bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-800">
+        {{ message }}
+    </div>
+    {% else %}
+    <div class="text-sm rounded px-3 py-2 bg-brand-50 text-brand-800 border border-brand-200 dark:bg-brand-900/30 dark:text-brand-200 dark:border-brand-800">
+        {{ message }}
+    </div>
+    {% endif %}
+{% endfor %}

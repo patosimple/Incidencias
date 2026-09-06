@@ -53,6 +53,44 @@
 
     var editores = {}; // pk -> instancia Quill de edición (por comentario)
 
+    // Los forms de comentario se envían por HTMX, que serializa el form ANTES de
+    // que corran sus listeners de 'submit' propios (siempre que htmx haya procesado
+    // el nodo antes que nosotros: eso pasa en cada swap, donde htmx registra su
+    // listener al insertar y nosotros recién en htmx:afterSettle). Por eso el HTML
+    // de Quill y los archivos acumulados se inyectan en 'htmx:configRequest', que
+    // corre DESPUÉS de serializar pero ANTES de enviar, sin depender del orden.
+    function setParam(params, nombre, valor) {
+      if (typeof params.set === 'function') params.set(nombre, valor);
+      else if (params) params[nombre] = valor;
+    }
+    // htmx 1.9.10 expone 'parameters' como OBJETO PLANO (los convierte a FormData al
+    // enviar vía pr(): un Array se vuelve múltiples entries). Por eso los archivos se
+    // inyectan como array. La rama FormData queda solo por si una versión futura cambia.
+    function setArchivosParam(params, archivos) {
+      if (!params) return;
+      if (typeof params.set === 'function') {
+        if (params.getAll && params.getAll('archivos').length) params.delete('archivos');
+        (archivos || []).forEach(function (f) { params.append('archivos', f, f.name); });
+      } else {
+        params['archivos'] = archivos || [];
+      }
+    }
+    document.body.addEventListener('htmx:configRequest', function (evt) {
+      var elt = evt.detail.elt;
+      var params = evt.detail.parameters;
+      if (!elt || !params) return;
+      if (elt.id === 'comentario-form') {
+        var quill = elt.__quillNuevo;
+        if (quill) setParam(params, 'cuerpo', quill.root.innerHTML);
+        setArchivosParam(params, elt.__adjuntosNuevos);
+      } else if (elt.classList && elt.classList.contains('editar-comentario-form')) {
+        var pk = elt.getAttribute('data-form-comentario');
+        var q = editores[pk];
+        if (q) setParam(params, 'cuerpo', q.root.innerHTML);
+        setArchivosParam(params, elt.__nuevosAdjuntos);
+      }
+    });
+
     function aplicarCssInputs() {
       document.querySelectorAll('form input[type=text], form select').forEach(function (el) {
         el.classList.add.apply(el.classList, css);
@@ -86,8 +124,10 @@
       var btnAdjuntar = document.getElementById('btn-adjuntar-comentario');
       var fileInput = document.getElementById('archivos-comentario');
       var lista = document.getElementById('adjuntos-lista');
+      form.__quillNuevo = quill;
+      form.__adjuntosNuevos = [];
       if (btnAdjuntar && fileInput && lista) {
-        var items = [];
+        var items = form.__adjuntosNuevos;
         function renderLista() {
           lista.innerHTML = '';
           items.forEach(function (f, idx) {
@@ -122,18 +162,6 @@
           });
           fileInput.value = ''; // permite volver a elegir el mismo archivo
           renderLista();
-        });
-        form.addEventListener('submit', function () {
-          textarea.value = quill.root.innerHTML;
-          var finalDt = (window.DataTransfer ? new DataTransfer() : null);
-          if (finalDt) {
-            items.forEach(function (f) { finalDt.items.add(f); });
-            try { fileInput.files = finalDt.files; } catch (e) {}
-          }
-        });
-      } else if (form) {
-        form.addEventListener('submit', function () {
-          textarea.value = quill.root.innerHTML;
         });
       }
     }
@@ -189,14 +217,6 @@
           ocultarOriginalAlEditar(pk, false);
         });
       });
-      document.querySelectorAll('.editar-comentario-form').forEach(function (form) {
-        form.addEventListener('submit', function () {
-          var pk = form.getAttribute('data-form-comentario');
-          var textarea = form.querySelector('textarea[name=cuerpo]');
-          var quill = editores[pk];
-          if (quill) textarea.value = quill.root.innerHTML;
-        });
-      });
 
       // Adjuntos en el editor del comentario: agregar nuevos / quitar existentes
       document.querySelectorAll('.editar-comentario-form').forEach(function (form) {
@@ -208,6 +228,7 @@
         if (!input) return;
 
         var nuevos = []; // archivos nuevos agregados en esta edición
+        form.__nuevosAdjuntos = nuevos;
 
         function renderNuevo(f, idx) {
           var li = document.createElement('li');
@@ -257,14 +278,6 @@
           Array.prototype.forEach.call(input.files, function (f) { nuevos.push(f); });
           input.value = '';
           nuevos.forEach(function (f, idx) { renderNuevo(f, idx); });
-        });
-
-        form.addEventListener('submit', function () {
-          var finalDt = (window.DataTransfer ? new DataTransfer() : null);
-          if (finalDt) {
-            nuevos.forEach(function (f) { finalDt.items.add(f); });
-            try { input.files = finalDt.files; } catch (e) {}
-          }
         });
       });
     }

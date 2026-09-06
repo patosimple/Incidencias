@@ -1,5 +1,13 @@
 <div id="ticket-pagina" class="max-w-3xl mx-auto space-y-4">
 
+    <!-- Flash messages: se re-renderizan en CADA swap HTMX para consumirlos de la
+         sesión (si no, se acumulaban hasta el próximo render completo). -->
+    {% if messages %}
+    <div class="space-y-2">
+        {% include "core/partials/mensajes.html" %}
+    </div>
+    {% endif %}
+
     <!-- Header del ticket -->
     <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
