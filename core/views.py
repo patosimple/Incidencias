@@ -7,14 +7,14 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import PasswordChangeView
 from django.core.exceptions import PermissionDenied
 from django.db.models import Prefetch
-from django.http import FileResponse, JsonResponse
+from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy, reverse
 from django.utils import timezone
 from django.views.generic import CreateView, DetailView, ListView
 
-from .forms import CambioPasswordForm, ComentarioForm, TicketForm
+from .forms import CambioPasswordForm, ComentarioForm, TicketEditarForm, TicketForm
 from ai.tasks import _ejecutar_analisis
 from ai.providers import RetryableProviderError
 from .models import (
@@ -107,6 +107,10 @@ def _contexto_detalle(request, ticket, comentario_form=None, toast=None):
         "puede_reabrir": TicketDetailView._puede_reabrir(request.user, ticket),
         "puede_gestionar_comentarios": (
             _es_participante_activo(request.user, ticket)
+            and ticket.estado != EstadoTicket.CERRADO
+        ),
+        "puede_gestionar_ticket": (
+            request.user.pk == ticket.solicitante_id
             and ticket.estado != EstadoTicket.CERRADO
         ),
         "tomado": ticket.ticketdesarrollador_set.filter(activo=True).exists(),
@@ -447,6 +451,64 @@ def cambiar_estado_ticket(request, pk):
     if request.headers.get("HX-Request"):
         return _render_ticket_pagina(request, ticket)
     return redirect("ticket_detail", pk=pk)
+
+
+@login_required
+def editar_ticket(request, pk):
+    """Edita título y descripción de un ticket (solo el solicitante dueño y
+    solo si el ticket no está cerrado; el sistema no se puede cambiar)."""
+    ticket = get_object_or_404(Ticket, pk=pk)
+    if request.user.pk != ticket.solicitante_id:
+        raise PermissionDenied("Solo el solicitante (dueño) puede editar el ticket.")
+    if ticket.estado == EstadoTicket.CERRADO:
+        raise PermissionDenied("El ticket está cerrado; no se puede editar.")
+    if request.method == "POST":
+        form = TicketEditarForm(request.POST, instance=ticket)
+        if form.is_valid():
+            ticket.modificado_en = timezone.now()
+            form.save()
+            _guardar_adjuntos(
+                request.FILES.getlist("archivos"),
+                ticket=ticket,
+                usuario=request.user,
+            )
+            eliminar_pks = [
+                p.strip()
+                for p in request.POST.get("adjuntos_eliminar", "").split(",")
+                if p.strip().isdigit()
+            ]
+            if eliminar_pks:
+                _eliminar_adjuntos(ticket.adjuntos.filter(pk__in=eliminar_pks))
+            if request.headers.get("HX-Request"):
+                return _render_ticket_pagina(request, ticket, toast="Ticket actualizado.")
+            messages.success(request, "Ticket actualizado.")
+        if request.headers.get("HX-Request"):
+            return _render_ticket_pagina(request, ticket)
+        return redirect("ticket_detail", pk=ticket.pk)
+    return redirect("ticket_detail", pk=ticket.pk)
+
+
+@login_required
+def eliminar_ticket(request, pk):
+    """Elimina un ticket (solo el solicitante dueño y solo POST). Soft delete:
+    se conserva el registro y sus dependencias (histórico) pero se oculta de la
+    vista (manager por defecto). Como el detalle deja de existir, se navega al
+    listado: en HTMX se responde con header HX-Redirect (el cliente cambia de
+    página); en fallback sin JS, redirect normal."""
+    if request.method != "POST":
+        raise PermissionDenied
+    ticket = get_object_or_404(Ticket, pk=pk)
+    if request.user.pk != ticket.solicitante_id:
+        raise PermissionDenied("Solo el solicitante (dueño) puede eliminar el ticket.")
+    if ticket.estado == EstadoTicket.CERRADO:
+        raise PermissionDenied("El ticket está cerrado; no se puede eliminar.")
+    ticket.soft_delete()
+    if request.headers.get("HX-Request"):
+        response = HttpResponse(status=204)
+        response["HX-Redirect"] = reverse("ticket_list")
+        return response
+    messages.success(request, "Ticket eliminado.")
+    return redirect("ticket_list")
 
 
 @login_required

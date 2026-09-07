@@ -10,6 +10,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+import uuid
 
 
 # ---------------------------------------------------------------------------
@@ -77,6 +78,18 @@ class EstadoTicket(models.TextChoices):
     REABIERTO = "REABIERTO", "Reabierto"
 
 
+class TicketQuerySet(models.QuerySet):
+    def visibles(self):
+        """Excluye los tickets eliminados lógicamente (soft delete)."""
+        return self.filter(eliminado_en__isnull=True)
+
+
+class TicketManager(models.Manager):
+    def get_queryset(self):
+        # El manager por defecto oculta los tickets eliminados lógicamente
+        return super().get_queryset().filter(eliminado_en__isnull=True)
+
+
 class Ticket(models.Model):
     titulo = models.CharField(max_length=200)
     sistema = models.ForeignKey(Sistema, on_delete=models.PROTECT, related_name="tickets")
@@ -94,11 +107,22 @@ class Ticket(models.Model):
     )
     creado_en = models.DateTimeField(auto_now_add=True)
     cerrado_en = models.DateTimeField(null=True, blank=True)
+    modificado_en = models.DateTimeField(null=True, blank=True, help_text="Última edición (solo solicitante dueño)")
+    # Soft delete: al eliminar un ticket se setea eliminado_en (NULL = visible).
+    # El registro se conserva (histórico); se oculta con el manager por defecto.
+    eliminado_en = models.DateTimeField(null=True, blank=True)
 
     # Colaboración sin asignado único
     desarrolladores = models.ManyToManyField(
         Usuario, through="TicketDesarrollador", related_name="tickets_tomados"
     )
+
+    objects = TicketManager()
+    all_objects = models.Manager()
+
+    def soft_delete(self):
+        self.eliminado_en = timezone.now()
+        self.save(update_fields=["eliminado_en"])
 
     class Meta:
         verbose_name = "Ticket"
@@ -173,6 +197,13 @@ class TipoAdjunto(models.TextChoices):
     DOCUMENTO = "DOCUMENTO", "Documento"
 
 
+def _ruta_archivo_adjunto(instance, filename):
+    """Nombre físico del adjunto: UUID único (sin extensión) bajo adjuntos/YYYY/MM.
+    El nombre visible es `Adjunto.nombre_archivo` (el original del usuario); el
+    UUID evita colisiones y que un archivo pise a otro en el storage."""
+    return f"adjuntos/{timezone.now():%Y/%m}/{uuid.uuid4().hex}"
+
+
 class Adjunto(models.Model):
     ticket = models.ForeignKey(
         Ticket, on_delete=models.CASCADE, related_name="adjuntos", null=True, blank=True
@@ -182,7 +213,7 @@ class Adjunto(models.Model):
     )
     nombre_archivo = models.CharField(max_length=255)
     tipo_archivo = models.CharField(max_length=20, choices=TipoAdjunto.choices)
-    archivo = models.FileField(upload_to="adjuntos/%Y/%m/")
+    archivo = models.FileField(upload_to=_ruta_archivo_adjunto)
     subido_por = models.ForeignKey(Usuario, on_delete=models.PROTECT)
     subido_en = models.DateTimeField(auto_now_add=True)
 

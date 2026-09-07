@@ -88,7 +88,10 @@
         var q = editores[pk];
         if (q) setParam(params, 'cuerpo', q.root.innerHTML);
         setArchivosParam(params, elt.__nuevosAdjuntos);
-      }
+} else if (elt.classList && elt.classList.contains('editar-ticket-form') && editorTicket) {
+            setParam(params, 'descripcion_original', editorTicket.root.innerHTML);
+            setArchivosParam(params, elt.__nuevosAdjuntosTicket);
+          }
     });
 
     function aplicarCssInputs() {
@@ -278,6 +281,162 @@
           Array.prototype.forEach.call(input.files, function (f) { nuevos.push(f); });
           input.value = '';
           nuevos.forEach(function (f, idx) { renderNuevo(f, idx); });
+        });
+      });
+    }
+
+    // Adjuntos en el editor del ticket: agregar nuevos / quitar existentes
+    function bindAdjuntosEditarTicket() {
+      var form = document.querySelector('.editar-ticket-form');
+      if (!form) return;
+      var btn = form.querySelector('#btn-adjuntar-edit-ticket');
+      var input = form.querySelector('#archivos-edit-ticket');
+      var lista = form.querySelector('#adjuntos-edit-lista-ticket');
+      var hidden = form.querySelector('input[name=adjuntos_eliminar]');
+      if (!input) return;
+
+      var nuevos = []; // archivos nuevos agregados en esta edición
+      form.__nuevosAdjuntosTicket = nuevos;
+
+      function renderNuevo(f, idx) {
+        var li = document.createElement('li');
+        li.className = 'flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400';
+        var ic = document.createElement('span');
+        ic.className = 'w-4 h-4 shrink-0 text-gray-400';
+        ic.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>';
+        li.appendChild(ic);
+        var t = document.createElement('span');
+        t.textContent = f.name + ' (nuevo)';
+        li.appendChild(t);
+        var span = document.createElement('span');
+        span.className = 'ml-auto';
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.title = 'Quitar';
+        b.className = 'p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors';
+        b.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+        b.addEventListener('click', function (e) {
+          e.preventDefault();
+          nuevos.splice(idx, 1);
+          li.remove();
+        });
+        span.appendChild(b);
+        li.appendChild(span);
+        lista.appendChild(li);
+      }
+
+      lista.querySelectorAll('[data-quitar-existente]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var adjPk = b.getAttribute('data-quitar-existente');
+          var li = b.closest('li');
+          if (!li) return;
+          li.classList.add('opacity-40', 'line-through');
+          b.disabled = true;
+          var marcados = hidden.value ? hidden.value.split(',') : [];
+          if (marcados.indexOf(adjPk) === -1) marcados.push(adjPk);
+          hidden.value = marcados.join(',');
+        });
+      });
+
+      if (btn) {
+        btn.addEventListener('click', function () { input.click(); });
+      }
+      input.addEventListener('change', function () {
+        Array.prototype.forEach.call(input.files, function (f) { nuevos.push(f); });
+        input.value = '';
+        nuevos.forEach(function (f, idx) { renderNuevo(f, idx); });
+      });
+    }
+
+    // Confirmación de eliminar ticket con SweetAlert2 (mismo patrón que
+    // eliminar comentario: intercepta el click para que HTMX no dispare antes).
+    function bindEliminarTicket() {
+      document.querySelectorAll('.eliminar-ticket-form').forEach(function (form) {
+        var btn = form.querySelector('[type=submit]');
+        if (!btn) return;
+        function onConfirmar(e) {
+          e.preventDefault();
+          var dark = document.documentElement.classList.contains('dark');
+          var main = document.getElementById('main') || document.querySelector('main');
+          var scrollAntes = main ? main.scrollTop : null;
+          function fijarScroll() {
+            if (main) main.scrollTop = scrollAntes;
+          }
+          Swal.fire({
+            title: '¿Eliminar ticket?',
+            text: 'El ticket y su historial quedarán ocultos. Esta acción no se puede deshacer.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            background: dark ? '#1f2937' : '#ffffff',
+            color: dark ? '#f3f4f6' : '#111827',
+            scrollbarPadding: false,
+            willOpen: fijarScroll,
+            didOpen: function () {
+              fijarScroll();
+              requestAnimationFrame(fijarScroll);
+            }
+          }).then(function (result) {
+            if (result.isConfirmed) {
+              btn.removeEventListener('click', onConfirmar);
+              form.requestSubmit();
+            }
+          });
+        }
+        btn.addEventListener('click', onConfirmar);
+      });
+    }
+
+    // Editor Quill del ticket (único en la página). Al editar se oculta la
+    // descripción original y los adjuntos; al cancelar se restauran.
+    var editorTicket = null;
+
+    function cargarEditorTicket(form) {
+      var textarea = form.querySelector('textarea[name=descripcion_original]');
+      var contenedor = form.querySelector('.quill-editor-ticket');
+      var quill = new Quill(contenedor, {
+        theme: 'snow',
+        placeholder: 'Editar descripción...',
+        modules: { toolbar: [['bold', 'italic', 'underline', 'strike'], [{ 'list': 'ordered' }, { 'list': 'bullet' }], ['link']] }
+      });
+      var contenido = textarea.value;
+      if (contenido) {
+        try { quill.clipboard.dangerouslyPasteHTML(contenido); } catch (e) {}
+      }
+      editorTicket = quill;
+      return quill;
+    }
+
+    function ocultarOriginalAlEditarTicket(ocultar) {
+      var card = document.querySelector('#ticket-pagina');
+      if (!card) return;
+      [
+        card.querySelector('.ticket-cuerpo'),
+        card.querySelector('.ticket-adjuntos')
+      ].forEach(function (el) { if (el) el.classList.toggle('hidden', ocultar); });
+    }
+
+    function bindEditarTicket() {
+      document.querySelectorAll('[data-editar-ticket]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var form = document.querySelector('.editar-ticket-form');
+          if (!form) return;
+          ocultarOriginalAlEditarTicket(true);
+          form.classList.remove('hidden');
+          if (!btn.__quillListo) {
+            cargarEditorTicket(form);
+            btn.__quillListo = true;
+          }
+        });
+      });
+      document.querySelectorAll('[data-cancelar-editar-ticket]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var form = document.querySelector('.editar-ticket-form');
+          if (form) form.classList.add('hidden');
+          ocultarOriginalAlEditarTicket(false);
         });
       });
     }
@@ -478,10 +637,14 @@
     // se crearía sobre nodos con clases fantasma y el settle pisaría el estado.
     function initPagina() {
       editores = {};
+      editorTicket = null;
       aplicarCssInputs();
       initComentarioNuevo();
       bindEditar();
       bindEliminar();
+      bindEditarTicket();
+      bindAdjuntosEditarTicket();
+      bindEliminarTicket();
       bindAnalizar();
       bindCollapse();
     }

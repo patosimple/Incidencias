@@ -97,6 +97,23 @@ class TicketForm(forms.ModelForm):
         return _sanear_html(self.cleaned_data.get("descripcion_original"))
 
 
+class TicketEditarForm(forms.ModelForm):
+    """Edición de ticket por el solicitante dueño: solo título y descripción
+    (el sistema no se cambia: reasignarlo rompería la visibilidad por sistema).
+    El widget de descripción es un textarea oculto que alimenta el editor Quill
+    (mismo patrón que ComentarioForm.cuerpo)."""
+
+    class Meta:
+        model = Ticket
+        fields = ["titulo", "descripcion_original"]
+        widgets = {
+            "descripcion_original": forms.Textarea(attrs={"class": "hidden"}),
+        }
+
+    def clean_descripcion_original(self):
+        return _sanear_html(self.cleaned_data.get("descripcion_original"))
+
+
 class ComentarioForm(forms.ModelForm):
     class Meta:
         model = Comentario

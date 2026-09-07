@@ -1,10 +1,14 @@
+import os
+import tempfile
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from core.models import (
+    Adjunto,
     AnalisisIA,
     Comentario,
     EstadoTicket,
@@ -12,6 +16,7 @@ from core.models import (
     Sistema,
     Ticket,
     TicketDesarrollador,
+    TipoAdjunto,
     TipoAnalisis,
     UsuarioSistema,
     EstadoAprobacion,
@@ -339,3 +344,173 @@ class TicketDetailHtmxTest(TestCase):
         com.refresh_from_db()
         self.assertEqual(com.cuerpo, "<p>Después</p>")
         self.assertContains(resp, 'data-toast="Comentario actualizado."')
+
+
+@override_settings(
+    STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+)
+class TicketEdicionTest(TestCase):
+    """Editar/eliminar un ticket: solo el solicitante dueño, mientras el ticket
+    no esté cerrado. Edición HTMX con toast; eliminación con soft delete que
+    oculta el ticket de listado/detalle."""
+
+    def setUp(self):
+        Usuario = get_user_model()
+        self.sistema = Sistema.objects.create(codigo="BALANCES", nombre="Balances")
+        self.dueño = Usuario.objects.create_user(
+            username="dueño.edit",
+            password="clave123",
+            rol="SOLICITANTE",
+            first_name="Dueño",
+            last_name="Edit",
+        )
+        UsuarioSistema.objects.create(usuario=self.dueño, sistema=self.sistema)
+        self.dev = Usuario.objects.create_user(
+            username="dev.edit",
+            password="clave123",
+            rol="DESARROLLADOR",
+            first_name="Dev",
+            last_name="Edit",
+        )
+        UsuarioSistema.objects.create(usuario=self.dev, sistema=self.sistema)
+        self.ticket = Ticket.objects.create(
+            titulo="Título original",
+            sistema=self.sistema,
+            solicitante=self.dueño,
+            descripcion_original="<p>Descripción original</p>",
+            estado=EstadoTicket.PENDIENTE,
+        )
+
+    def _login(self, usuario):
+        self.client.login(username=usuario.username, password="clave123")
+
+    def test_dueño_edita_ticket_htmx(self):
+        self._login(self.dueño)
+        resp = self.client.post(
+            reverse("ticket_editar", args=[self.ticket.pk]),
+            {"titulo": "Título nuevo", "descripcion_original": "<p>Descripción nueva</p>"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'id="ticket-pagina"')
+        self.assertContains(resp, "Título nuevo")
+        self.assertContains(resp, "Descripción nueva")
+        self.assertContains(resp, 'data-toast="Ticket actualizado."')
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.titulo, "Título nuevo")
+        self.assertIsNotNone(self.ticket.modificado_en)
+
+    def test_dueño_edita_ticket_sin_htmx_redirige(self):
+        self._login(self.dueño)
+        resp = self.client.post(
+            reverse("ticket_editar", args=[self.ticket.pk]),
+            {"titulo": "Título nuevo", "descripcion_original": "<p>Descripción nueva</p>"},
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(
+            resp["Location"], reverse("ticket_detail", args=[self.ticket.pk])
+        )
+
+    def test_no_dueño_no_puede_editar(self):
+        self._login(self.dev)
+        resp = self.client.post(
+            reverse("ticket_editar", args=[self.ticket.pk]),
+            {"titulo": "Hack", "descripcion_original": "<p>Hack</p>"},
+        )
+        self.assertEqual(resp.status_code, 403)
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.titulo, "Título original")
+
+    def test_dueño_elimina_ticket_htmx_redirige_al_listado(self):
+        self._login(self.dueño)
+        resp = self.client.post(
+            reverse("ticket_eliminar", args=[self.ticket.pk]),
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(resp.status_code, 204)
+        self.assertEqual(resp["HX-Redirect"], reverse("ticket_list"))
+        self.ticket.refresh_from_db()
+        self.assertIsNotNone(self.ticket.eliminado_en)
+        # El ticket eliminado ya no aparece en el listado ni en el detalle.
+        resp_lista = self.client.get(reverse("ticket_list"))
+        self.assertNotContains(resp_lista, "Título original")
+        resp_detalle = self.client.get(reverse("ticket_detail", args=[self.ticket.pk]))
+        self.assertEqual(resp_detalle.status_code, 404)
+
+    def test_dueño_elimina_ticket_sin_htmx_redirige(self):
+        self._login(self.dueño)
+        resp = self.client.post(reverse("ticket_eliminar", args=[self.ticket.pk]))
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp["Location"], reverse("ticket_list"))
+
+    def test_no_dueño_no_puede_eliminar(self):
+        self._login(self.dev)
+        resp = self.client.post(reverse("ticket_eliminar", args=[self.ticket.pk]))
+        self.assertEqual(resp.status_code, 403)
+        self.ticket.refresh_from_db()
+        self.assertIsNone(self.ticket.eliminado_en)
+
+    def test_cerrado_no_se_edita_ni_se_elimina(self):
+        self.ticket.estado = EstadoTicket.CERRADO
+        self.ticket.save(update_fields=["estado"])
+        self._login(self.dueño)
+        resp_editar = self.client.post(
+            reverse("ticket_editar", args=[self.ticket.pk]),
+            {"titulo": "X", "descripcion_original": "<p>X</p>"},
+        )
+        self.assertEqual(resp_editar.status_code, 403)
+        resp_eliminar = self.client.post(
+            reverse("ticket_eliminar", args=[self.ticket.pk])
+        )
+        self.assertEqual(resp_eliminar.status_code, 403)
+
+    @override_settings(MEDIA_ROOT=tempfile.mkdtemp(prefix="test_media_"))
+    def test_listado_edicion_usa_pk_plano_en_quitar(self):
+        """El botón 'quitar' del edit lleva el pk plano (sin prefijo): un valor
+        'ticket-5' en adjuntos_eliminar rompe el parseo .isdigit() del backend y
+        el archivo no se elimina."""
+        self._login(self.dueño)
+        Adjunto.objects.create(
+            ticket=self.ticket,
+            subido_por=self.dueño,
+            archivo=SimpleUploadedFile("a.txt", b"a", content_type="text/plain"),
+            nombre_archivo="a.txt",
+            tipo_archivo=TipoAdjunto.DOCUMENTO,
+        )
+        resp = self.client.get(reverse("ticket_detail", args=[self.ticket.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'data-quitar-existente="%s"' % self.ticket.adjuntos.first().pk)
+        self.assertNotContains(resp, 'data-quitar-existente="ticket-')
+
+    @override_settings(MEDIA_ROOT=tempfile.mkdtemp(prefix="test_media_"))
+    def test_editar_agrega_y_quita_adjuntos(self):
+        self._login(self.dueño)
+        viejo = Adjunto.objects.create(
+            ticket=self.ticket,
+            subido_por=self.dueño,
+            archivo=SimpleUploadedFile("viejo.txt", b"viejo", content_type="text/plain"),
+            nombre_archivo="viejo.txt",
+            tipo_archivo=TipoAdjunto.DOCUMENTO,
+        )
+        nuevo = SimpleUploadedFile("nuevo.pdf", b"nuevo", content_type="application/pdf")
+        resp = self.client.post(
+            reverse("ticket_editar", args=[self.ticket.pk]),
+            {
+                "titulo": "Título nuevo",
+                "descripcion_original": "<p>Descripción nueva</p>",
+                "archivos": [nuevo],
+                "adjuntos_eliminar": str(viejo.pk),
+            },
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.titulo, "Título nuevo")
+        nombres = set(self.ticket.adjuntos.values_list("nombre_archivo", flat=True))
+        self.assertIn("nuevo.pdf", nombres)
+        self.assertNotIn("viejo.txt", nombres)
+        self.assertFalse(Adjunto.objects.filter(pk=viejo.pk).exists())
+        self.assertFalse(os.path.exists(viejo.archivo.path))
