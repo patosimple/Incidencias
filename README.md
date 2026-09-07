@@ -112,6 +112,7 @@ La app queda en `http://localhost:8000` y el admin en `http://localhost:8000/adm
 .\venv\Scripts\python.exe manage.py seed_tickets            # 5 solicitantes + N tickets
 .\venv\Scripts\python.exe manage.py seed_tickets --tickets 20
 .\venv\Scripts\python.exe manage.py seed_tickets --reset    # borra SOLO lo del seed
+.\venv\Scripts\python.exe manage.py seed_tickets --reset_all  # limpieza total (no recrea)
 ```
 
 **Qué hace `seed_tickets`**: crea **5 usuarios solicitantes** de prueba (todos
@@ -124,7 +125,12 @@ tickets demo a crear (`--tickets 20` crea 20; **default: 10**).
 | `maria.lopez`, `carlos.gonzalez`, `lucia.fernandez`, `joaquin.rodriguez`, `valentina.martinez` | password: `soli` |
 
 `--reset` borra exclusivamente esos 5 usuarios y sus tickets (no toca otros
-usuarios). Tip: `on_delete` de `Ticket.solicitante` es `PROTECT`, no se puede
+usuarios). `--reset_all` hace una **limpieza total**: borra todos los
+tickets/comentarios/adjuntos del sistema (incluidos los `soft-deleted`) y los
+usuarios del seed, conserva Sistemas/catálogo IA y usuarios no-demo, y
+reinicia el contador de id de `Ticket` a 0 (el próximo ticket es el **1**).
+No recrea nada: tras `--reset_all` corré `seed_tickets` de nuevo si querés
+sembrar. Tip: `on_delete` de `Ticket.solicitante` es `PROTECT`, no se puede
 borrar un usuario que tenga tickets asociados.
 
 ### 6. Levantar la app

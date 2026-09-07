@@ -1,0 +1,483 @@
+# SPECA web | Sistema de Presentación de Estados Contables Anuales
+
+## Aclaración preliminar
+
+### Condición previa a la carga y presentación de los estados contables anuales al 31/12/2025
+
+Por tratarse de la primera implementación del sistema SPECA web, es necesario que, previo a la presentación del ejercicio económico cerrado al 31/12/2025, se efectúe la carga de algunos datos del balance anterior, correspondiente al ejercicio económico cerrado al 31/12/2024 oportunamente presentado en la Justicia Nacional Electoral.
+
+Para la carga del balance 2024 en el sistema SPECA web, el usuario de la agrupación política deberá incorporar:
+
+- Datos de la carátula del ejercicio 2024 ya presentado.
+- Saldos finales de las cuentas Patrimoniales y de Resultados del ejercicio, expresados en moneda de cierre al 31/12/2024; es decir, los mismos saldos que figuraban en ese balance 2024 ya presentado ante la Justicia.
+- Para las cuentas colectivas o cuentas de carga por detalle, como “Contribuciones y Donaciones Privadas” en todas sus variantes, “Transferencias” tanto las Realizadas como las Recibidas, “Proveedores”, etc., sólo se requiere cargar un registro o detalle por el importe de su saldo final, al cierre de ejercicio expresado en moneda de cierre al 31/12/2024.
+- Datos del Estado de Flujo de Efectivo al 31/12/2024.
+
+Con respecto al balance 2024, NO es necesario cargar:
+
+- Información cualitativa como NOTAS a los estados contables y ANEXO DE CAPACITACIÓN.
+- Informe del Auditor; sólo se requiere consignar y guardar la fecha de ese informe.
+- Con relación al balance cerrado al 31/12/2023, no será necesaria carga alguna. Este se emitirá con importes en cero en la información comparativa del balance cerrado al 31/12/2024.
+
+Las Secretarías Electorales deben constatar que los datos de los estados contables anuales 2024 coincidan con los oportunamente presentados ante la Justicia Nacional Electoral y recibir los balances a fin de que la información quede incorporada a la base de datos y permita su comparación.
+
+## Inicio de sesión
+
+Se accede al sistema mediante el correo electrónico registrado ante la Secretaría Electoral y la contraseña inicial asignada o la que se adopte posteriormente.
+
+## Historial de estados contables
+
+En la pantalla de inicio, el responsable registrado puede visualizar el historial de estados contables, si los hubiera, o crear un nuevo estado contable.
+
+## Creación de un estado contable
+
+La creación de un nuevo estado contable se realiza mediante el botón “Agregar”.
+
+## Datos requeridos para la creación de un estado contable
+
+El usuario deberá completar los datos de la agrupación política y del ejercicio a crear.
+
+## Definición del coeficiente de “reexpresión”
+
+En la parte inferior del formulario de creación de un estado contable puede visualizarse el coeficiente de reexpresión propuesto, correspondiente a la evolución interanual del Índice de Precios al Consumidor con cobertura nacional (INDEC) u otro que se determine.
+
+Este valor es editable a criterio del usuario y “reexpresará” en forma automática los saldos comparativos del ejercicio precedente, si lo hubiere, a los efectos del modelo contable de moneda homogénea.
+
+El coeficiente podrá ser “1” cuando la “reexpresión” no corresponda, conforme lo establecido por las normas de aplicación vigente.
+
+## Advertencia de datos no editables
+
+El sistema advertirá cuáles datos no pueden ser modificados.
+
+En caso de que se hubiese cometido un error en alguno de esos campos, debe eliminarse el estado contable y crear uno nuevo.
+
+[Imagen: mensaje de advertencia indicando que los campos Orden, Distrito, Cod. Partido y Fechas del Ejercicio no pueden modificarse una vez guardados.]
+
+## Confirmación de la creación de un nuevo estado contable
+
+El sistema mostrará un aviso cuando el estado contable haya sido creado correctamente.
+
+## Registro de estado contable creado
+
+A partir de la confirmación de la creación exitosa, el nuevo balance podrá visualizarse en el “Historial de estados contables”.
+
+## Ingreso al balance creado
+
+Para comenzar la carga de datos al nuevo estado contable creado, debe accederse al submenú “ir al Detalle”, que se despliega en los tres puntos ubicados en el menú “Acciones”.
+
+[Imagen: historial de estados contables con el menú “Acciones” y la opción “ir al detalle”.]
+
+## Despliegue de secciones
+
+La flecha ubicada en la parte superior izquierda de la pantalla permite visualizar todas las secciones y seleccionar la que se desea cargar. En el ejemplo del manual se muestra la sección “Saldos”.
+
+## Ingreso de saldos de carga directa
+
+Para aquellas cuentas cuyos saldos requieran carga simple o directa, como por ejemplo “Caja”, basta ingresar el importe correspondiente en la columna “Debe” o “Haber”, según corresponda. El saldo acumulado se mostrará automáticamente para el rubro en las cuentas totalizadoras.
+
+## Ingreso de saldos por detalle
+
+Para cuentas como “Bancos”, los campos “Debe” y “Haber” no se encuentran habilitados para su edición. El saldo se conformará mediante la carga de diversos registros, a través de la plantilla a la que se accede desde el botón “Detalle”.
+
+## Formulario de detalle
+
+Para incorporar un registro, debe seleccionarse el botón “Agregar”.
+
+## Carga de datos de detalle
+
+Al completar la carga, se debe seleccionar el botón “Crear”.
+
+## Confirmación de la carga de datos de detalle
+
+El sistema mostrará un aviso cuando la carga de datos de detalle se haya realizado correctamente.
+
+## Visualización del registro cargado a través del formulario de detalle
+
+Los importes parciales que componen el saldo de las cuentas se visualizarán en las columnas “Saldo deudor” y/o “Saldo acreedor”, según corresponda.
+
+## Visualización de varios registros cargados a través del formulario de detalle
+
+En los casos de cuentas cuyos detalles se compongan de varios registros, por ejemplo “Proveedores”, la carga se visualizará como varios registros de detalle, mostrando sus saldos y las acciones disponibles.
+
+[Imagen: listado de varios proveedores con columnas de saldo deudor, saldo acreedor y acciones de edición y eliminación.]
+
+## Carga de notas a los rubros patrimoniales
+
+Para acceder a la carga de notas aclaratorias, debe seleccionarse el ícono correspondiente en la pantalla de “Saldos”.
+
+La carga de notas a los rubros patrimoniales se realiza a través del formulario de carga. Luego de completar el contenido se debe seleccionar “Guardar”.
+
+[Imagen: pantalla de “Saldos” con el ícono de acceso a la nota y formulario “Nota” para ingresar el contenido.]
+
+## Confirmación de la carga de notas a los rubros patrimoniales
+
+El sistema mostrará un aviso cuando la carga de las notas a los rubros patrimoniales se haya realizado correctamente.
+
+## Visualización de notas a los rubros patrimoniales en reportes
+
+Las notas a los rubros patrimoniales se visualizarán debajo del detalle de la composición del rubro.
+
+[Imagen: reporte de notas mostrando la nota aclaratoria debajo del detalle de composición del rubro.]
+
+## Carga de aportes privados
+
+El registro de aportes puede realizarse mediante la carga manual o vía importación.
+
+## Modalidades de carga
+
+El registro de aportes puede realizarse mediante la carga manual o vía importación, seleccionando, según el caso, la opción “Agregar” o bien “Importar”.
+
+## Formulario de carga manual
+
+Al seleccionar la opción “Agregar”, se despliega un formulario de carga manual de aportes privados.
+
+El formulario de ejemplo corresponde a “Contribuciones y Donaciones Privadas de Personas Humanas Recibidas en Dinero” y permite consignar los datos del aporte, como modalidad, nombre, apellido, DNI, CUIT/CUIL, fecha e importe.
+
+Para finalizar la carga se debe seleccionar “Crear”.
+
+## Confirmación de la carga manual de aportes privados
+
+El sistema mostrará un aviso cuando la carga manual de aportes privados se haya realizado correctamente.
+
+## Visualización de aportes privados cargados manualmente
+
+Los aportes cargados manualmente se visualizan en un listado de registros. El listado permite consultar los datos del aportante y del aporte y dispone de acciones para editar o eliminar registros. También se dispone de la opción “Borrar todos”.
+
+## Carga de aportes por importación de listados
+
+Luego de seleccionar la opción “Importar”, la registración de aportes mediante la importación de un archivo se realiza a través de la opción correspondiente.
+
+Pueden importarse archivos cargados en una planilla de cálculo Excel y también archivos en formato de texto plano (.txt o .csv).
+
+## Importación de aportes privados cargados en una planilla de cálculo
+
+Los aportes privados pueden cargarse previamente en una planilla Excel para su posterior importación al sistema.
+
+[Imagen: ejemplo de planilla Excel con registros de aportes privados.]
+
+## Utilización de modelos propuestos para cada cuenta
+
+Existen cuatro modelos de tablas para la carga y posterior importación:
+
+- “Contribuciones y donaciones privadas de personas humanas recibidas en dinero”, con 7 campos.
+- “Contribuciones y donaciones privadas de personas humanas recibidas en especie”, con 6 campos.
+- “Contribuciones y donaciones privadas de personas jurídicas recibidas en dinero”, con 5 campos.
+- “Contribuciones y donaciones privadas de personas jurídicas recibidas en especie”, con 4 campos.
+
+## Modelo para la carga y posterior importación correspondiente a la cuenta “Contribuciones y donaciones privadas de personas humanas recibidas en dinero”
+
+El modelo de importación mostrado en el manual contiene los siguientes campos:
+
+- Apellido
+- Nombre
+- DNI
+- Cuit
+- Modalidad
+- Fecha
+- Importe
+
+[Imagen: planilla de importación con las columnas Apellido, Nombre, DNI, Cuit, Modalidad, Fecha e Importe.]
+
+## Modalidades de integración de aportes en dinero
+
+Columna “Modalidad”, como referencia para confeccionar los listados:
+
+Modalidad 2: Cheque
+Modalidad 3: Transferencia bancaria
+Modalidad 4: Transferencia electrónica
+Modalidad 5: Depósito en cuenta bancaria
+Modalidad 6: Tarjeta de crédito
+Modalidad 7: Tarjeta de débito
+
+## Selección del archivo de carga a importarse
+
+En esta pantalla se muestra el archivo que va a cargarse, por ejemplo para el detalle “Contribuciones y donaciones privadas de personas humanas recibidas en dinero”.
+
+Se puede seleccionar un archivo de texto o CSV y/o un archivo Excel, según corresponda.
+
+También está disponible la opción “Descargar excel con formato de importación”.
+
+Para ejecutar la importación se debe seleccionar “Importar”.
+
+## Confirmación de importación exitosa
+
+El sistema mostrará un aviso cuando la importación exitosa se haya realizado correctamente.
+
+## Aviso de error
+
+El sistema mostrará un aviso cuando detecte un error en el listado importado, por ejemplo si existe un error en el número de CUIT.
+
+[Imagen: mensaje “Ocurrió un error al importar” con la indicación de que puede descargarse el archivo con el log de los errores.]
+
+## Acceso al registro de errores
+
+En el enlace destacado en la pantalla de importación se puede acceder al archivo descargable en el que constan los errores surgidos al momento de importar la información.
+
+## Ubicación del archivo de errores
+
+El archivo de errores quedará almacenado, por defecto, en la carpeta “Descargas”, siempre que no se seleccione previamente una ubicación distinta.
+
+## Detalle de errores
+
+El archivo de errores indica la ubicación y el motivo del error detectado.
+
+Ejemplo: ante un error en el número de CUIT, puede indicar que el problema se encuentra en la fila 6 y mostrar el mensaje “El cuit no cumple con el algoritmo de verificación”.
+
+## Control de balanceo
+
+Cuando el sistema verifica el cumplimiento de la ecuación patrimonial básica, se visualiza un botón testigo que da cuenta del balance entre columnas.
+
+Activo = Pasivo + Patrimonio Neto
+
+[Imagen: pantalla “Saldos” con el indicador de balanceo.]
+
+## Falta de balanceo
+
+Cuando no se verifica el cumplimiento de la ecuación patrimonial básica, el sistema indica esa circunstancia y muestra la diferencia desbalanceada al hacer clic en el botón testigo.
+
+[Imagen: pantalla “Saldos” con indicador de “NO BALANCEADO” y la diferencia existente.]
+
+## Generación de reportes
+
+A la generación de reportes se accede desde el ítem “Reportes” incluido en el menú ubicado en la parte inferior izquierda de la pantalla.
+
+## Visualización de reportes
+
+En el botón “Ver reporte” pueden visualizarse, al sólo efecto de su control:
+
+- Los cuatro estados contables básicos.
+- Los distintos anexos.
+- Las notas complementarias al Balance.
+- El Informe del Auditor.
+- El Anexo de Capacitación.
+
+## Descarga del reporte
+
+El archivo correspondiente quedará almacenado, por defecto, en la carpeta “Descargas”, siempre que no se seleccione previamente una ubicación distinta.
+
+## Estados Contables Básicos
+
+Desde la opción “Ver Reporte”, se descargará una versión del documento requerido en formato portátil (pdf).
+
+En ningún caso, los reportes descargados individualmente o a través de la opción “Todos” formarán parte de la presentación digital del estado contable, ya que se emiten sólo a efectos de su control, como se indica en el pie de página del archivo descargado.
+
+Los estados de situación patrimonial, de recursos y gastos y de evolución de patrimonio neto, así como los anexos que integran el balance a generar, se conforman a través de la carga de datos desde la pantalla “Saldos”, con excepción del estado de flujo de efectivo y los anexos voluntarios.
+
+[Imagen: ejemplo de reporte PDF del Estado de Situación Patrimonial.]
+
+## Estado de Flujo de Efectivo (carga de conceptos)
+
+Para realizar la carga de este ítem, debe seleccionarse el apartado “Flujo de efectivo” incluido en el menú ubicado en la parte izquierda de la pantalla y luego cargar el o los conceptos correspondientes.
+
+La carga se realiza por el método directo.
+
+## Registros de ejemplo en estado de flujo de efectivo
+
+El apartado “Flujo de efectivo” muestra los conceptos cargados, sus importes y las acciones disponibles para cada registro.
+
+[Imagen: listado de conceptos del Estado de Flujo de Efectivo con importes y acciones.]
+
+## Reporte del estado de flujo de efectivo
+
+Los reportes de Estado de Flujo de Efectivo se visualizan a partir de los conceptos cargados en esta sección.
+
+[Imagen: reporte del Estado de Flujo de Efectivo.]
+
+## Incorporación de anexos voluntarios
+
+Los anexos voluntarios se utilizan para presentar información que no se encuentra contemplada en los anexos predefinidos que genera el sistema a través de la carga de datos de detalle.
+
+Mediante este tipo de anexo, el usuario puede crear listados de hasta dos columnas alfanuméricas más una columna de importes.
+
+Dentro de cada anexo se puede agregar la cantidad de registros o líneas de detalle que el usuario considere necesarias.
+
+Su incorporación se realiza desde el ítem “Anexos voluntarios”, incluido en el menú ubicado a la izquierda de la pantalla.
+
+## Anexos voluntarios (definiciones)
+
+El formulario de carga contempla una sección para definir el nombre del Anexo voluntario, es decir, una referencia al tipo de información que incluirá.
+
+Ejemplo: “Aportes Privados - Campaña Gobernador”, vinculado a una campaña provincial.
+
+También contiene dos columnas alfanuméricas, cuyo nombre o encabezado debe ser descriptivo de la información que contendrán.
+
+Ejemplo:
+
+- Primera columna: identificación del aportante.
+- Segunda columna: fecha y modalidad del aporte.
+
+En todos los casos, la tercera columna se encuentra siempre reservada para ingresar el importe asociado a la operación.
+
+## Carga de detalle en anexo voluntario
+
+Una vez definidos los nombres del Anexo y los encabezados de las columnas, se puede proceder a ingresar los detalles con la información en la sección inferior del formulario.
+
+[Imagen: formulario de edición de detalle de un Anexo voluntario con información del aportante, modalidad, fecha e importe.]
+
+## Registro de detalle en anexos voluntarios
+
+Esta información es ampliatoria y descriptiva, pero no modifica los valores dentro de la pantalla de saldos, los que deben coincidir con la información del anexo voluntario.
+
+## Apartado “Notas”
+
+La sección de notas a los estados contables está compuesta por distintos tipos de notas:
+
+- Notas automáticas de composición de las cuentas patrimoniales.
+- Notas Adicionales a los Rubros Patrimoniales.
+- Notas automáticas de A.R.E.A.
+- Notas Obligatorias.
+- Notas Voluntarias.
+- Notas a los Anexos.
+- Notas al Estado de Evolución del Patrimonio Neto y al Estado de Flujo de Efectivo.
+
+## Notas automáticas y notas adicionales a los rubros patrimoniales
+
+Las notas a los rubros de activo y pasivo, es decir, las notas patrimoniales, se generan automáticamente con la carga de saldos.
+
+Las notas adicionales a estos rubros se agregan desde la pantalla “Saldos” y se visualizan junto al detalle de la composición del mismo.
+
+También puede agregarse una nota aclaratoria en la línea de la cuenta A.R.E.A. La nota que se incorpore por medio de dicho ícono aparecerá debajo de la nota automática que se genere al cargar un movimiento a la cuenta 3.05.00.00 - Ajuste de Resultados de Ejercicios Anteriores.
+
+## Notas obligatorias, voluntarias, notas a anexos o a estados contables
+
+Son “Notas Obligatorias” aquellas que, por su contenido, normalmente son las primeras en el orden de numeración, por ejemplo las notas referidas a la unidad de medida, criterios de medición y de exposición.
+
+El objeto de que sean cargadas en este menú es que el sistema las numere y las imprima en primer término, con relación al resto de las notas.
+
+Para cargar una nota obligatoria basta tildar la casilla de verificación que se encuentra en el formulario al cual se accede a través del botón “Agregar”.
+
+Automáticamente, en el registro de detalles se indicará “SI” en la columna que define si la nota es obligatoria.
+
+El texto de la nota puede cargarse en forma directa a través del teclado o pegando el mismo en el cuadro de contenido, si hubiere sido creado en un procesador de texto independiente.
+
+El campo “Título” es obligatorio, así como la definición del tipo de nota.
+
+Si las notas fuesen voluntarias, referidas a Anexos o a Estados Contables, a través de la celda autodesplegable “Tipo de Anexo” se deberá seleccionar su condición de nota voluntaria, o bien el Anexo o Estado Contable, evolución de patrimonio neto o flujo de efectivo, al que refiera la nota.
+
+Una vez definidos estos dos campos, la nota puede ser salvada a través del botón “Crear” o “Guardar” cuando se esté editando o modificando.
+
+## Anexo capacitación
+
+Para acceder al formulario de carga, se debe seleccionar la opción “Anexo capacitación”.
+
+Los datos que integran este Anexo se establecen en los términos de la ley 26.215 y sus modificaciones y de Acordada CNE Nº 47/2012.
+
+El Anexo capacitación se compone de cuatro pestañas:
+
+- Actividades: destinada a la descripción de actividades, fechas y lugares.
+- Personas y temas: corresponde a los participantes, cuerpo docente y asistentes para cada actividad, así como los temarios desarrollados.
+- Financiamiento: se refiere a los montos destinados a cada curso y a las sumas percibidas, discriminadas por concepto, que establecerán el monto mínimo de afectación de conformidad con la norma vigente, así como las restantes obligaciones que surgen de las normas mencionadas.
+- Notas complementarias: a consideración del usuario.
+
+## Información sobre actividades
+
+El formulario permite consignar una breve descripción de las actividades desarrolladas durante el período.
+
+El campo permite incluir un texto libre de hasta 3800 caracteres, en forma directa, tecleando manualmente, o pegando el contenido en el cuadro correspondiente si fue creado en un documento de texto independiente.
+
+[Imagen: pestaña “Actividades” con el campo “Descripción sucinta de todas las actividades realizadas en el período” y el listado de actividades.]
+
+## Docentes y participantes
+
+La información relativa a los directores, docentes y demás categorías que conforman el apartado “Personas y temas” debe cargarse en el formulario correspondiente.
+
+Se deben consignar los datos relativos a nombre, apellido y categoría de los directores, docentes, coordinadores, etc., que participaron en cada actividad.
+
+## Gastos por actividad y origen de los fondos percibidos
+
+Este formulario permite detallar los gastos incurridos para cada actividad realizada según su rubro, con indicación del importe destinado para cada concepto.
+
+Ejemplos:
+
+- Aporte para desenvolvimiento institucional.
+- Remanente del aporte público de campaña.
+- Aportes extraordinarios.
+
+## Notas Complementarias del Anexo de Capacitación
+
+En este apartado es posible cargar las notas complementarias o aclaratorias correspondientes al Anexo capacitación.
+
+## Informe del auditor
+
+La carga del correspondiente informe del/la auditor/a se realiza en el ítem con esa denominación ubicado en la parte izquierda de la pantalla.
+
+El campo habilita la inclusión de un texto libre de hasta 11.400 caracteres.
+
+El Informe puede cargarse por teclado o bien pegando el texto proveniente de un documento externo independiente.
+
+## Presentación
+
+Mediante la opción “Presentar”, a la cual el usuario puede acceder al desplegar el menú de Acciones ubicado a la derecha de cada línea del historial, es posible efectuar la presentación de los Estados Contables creados y cargados previamente.
+
+Al seleccionar esta opción, se despliega una solicitud de confirmación, con advertencia del requisito de la presentación complementaria del balance a través del expediente digital que tramita por medio del Sistema de Gestión Judicial (LEX-100).
+
+Eventualmente, en caso de corresponder, el sistema arrojará un mensaje respecto de:
+
+- Falta de carga del informe del auditor.
+- Desbalance de cuentas dentro de los Estados Contables.
+
+Estas cuestiones deberán subsanarse para poder avanzar con el proceso de presentación.
+
+[Imagen: confirmación de presentación y mensajes de error por falta de fecha de Informe de Auditor o por estado contable desbalanceado.]
+
+## Versión final
+
+Al seleccionar la opción “Presentar”, los estados contables reciben su correspondiente código de seguridad.
+
+Este se podrá visualizar en la carátula del balance al descargar el mismo para su impresión y firma por parte de las autoridades partidarias.
+
+En esta oportunidad desaparece también la marca de agua indicando que se trataba de una “Vista Previa”.
+
+Una vez que el balance haya sido recibido por la Secretaría Electoral, el usuario podrá verificar el cambio de estado dentro de su historial.
+
+## Estado posterior a la presentación
+
+El sistema confirmará la presentación correcta, cambiando el estado del balance dentro del historial en la interfaz del usuario.
+
+Una vez presentado el estado contable, la edición del mismo deja de estar disponible.
+
+Si bien el usuario aún podrá ingresar al detalle, las diferentes secciones, así como las celdas numéricas, se encontrarán inactivas para incorporar modificaciones.
+
+El balance podrá volver a estado editable sólo si la Secretaría Electoral rechazase la presentación, regresando el balance a estado “Borrador”.
+
+## Rectificación de estados contables
+
+Excepcionalmente, existe la posibilidad de rectificar un estado contable previamente recibido por la Justicia Nacional Electoral.
+
+Esta opción se encuentra dentro del menú de Acciones, en la línea del respectivo balance.
+
+Esta acción no es discrecional, ya que por normativa no son recomendables las rectificaciones.
+
+[Imagen: menú “Acciones” con las opciones “Ir al detalle”, “Rectificar” y “Descargar”, seguido de la confirmación de rectificación.]
+
+## Historial de versiones rectificadas
+
+En el historial de Estados Contables podrán apreciarse tanto la versión original del Estado Contable, con indicación de ello en la columna “versión”, como así también una segunda línea detalle correspondiente a la versión rectificada.
+
+La versión rectificada se encontrará en estado “Borrador”, lo que significa que se hallará editable para recibir las modificaciones pertinentes y su posterior presentación mediante el proceso detallado previamente.
+
+## Consultas
+
+### Mesa de ayuda
+
+Cuerpo de Auditores Contadores
+
+Aspectos funcionales del sistema SPECA web
+
+Teléfono: (011) 4342-4403
+
+Correo electrónico: cnelectoral.mayuda.auditores@pjn.gov.ar
+
+En el correo electrónico se debe citar:
+
+- Denominación y distrito del partido.
+- Nombre y apellido del consultante.
+- Cargo del consultante, por ejemplo presidente, apoderado, contador, etc.
+
+### Cuestiones técnico-contables
+
+Teléfono: (011) 4370-2568
+
+Correo electrónico: cnelectoral.auditores@pjn.gov.ar
+
+Versión del manual: 17/12/2025

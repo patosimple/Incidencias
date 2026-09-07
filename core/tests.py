@@ -4,9 +4,11 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
+from core.management.commands.seed_tickets import _username
 from core.models import (
     Adjunto,
     AnalisisIA,
@@ -514,3 +516,61 @@ class TicketEdicionTest(TestCase):
         self.assertNotIn("viejo.txt", nombres)
         self.assertFalse(Adjunto.objects.filter(pk=viejo.pk).exists())
         self.assertFalse(os.path.exists(viejo.archivo.path))
+
+
+@override_settings(
+    STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+)
+class SeedTicketsResetAllTest(TestCase):
+    """seed_tickets --reset_all: borra TODOS los tickets/comentarios/adjuntos (incluidos
+    soft-deleted), borra los usuarios del seed, conserva usuarios no-demo y Sistemas, y
+    reinicia el id de Ticket a 0 (proximo ticket = 1)."""
+
+    @override_settings(MEDIA_ROOT=tempfile.mkdtemp(prefix="test_media_"))
+    def test_reset_all_limpia_todo_y_reinicia_id(self):
+        Usuario = get_user_model()
+        self.sistema = Sistema.objects.create(codigo="BALANCES", nombre="Balances")
+        seed_user = Usuario.objects.create_user(
+            username=_username({"nombres": "María", "apellido": "López"}),
+            password="soli", rol="SOLICITANTE",
+        )
+        UsuarioSistema.objects.create(usuario=seed_user, sistema=self.sistema)
+        otro = Usuario.objects.create_user(
+            username="dev.manual", password="x", rol="DESARROLLADOR"
+        )
+        t1 = Ticket.objects.create(
+            titulo="Ticket demo", sistema=self.sistema, solicitante=seed_user,
+            descripcion_original="<p>d1</p>", estado=EstadoTicket.PENDIENTE,
+        )
+        Comentario.objects.create(ticket=t1, usuario=seed_user, cuerpo="<p>c1</p>")
+        t2 = Ticket.objects.create(
+            titulo="Ticket soft-deleted", sistema=self.sistema, solicitante=seed_user,
+            descripcion_original="<p>d2</p>", estado=EstadoTicket.PENDIENTE,
+        )
+        t2.soft_delete()
+        Adjunto.objects.create(
+            ticket=t1, subido_por=seed_user,
+            archivo=SimpleUploadedFile("a.txt", b"a", content_type="text/plain"),
+            nombre_archivo="a.txt", tipo_archivo=TipoAdjunto.DOCUMENTO,
+        )
+        ruta_fisica = t1.adjuntos.first().archivo.path
+
+        call_command("seed_tickets", reset_all=True)
+
+        self.assertEqual(Ticket.all_objects.count(), 0)
+        self.assertEqual(Comentario.all_objects.count(), 0)
+        self.assertEqual(Adjunto.objects.count(), 0)
+        self.assertFalse(os.path.exists(ruta_fisica))
+        self.assertFalse(Usuario.objects.filter(username="maria.lopez").exists())
+        self.assertTrue(Usuario.objects.filter(username="dev.manual").exists())
+        self.assertEqual(Sistema.objects.count(), 1)
+
+        nuevo = Ticket.objects.create(
+            titulo="Primero post-reset", sistema=self.sistema, solicitante=otro,
+            descripcion_original="<p>n</p>", estado=EstadoTicket.PENDIENTE,
+        )
+        self.assertEqual(nuevo.pk, 1)
+

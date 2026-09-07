@@ -6,6 +6,7 @@ Uso:
     python manage.py seed_tickets                 # crea los datos si no existen
     python manage.py seed_tickets --reset         # borra y recrea
     python manage.py seed_tickets --tickets 20    # cantidad de tickets (default 10)
+    python manage.py seed_tickets --reset_all     # limpieza total (sin recrear)
 
 Requisito previo: haber corrido `seed_init` (sistemas y catalogo IA).
 """
@@ -15,9 +16,20 @@ import unicodedata
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
+from django.core.management.color import no_style
+from django.db import connection, transaction
 from django.utils import lorem_ipsum
 
-from core.models import Adjunto, EstadoTicket, Sistema, Ticket, UsuarioSistema
+from core.models import (
+    Adjunto,
+    AnalisisIA,
+    Comentario,
+    EstadoTicket,
+    Sistema,
+    Ticket,
+    TicketDesarrollador,
+    UsuarioSistema,
+)
 
 Usuario = get_user_model()
 
@@ -90,10 +102,26 @@ class Command(BaseCommand):
             "--tickets", type=int, default=10,
             help="Cantidad de tickets a crear (default 10).",
         )
+        parser.add_argument(
+            "--reset_all", action="store_true",
+            help="Limpieza total: borra todos los tickets/comentarios/adjuntos de TODOS los "
+                 "usuarios + los usuarios del seed, y resetea el contador de id de Ticket a 0 "
+                 "(el numero de ticket visible se reinicia en 1). No recrea nada.",
+        )
 
     def handle(self, *args, **options):
         reset = options["reset"]
         n_tickets = options["tickets"]
+
+        if options["reset_all"]:
+            self._reset_all()
+            self.stdout.write(
+                self.style.SUCCESS(
+                    "Reset total: tickets/comentarios/adjuntos de todos los usuarios y "
+                    "usuarios del seed eliminados. El proximo ticket arranca en el id 1."
+                )
+            )
+            return
 
         if reset:
             self._reset()
@@ -128,6 +156,41 @@ class Command(BaseCommand):
 
         tickets.delete()
         Usuario.objects.filter(username__in=usernames).delete()
+
+    def _reset_all(self):
+        """Limpieza total del demo: borra TODOS los tickets/comentarios/adjuntos del
+        sistema (no solo los del seed) y los usuarios del seed, y reinicia el contador
+        de id de Ticket a 0 (id visible en el front == numero de ticket). No recrea nada.
+
+        - Los adjuntos se borran fisicamente (disco) antes del DELETE de BD (el delete
+          en cascada no borra archivos).
+        - Se usan `all_objects` para incluir tickets/comentarios Soft-deleteados.
+        - Se conservan Sistemas, catalogo IA y usuarios NO demos (patosimple, devs); por
+          eso la secuencia de Usuario NO se resetea (colisionaria el PK con users vivos).
+        - El reset de id es SOLO para core_ticket (id visible = numero de ticket)."""
+        with transaction.atomic():
+            # 1) Adjuntos: borrar el archivo fisico de cada uno.
+            adjuntos = Adjunto.objects.all()
+            for adj in adjuntos.iterator():
+                if adj.archivo:
+                    adj.archivo.delete(save=False)
+            adjuntos.delete()
+
+            # 2) Tickets y comentarios (incluidos soft-deleted). En cascada caen
+            #    AnalisisIA y el through TicketDesarrollador.
+            Comentario.all_objects.all().delete()
+            Ticket.all_objects.all().delete()
+
+            # 3) Usuarios del seed (cascada a sus UsuarioSistema).
+            Usuario.objects.filter(
+                username__in=[_username(p) for p in SOLICITANTES]
+            ).delete()
+
+            # 4) Reiniciar el id de Ticket a 0 (proximo insert = 1), solo core_ticket.
+            reset_sql = connection.ops.sequence_reset_sql(no_style(), [Ticket])
+            with connection.cursor() as cursor:
+                for sql in reset_sql:
+                    cursor.execute(sql)
 
     def _seed_solicitantes(self):
         sistemas = list(Sistema.objects.all())
