@@ -47,6 +47,38 @@
       body.swal2-shown.swal2-height-auto {
         height: 100% !important;
       }
+      /* Quill: toolbar + textarea como UNA sola caja (sin doble borde/gap):
+         mismo fondo, bordes continuos y radio solo arriba/abajo.
+         margin-top:0 anula el "space-y" del form contenedor: Quill inserta la
+         toolbar como hermano del textarea y space-y les pondría un gap entre ambos. */
+      .ql-toolbar.ql-snow,
+      .ql-container.ql-snow {
+        border-color: #d1d5db;
+        background: #ffffff;
+        margin-top: 0 !important;
+      }
+      .ql-toolbar.ql-snow {
+        border-radius: 0.5rem 0.5rem 0 0;
+        border-bottom: none;
+      }
+      .ql-container.ql-snow {
+        border-radius: 0 0 0.5rem 0.5rem;
+        border-top: none;
+      }
+      .dark .ql-toolbar.ql-snow,
+      .dark .ql-container.ql-snow {
+        border-color: #475569;
+        background: #334155;
+      }
+      .dark .ql-toolbar.ql-snow .ql-stroke { stroke: #cbd5e1; }
+      .dark .ql-toolbar.ql-snow .ql-fill { fill: #cbd5e1; }
+      .dark .ql-toolbar.ql-snow .ql-picker,
+      .dark .ql-toolbar.ql-snow .ql-picker-label,
+      .dark .ql-toolbar.ql-snow .ql-picker-options {
+        color: #e2e8f0;
+        border-color: #475569;
+      }
+      .dark .ql-toolbar.ql-snow .ql-picker-options { background: #334155; }
     </style>
 
     {% block extra_head %}{% endblock %}

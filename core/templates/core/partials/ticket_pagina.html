@@ -106,7 +106,7 @@
                         </span>
                         {% endif %}
                 </div>
-                <div class="prose-sm text-sm text-gray-700 dark:text-gray-200 break-words leading-relaxed ticket-cuerpo">
+                <div class="prose-sm text-sm text-gray-700 dark:text-gray-200 break-words leading-relaxed ticket-cuerpo" data-autor="{{ solicitante.get_full_name|default:solicitante.username }}">
                     {{ ticket.descripcion_original|safe }}
                 </div>
                 {% if puede_gestionar_ticket %}
@@ -248,7 +248,7 @@
             {% with rol=comentario.usuario.rol %}
             <div class="border-l-2 {% if rol == 'DESARROLLADOR' %}border-emerald-600{% elif rol == 'COORDINADOR' %}border-purple-600{% else %}border-brand-600{% endif %} pl-3" id="comentario-{{ comentario.pk }}">
                 <div class="flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
-                    <span class="font-medium text-gray-700 dark:text-gray-200">
+                    <span class="font-medium text-gray-700 dark:text-gray-200 comentario-autor">
                         {{ comentario.usuario.get_full_name|default:comentario.usuario.username }}
                     </span>
                     <span>
@@ -259,8 +259,18 @@
                 <div class="mt-1 text-sm text-gray-700 dark:text-gray-200 break-words leading-relaxed comentario-cuerpo">
                     {{ comentario.cuerpo|safe }}
                 </div>
-                {% if user.is_authenticated and comentario.usuario == user and puede_gestionar_comentarios %}
+                {% if puede_comentar or user.is_authenticated and comentario.usuario == user and puede_gestionar_comentarios %}
                 <div class="mt-1.5 flex items-center gap-2 text-xs">
+                {% if puede_comentar %}
+                    <button type="button" data-responder="{{ comentario.pk }}" title="Responder"
+                            class="inline-flex items-center gap-1.5 p-1.5 rounded text-brand-700 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-slate-700 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6-6m-6 6l6 6"/>
+                        </svg>
+                        Responder
+                    </button>
+                {% endif %}
+                {% if user.is_authenticated and comentario.usuario == user and puede_gestionar_comentarios %}
                     <span class="flex gap-1.5" data-comentario-acciones="{{ comentario.pk }}">
                         <button type="button" data-editar-comentario="{{ comentario.pk }}" title="Editar"
                                 class="p-1.5 rounded text-brand-700 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-slate-700 transition-colors">
@@ -280,12 +290,15 @@
                             </button>
                         </form>
                     </span>
+                {% endif %}
                 </div>
+                {% endif %}
                 <form method="post" action="{% url 'comentario_editar' comentario.pk %}"
                       hx-post="{% url 'comentario_editar' comentario.pk %}" hx-target="#ticket-pagina" hx-swap="outerHTML"
                       class="hidden mt-2 space-y-2 editar-comentario-form" data-form-comentario="{{ comentario.pk }}" enctype="multipart/form-data" novalidate>
                     {% csrf_token %}
                     <textarea name="cuerpo" class="hidden">{{ comentario.cuerpo }}</textarea>
+                    <div class="cita-fija hidden text-xs"></div>
                     <div class="quill-editor bg-white dark:bg-slate-700"></div>
                     <div class="pt-1">
                         <div class="flex items-center gap-2">
@@ -324,7 +337,6 @@
                                 class="px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">Guardar</button>
                     </div>
                 </form>
-                {% endif %}
                 {% if comentario.adjuntos.all %}
                 <div class="mt-2 flex flex-wrap gap-2 comentario-adjuntos">
                     {% for adj in comentario.adjuntos.all %}
@@ -346,34 +358,43 @@
         </div>
 
         {% if puede_comentar %}
-        <form id="comentario-form" method="post" enctype="multipart/form-data"
-              action="{% url 'ticket_comentar' ticket.pk %}"
-              hx-post="{% url 'ticket_comentar' ticket.pk %}" hx-target="#ticket-pagina" hx-swap="outerHTML"
-              class="space-y-2" novalidate>
-            {% csrf_token %}
-            {{ comentario_form.cuerpo }}
-            <div id="quill-comentario" class="bg-white dark:bg-slate-700"></div>
-            <div>
-                <div class="flex items-center gap-2">
-                    <input type="file" id="archivos-comentario" name="archivos" multiple class="hidden">
-                    <button type="button" id="btn-adjuntar-comentario"
-                            class="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400 hover:text-brand-900 dark:hover:text-brand-300">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                        </svg>
-                        Adjuntar archivos
+        <div class="mt-8 rounded-xl border border-brand-100 dark:border-brand-950 bg-brand-50 dark:bg-brand-950/40 p-4">
+            <p class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-200">Comentar</p>
+            <form id="comentario-form" method="post" enctype="multipart/form-data"
+                  action="{% url 'ticket_comentar' ticket.pk %}"
+                  hx-post="{% url 'ticket_comentar' ticket.pk %}" hx-target="#ticket-pagina" hx-swap="outerHTML"
+                  class="space-y-3" novalidate>
+                {% csrf_token %}
+                {{ comentario_form.cuerpo }}
+                <div id="cita-preview-box" class="hidden relative text-xs"></div>
+                <button type="button" id="quitar-cita" class="hidden mt-1 text-xs font-medium text-red-600 dark:text-red-400 hover:underline">Quitar cita</button>
+                <div id="quill-comentario" class="bg-white dark:bg-slate-700"></div>
+                <div>
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <input type="file" id="archivos-comentario" name="archivos" multiple class="hidden">
+                        <button type="button" id="btn-adjuntar-comentario"
+                                class="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400 hover:text-brand-900 dark:hover:text-brand-300">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Adjuntar archivos
+                        </button>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Opcional. Podés elegir varios archivos de a uno.</p>
+                    </div>
+                    <ul id="adjuntos-lista" class="mt-2 space-y-1"></ul>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" id="cancelar-comentario"
+                            class="inline-flex items-center justify-center px-4 py-2 rounded text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            class="inline-flex items-center justify-center px-4 py-2 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
+                        Comentar
                     </button>
                 </div>
-                <ul id="adjuntos-lista" class="mt-2 space-y-1"></ul>
-                <p class="text-xs text-gray-500 dark:text-gray-400">Opcional. Podés elegir varios archivos de a uno.</p>
-            </div>
-            <div class="flex justify-end">
-                <button type="submit"
-                        class="inline-flex items-center justify-center px-4 py-2 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
-                    Comentar
-                </button>
-            </div>
-        </form>
+            </form>
+        </div>
         {% endif %}
     </div>
 

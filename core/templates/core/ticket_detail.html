@@ -52,6 +52,7 @@
     }
 
     var editores = {}; // pk -> instancia Quill de edición (por comentario)
+    var quillNuevo = null; // instancia Quill del form de comentario nuevo (para citar/responder)
 
     // Los forms de comentario se envían por HTMX, que serializa el form ANTES de
     // que corran sus listeners de 'submit' propios (siempre que htmx haya procesado
@@ -81,12 +82,26 @@
       if (!elt || !params) return;
       if (elt.id === 'comentario-form') {
         var quill = elt.__quillNuevo;
-        if (quill) setParam(params, 'cuerpo', quill.root.innerHTML);
+        if (quill) {
+          // Combina: cita fija (fuera del editor) + contenido del usuario.
+          // El <blockquote> de la cita es la marca estructural; Quill no produce
+          // blockquotes, así que el único en el body ES la cita. nh3 lo conserva.
+          var quillHtml = quill.root.innerHTML;
+          // La cita viaja en form.__citaHtml (HTML crudo, sin el colapso visual:
+          // el "Ver cita completa" vive solo en la preview del navegador).
+          var citaHtml = elt.__citaHtml || '';
+          setParam(params, 'cuerpo', citaHtml + quillHtml);
+        }
         setArchivosParam(params, elt.__adjuntosNuevos);
       } else if (elt.classList && elt.classList.contains('editar-comentario-form')) {
         var pk = elt.getAttribute('data-form-comentario');
         var q = editores[pk];
-        if (q) setParam(params, 'cuerpo', q.root.innerHTML);
+        if (q) {
+          // La cita viaja en elt.__citaHtml (HTML crudo setteado en cargarEditor;
+          // el marco/colapso de la .cita-fija es solo visual).
+          var citaHtml = elt.__citaHtml || '';
+          setParam(params, 'cuerpo', citaHtml + q.root.innerHTML);
+        }
         setArchivosParam(params, elt.__nuevosAdjuntos);
 } else if (elt.classList && elt.classList.contains('editar-ticket-form') && editorTicket) {
             setParam(params, 'descripcion_original', editorTicket.root.innerHTML);
@@ -128,6 +143,7 @@
       var fileInput = document.getElementById('archivos-comentario');
       var lista = document.getElementById('adjuntos-lista');
       form.__quillNuevo = quill;
+      quillNuevo = quill; // expuesto a nivel de módulo: lo usan responder/citar selección
       form.__adjuntosNuevos = [];
       if (btnAdjuntar && fileInput && lista) {
         var items = form.__adjuntosNuevos;
@@ -167,6 +183,263 @@
           renderLista();
         });
       }
+
+      // Botón Cancelar: revierte el área a su estado inicial (borra lo escrito,
+      // los adjuntos pendientes y la cita/respuesta cargada).
+      form.__resetComentar = function () {
+        if (quill) quill.setContents([]);
+        items.length = 0;
+        if (fileInput) fileInput.value = '';
+        if (typeof renderLista === 'function') renderLista();
+        quitarCitaPreview();
+      };
+      var btnCancelar = document.getElementById('cancelar-comentario');
+      if (btnCancelar) btnCancelar.addEventListener('click', function (e) {
+        e.preventDefault();
+        form.__resetComentar();
+      });
+    }
+
+    // --- Citar / Responder --------------------------------------------------
+    // La cita va FUERA del editor (div fijo, no editable, no forma parte del
+    // body de Quill). Al publicar se concatena como bloque "pillado" al body:
+    //   <!--CITA--> <blockquote>...</blockquote> <!--/CITA--> <p>respuesta...</p>
+    // El marker `<!--CITA-->` es el único punto de anclaje para re-citar (se busca
+    // y reemplaza). Al editar, la cita se renderiza pero NO se puede tocar.
+    // La cita se reemplaza si ya existe: máximo una por reply.
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function buildCitaHtml(modo, autor, texto) {
+      var prefijo = modo === 'reply' ? 'Respondiendo a ' + autor + ':'
+                   : modo === 'ticket' ? 'Del ticket original (' + autor + '):'
+                   : autor + ' escribió:';
+      // El <blockquote> es la marca estructural: Quill NO produce blockquotes
+      // (no hay botón en la toolbar), así que el único <blockquote> en el body
+      // ES la cita. nh3.clean lo conserva (está en _QUILL_TAGS).
+      return '<blockquote class="comentario-cita rounded-lg border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/40 px-3 py-2 text-xs">' +
+             '<strong>' + escapeHtml(prefijo) + '</strong><br>' +
+             escapeHtml(texto || '').replace(/\n/g, '<br>') +
+             '</blockquote>';
+    }
+
+    function leerAutor(card) {
+      var el = card && card.querySelector('.comentario-autor');
+      return el ? el.textContent.trim() : '';
+    }
+
+    // Texto "propio" de un comentario citado: excluye la cita anidada (el
+    // <blockquote> del comentario al que responde) y los botones del colapso,
+    // para no arrastrar una "doble cita" al responder a una respuesta. Solo se
+    // cita el último mensaje del autor.
+    function textoPropioCuerpo(cuerpo) {
+      if (!cuerpo) return '';
+      var clon = cuerpo.cloneNode(true);
+      clon.querySelectorAll('blockquote, button').forEach(function (el) {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      });
+      return (clon.innerText || '').trim();
+    }
+
+    // Texto de una selección dentro de un comentario, con la misma regla:
+    // si la selección incluye una cita anidada, esa parte se descarta (solo se
+    // cita el texto propio del autor, nunca otra cita).
+    function textoSeleccionPropio(sel) {
+      if (!sel || sel.isCollapsed) return '';
+      var texto = (sel.toString() || '').trim();
+      if (!texto) return '';
+      var ancla = sel.anchorNode || sel.focusNode;
+      var elem = (ancla && ancla.nodeType === 1) ? ancla : (ancla && ancla.parentElement);
+      var cuerpo = elem && elem.closest ? elem.closest('.comentario-cuerpo') : null;
+      if (cuerpo) {
+        cuerpo.querySelectorAll('blockquote').forEach(function (bq) {
+          var clon = bq.cloneNode(true);
+          clon.querySelectorAll('button').forEach(function (b) { if (b.parentNode) b.parentNode.removeChild(b); });
+          var t = (clon.innerText || '').trim();
+          if (t && texto.indexOf(t) !== -1) {
+            texto = texto.split(t).join(' ').replace(/\s{2,}/g, ' ').trim();
+          }
+        });
+      }
+      return texto;
+    }
+
+    // Referencia al div fijo de la cita (fuera del editor, se setea en initPagina)
+    var citaPreviewBox = null;
+
+    function mostrarCitaPreview(modo, autor, texto) {
+      if (!citaPreviewBox) return;
+      var html = buildCitaHtml(modo, autor, texto);
+      var form = document.getElementById('comentario-form');
+      if (form) form.__citaHtml = html; // crudo; el colapso es solo visual
+      citaPreviewBox.innerHTML = html;
+      citaPreviewBox.classList.remove('hidden');
+      var bq = citaPreviewBox.querySelector('blockquote');
+      if (bq) aplicarColapsoCita(bq);
+      var quitarBtn = document.getElementById('quitar-cita');
+      if (quitarBtn) quitarBtn.classList.remove('hidden');
+      var quillBox = document.getElementById('quill-comentario');
+      if (quillBox) quillBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (quillNuevo) quillNuevo.focus();
+    }
+
+    function quitarCitaPreview() {
+      var form = document.getElementById('comentario-form');
+      if (form) form.__citaHtml = '';
+      if (citaPreviewBox) {
+        citaPreviewBox.innerHTML = '';
+        citaPreviewBox.classList.add('hidden');
+      }
+      var quitarBtn = document.getElementById('quitar-cita');
+      if (quitarBtn) quitarBtn.classList.add('hidden');
+    }
+
+    function bindResponder() {
+      document.querySelectorAll('[data-responder]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var pk = btn.getAttribute('data-responder');
+          var card = document.getElementById('comentario-' + pk);
+          if (!card) return;
+          var cuerpo = card.querySelector('.comentario-cuerpo');
+          // Solo el último mensaje: se excluye la cita anidada del comentario
+          // al que respondió (evita "doble cita") y los botones del colapso.
+          var texto = textoPropioCuerpo(cuerpo);
+          mostrarCitaPreview('reply', leerAutor(card), texto);
+        });
+      });
+      var quitarBtn = document.getElementById('quitar-cita');
+      if (quitarBtn) quitarBtn.addEventListener('click', quitarCitaPreview);
+    }
+
+    // Botón flotante "Citar selección": se crea una sola vez (vive fuera de
+    // #ticket-pagina, así que sobrevive a los swaps HTMX) y se posiciona sobre
+    // la selección al soltar el mouse dentro de un comentario.
+    var botonCitar = null;
+    function getBotonCitar() {
+      if (botonCitar) return botonCitar;
+      botonCitar = document.createElement('button');
+      botonCitar.type = 'button';
+      botonCitar.textContent = 'Citar selección';
+      botonCitar.className = 'fixed z-50 px-2 py-1 rounded text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 shadow-md transition-colors';
+      botonCitar.style.display = 'none';
+      botonCitar.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      document.body.appendChild(botonCitar);
+      return botonCitar;
+    }
+    function ocultarBotonCitar() {
+      if (botonCitar) botonCitar.style.display = 'none';
+    }
+
+    function bindCitarSeleccion() {
+      if (!document.getElementById('comentario-form')) return;
+      var btn = getBotonCitar();
+      var cardActual = null;
+
+      function onMouseUp(e) {
+        var sel = window.getSelection();
+        // Se puede citar texto de un comentario O del ticket original.
+        var cuerpo = e.target.closest ? e.target.closest('.comentario-cuerpo, .ticket-cuerpo') : null;
+        if (!sel || sel.isCollapsed || !cuerpo || sel.toString().trim() === '') {
+          ocultarBotonCitar();
+          return;
+        }
+        var r = sel.getRangeAt(0);
+        if (!(cuerpo.contains(sel.anchorNode) && cuerpo.contains(sel.focusNode))) {
+          ocultarBotonCitar();
+          return;
+        }
+        cardActual = cuerpo;
+        var rect = r.getBoundingClientRect();
+        btn.style.display = 'block';
+        btn.style.left = Math.max(0, rect.left) + 'px';
+        btn.style.top = Math.max(0, rect.top - 34) + 'px';
+      }
+      function onBotonCitar(e) {
+        e.preventDefault();
+        var sel = window.getSelection();
+        // Texto de la selección excluyendo citas anidadas (misma regla que
+        // "Responder"): solo se cita el texto propio, nunca otra cita.
+        var texto = textoSeleccionPropio(sel);
+        if (texto && cardActual) {
+          if (cardActual.classList.contains('ticket-cuerpo')) {
+            mostrarCitaPreview('ticket', cardActual.getAttribute('data-autor') || 'el ticket', texto);
+          } else {
+            mostrarCitaPreview('cita', leerAutor(cardActual.closest('[id^="comentario-"]')), texto);
+          }
+        }
+        if (sel && sel.removeAllRanges) sel.removeAllRanges();
+        ocultarBotonCitar();
+      }
+      function dismiss(e) {
+        if (e && e.target && btn.contains(e.target)) return;
+        ocultarBotonCitar();
+      }
+
+      document.querySelectorAll('.comentario-cuerpo, .ticket-cuerpo').forEach(function (cuerpo) {
+        cuerpo.removeEventListener('mouseup', onMouseUp);
+        cuerpo.addEventListener('mouseup', onMouseUp);
+      });
+      btn.addEventListener('click', onBotonCitar);
+      document.addEventListener('pointerdown', dismiss);
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') ocultarBotonCitar(); });
+      document.addEventListener('scroll', function () { ocultarBotonCitar(); }, true);
+    }
+
+    // Colapso de una cita larga (caracteres O saltos de línea) a 2 líneas con
+    // toggle "Ver cita completa"/"Ver menos". Se aplica a las citas publicadas
+    // (colapsarCitas) y a la preview de "Responder/Citar selección" (mostrarCitaPreview).
+    // SOLO manipula el DOM de la preview: la cita que se guarda viaja por
+    // form.__citaHtml (el HTML crudo sin colapso).
+    function aplicarColapsoCita(bq) {
+      var UMBRAL_CARACTERES = 140;
+      var UMBRAL_SALTOS = 2; // más de 2 saltos de línea => se colapsa
+      var texto = (bq.innerText || '').trim();
+      var saltos = (texto.match(/\n/g) || []).length;
+      if (texto.length <= UMBRAL_CARACTERES && saltos <= UMBRAL_SALTOS) return;
+      var inner = document.createElement('div');
+      inner.className = 'text-xs text-gray-600 dark:text-gray-300 line-clamp-2 break-words whitespace-pre-wrap';
+      while (bq.firstChild) inner.appendChild(bq.firstChild);
+      bq.appendChild(inner);
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'Ver cita completa';
+      btn.className = 'mt-1.5 text-xs font-medium text-brand-700 dark:text-brand-400 hover:underline';
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        var expandida = !inner.classList.contains('line-clamp-2');
+        if (expandida) {
+          inner.classList.add('line-clamp-2');
+          btn.textContent = 'Ver cita completa';
+        } else {
+          inner.classList.remove('line-clamp-2');
+          btn.textContent = 'Ver menos';
+        }
+      });
+      bq.appendChild(btn);
+    }
+
+    // Cita publicada: se envuelve en un cuadro (borde + fondo) para distinguirla
+    // del cuerpo, y si es larga (caracteres O saltos de línea) se colapsa a 2
+    // líneas con toggle. nh3 quita la clase del blockquote, así que el aspecto
+    // del cuadro se aplica acá en el cliente. El texto citado es inalterable.
+    function cajonearCita(bq) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'text-xs rounded-lg border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/40 px-3 py-2 my-2';
+      bq.parentNode.insertBefore(wrapper, bq);
+      wrapper.appendChild(bq);
+      aplicarColapsoCita(bq);
+    }
+
+    function colapsarCitas() {
+      document.querySelectorAll('.comentario-cuerpo > blockquote, .comentario-cuerpo blockquote').forEach(function (bq) {
+        if (bq.__citaProcesada) return;
+        bq.__citaProcesada = true;
+        cajonearCita(bq);
+      });
     }
 
     // Editar comentario (solo autor): toggle form inline + Quill
@@ -179,10 +452,30 @@
         placeholder: 'Editar comentario...',
         modules: { toolbar: [['bold', 'italic', 'underline', 'strike'], [{ 'list': 'ordered' }, { 'list': 'bullet' }], ['link']] }
       });
-      // inicializar con el contenido existente
       var contenido = textarea.value;
       if (contenido) {
-        try { quill.clipboard.dangerouslyPasteHTML(contenido); } catch (e) {}
+        // Si el body empieza con un <blockquote> (cita), extraerlo: se muestra
+        // como cajita fija (no editable) y solo el resto va al editor.
+        var bqMatch = contenido.match(/^([\s\S]*?<\/blockquote>)([\s\S]*)$/);
+        var citaFija = form.querySelector('.cita-fija');
+        if (bqMatch && citaFija) {
+          var htmlCita = bqMatch[1];
+          // La cita se muestra con el mismo marco + colapso que la publicación,
+          // pero lo que se guarda en la edición es form.__citaHtml (HTML crudo,
+          // sin wrapper ni botón): así el body no se ensucia con el colapso visual.
+          form.__citaHtml = htmlCita;
+          citaFija.innerHTML = htmlCita;
+          citaFija.classList.remove('hidden');
+          var bq = citaFija.querySelector('blockquote');
+          if (bq) cajonearCita(bq);
+          contenido = bqMatch[2].trim();
+        } else if (citaFija) {
+          citaFija.classList.add('hidden');
+          form.__citaHtml = '';
+        }
+        if (contenido) {
+          try { quill.clipboard.dangerouslyPasteHTML(contenido); } catch (e) {}
+        }
       }
       editores[pk] = quill;
       return quill;
@@ -622,7 +915,12 @@
         chevron.classList.add('rotate-180');
       }
       toggle.addEventListener('click', function () {
-        var hidden = cuerpo.classList.toggle('hidden');
+        // El nodo #cuerpo-analizar se REEMPLAZA tras cada análisis (fetch AJAX),
+        // así que hay que resolverlo en cada click (la referencia capturada al
+        // bindear quedaba huérfana y el chevron dejaba de funcionar).
+        var actual = document.getElementById('cuerpo-analizar');
+        if (!actual) return;
+        var hidden = actual.classList.toggle('hidden');
         chevron.classList.toggle('rotate-180', hidden);
         localStorage.setItem(collapseKey, hidden ? '1' : '0');
       });
@@ -638,8 +936,14 @@
     function initPagina() {
       editores = {};
       editorTicket = null;
+      quillNuevo = null;
+      citaPreviewBox = document.getElementById('cita-preview-box');
+      quitarCitaPreview(); // limpiar cita pendiente de un swap anterior
       aplicarCssInputs();
       initComentarioNuevo();
+      bindResponder();
+      bindCitarSeleccion();
+      colapsarCitas();
       bindEditar();
       bindEliminar();
       bindEditarTicket();

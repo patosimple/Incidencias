@@ -593,6 +593,7 @@ def eliminar_comentario(request, pk):
     if comentario.ticket.estado == EstadoTicket.CERRADO:
         raise PermissionDenied("El ticket está cerrado; no se puede eliminar el comentario.")
     ticket_id = comentario.ticket_id
+    _eliminar_adjuntos(comentario.adjuntos.all())
     comentario.soft_delete()
     if request.headers.get("HX-Request"):
         return _render_ticket_pagina(

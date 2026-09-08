@@ -9,6 +9,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from core.management.commands.seed_tickets import _username
+from core.forms import _sanear_html
 from core.models import (
     Adjunto,
     AnalisisIA,
@@ -330,6 +331,28 @@ class TicketDetailHtmxTest(TestCase):
         # Confirmación vía toast (fuera del flujo) en el partial.
         self.assertContains(resp, 'data-toast="Comentario eliminado."')
 
+    def test_eliminar_comentario_borra_adjuntos_fisicos(self):
+        self._login(self.solicitante)
+        com = Comentario.objects.create(
+            ticket=self.ticket, usuario=self.solicitante, cuerpo="<p>Hola</p>"
+        )
+        adj = Adjunto.objects.create(
+            comentario=com,
+            subido_por=self.solicitante,
+            nombre_archivo="nota.txt",
+            tipo_archivo=TipoAdjunto.DOCUMENTO,
+            archivo=SimpleUploadedFile("nota.txt", b"contenido"),
+        )
+        ruta_fisica = adj.archivo.path
+        self.assertTrue(os.path.exists(ruta_fisica))
+        resp = self.client.post(reverse("comentario_eliminar", args=[com.pk]))
+        self.assertRedirects(resp, reverse("ticket_detail", args=[self.ticket.pk]))
+        com.refresh_from_db()
+        self.assertIsNotNone(com.eliminado_en)
+        # El adjunto se borra de BD y su archivo físico tambien.
+        self.assertFalse(Adjunto.objects.filter(pk=adj.pk).exists())
+        self.assertFalse(os.path.exists(ruta_fisica))
+
     def test_editar_comentario_htmx_devuelve_partial(self):
         self._login(self.solicitante)
         com = Comentario.objects.create(
@@ -573,4 +596,89 @@ class SeedTicketsResetAllTest(TestCase):
             descripcion_original="<p>n</p>", estado=EstadoTicket.PENDIENTE,
         )
         self.assertEqual(nuevo.pk, 1)
+
+
+class SanitizadorCitasTest(TestCase):
+    """Las citas del quote/reply se insertan como <blockquote><strong>...</strong>
+    en el editor; el saneo con nh3 debe CONSERVAR ese formato (whitelist) y seguir
+    eliminando scripts (garantiza que el reply con cita persiste al guardar)."""
+
+    def test_sanear_html_conserva_cita_y_quita_script(self):
+        html = (
+            "<blockquote><strong>Ana escribió:</strong><br>"
+            "El informe no abre en Chromium<br>con datos de octubre</blockquote>"
+            "<p><br></p><script>alert(1)</script>"
+        )
+        limpio = _sanear_html(html)
+        self.assertIn("<blockquote>", limpio)
+        self.assertIn("<strong>Ana escribió:</strong>", limpio)
+        self.assertIn("<br>", limpio)
+        self.assertNotIn("<script", limpio)
+
+    def test_sanear_html_escapa_cita_maliciosa(self):
+        html = "<blockquote><strong>Dev escribió:</strong><br><img src=x onerror=alert(1)></blockquote>"
+        limpio = _sanear_html(html)
+        self.assertIn("<blockquote>", limpio)
+        self.assertNotIn("onerror", limpio)
+        self.assertNotIn("alert", limpio)
+
+
+class RespuestaComentarioTest(TestCase):
+    """Quote/reply (solo front, SIN cambios de modelo): la cita es una cajita fija
+    fuera del editor (inalterable al editar), y al publicar el cliente la concatena
+    al inicio del `cuerpo` como <blockquote>. Este bloque es la marca estructural:
+    Quill no produce blockquotes, así que el único en el body ES la cita. El saneo
+    con nh3 (whitelist conserva blockquote) garantiza que persiste al guardar."""
+
+    def setUp(self):
+        Usuario = get_user_model()
+        self.sistema = Sistema.objects.create(codigo="BALANCES", nombre="Balances")
+        self.solicitante = Usuario.objects.create_user(
+            username="soli.cita", password="clave123", rol="SOLICITANTE",
+            first_name="Soli", last_name="Cita",
+        )
+        UsuarioSistema.objects.create(usuario=self.solicitante, sistema=self.sistema)
+        self.ticket = Ticket.objects.create(
+            titulo="Test cita", sistema=self.sistema, solicitante=self.solicitante,
+            descripcion_original="Detalle.", estado=EstadoTicket.PENDIENTE,
+        )
+        self.client.login(username="soli.cita", password="clave123")
+
+    def _comentar(self, cuerpo):
+        return self.client.post(
+            reverse("ticket_comentar", args=[self.ticket.pk]),
+            {"cuerpo": cuerpo},
+            HTTP_HX_REQUEST="true",
+        )
+
+    def test_reply_con_cita_guarda_blockquote_y_cuerpo_propio(self):
+        # El front concatena: cita (blockquote) + body del usuario (como lo haría
+        # el htmx:configRequest al armar el parámetro `cuerpo`).
+        body = (
+            '<blockquote><strong>Respondiendo a Soli Cita:</strong><br>'
+            'El informe no exporta a PDF con datos de octubre.</blockquote>'
+            '<p>Mi respuesta</p>'
+        )
+        resp = self._comentar(body)
+        self.assertEqual(resp.status_code, 200)
+        reply = Comentario.objects.latest("pk")
+        # El blockquote (cita) y el body del usuario se conservan tras sanear.
+        self.assertIn("<blockquote>", reply.cuerpo)
+        self.assertIn("Respondiendo a Soli Cita:", reply.cuerpo)
+        self.assertIn("<p>Mi respuesta</p>", reply.cuerpo)
+
+    def test_saneo_conserva_blockquote_pero_quita_script(self):
+        # Si por algún vector entrara un script en la cita, nh3 lo elimina sin
+        # romper el blockquote (mitigación XSS).
+        body = (
+            '<blockquote><strong>Ana escribió:</strong><br>'
+            '<script>alert(1)</script>Texto.</blockquote><p>Ok</p>'
+        )
+        resp = self._comentar(body)
+        self.assertEqual(resp.status_code, 200)
+        reply = Comentario.objects.latest("pk")
+        self.assertIn("<blockquote>", reply.cuerpo)
+        self.assertNotIn("<script", reply.cuerpo)
+        self.assertNotIn("alert", reply.cuerpo)
+        self.assertIn("<p>Ok</p>", reply.cuerpo)
 
