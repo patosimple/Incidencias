@@ -149,7 +149,7 @@
                     </div>
                     <div class="flex justify-end gap-2">
                         <button type="button" data-cancelar-editar-ticket
-                                class="px-2.5 py-1 rounded text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">Cancelar</button>
+                                class="px-2.5 py-1 rounded text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">Cancelar</button>
                         <button type="submit"
                                 class="px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">Guardar</button>
                     </div>
@@ -298,7 +298,7 @@
                       class="hidden mt-2 space-y-2 editar-comentario-form" data-form-comentario="{{ comentario.pk }}" enctype="multipart/form-data" novalidate>
                     {% csrf_token %}
                     <textarea name="cuerpo" class="hidden">{{ comentario.cuerpo }}</textarea>
-                    <div class="cita-fija hidden text-xs"></div>
+                    <div class="cita-fija hidden text-xs !mb-3"></div>
                     <div class="quill-editor bg-white dark:bg-slate-700"></div>
                     <div class="pt-1">
                         <div class="flex items-center gap-2">
@@ -332,7 +332,7 @@
                     </div>
                     <div class="flex justify-end gap-2">
                         <button type="button" data-cancelar-editar="{{ comentario.pk }}"
-                                class="px-2.5 py-1 rounded text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">Cancelar</button>
+                                class="px-2.5 py-1 rounded text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">Cancelar</button>
                         <button type="submit"
                                 class="px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">Guardar</button>
                     </div>
@@ -358,7 +358,7 @@
         </div>
 
         {% if puede_comentar %}
-        <div class="mt-8 rounded-xl border border-brand-100 dark:border-brand-950 bg-brand-50 dark:bg-brand-950/40 p-4">
+        <div id="comentar-box" class="mt-8 rounded-xl border border-brand-200 dark:border-brand-800 bg-brand-50 dark:bg-brand-950/40 p-4">
             <p class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-200">Comentar</p>
             <form id="comentario-form" method="post" enctype="multipart/form-data"
                   action="{% url 'ticket_comentar' ticket.pk %}"
@@ -366,8 +366,7 @@
                   class="space-y-3" novalidate>
                 {% csrf_token %}
                 {{ comentario_form.cuerpo }}
-                <div id="cita-preview-box" class="hidden relative text-xs"></div>
-                <button type="button" id="quitar-cita" class="hidden mt-1 text-xs font-medium text-red-600 dark:text-red-400 hover:underline">Quitar cita</button>
+                <div id="cita-preview-box" class="hidden relative text-xs !mb-4"></div>
                 <div id="quill-comentario" class="bg-white dark:bg-slate-700"></div>
                 <div>
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -385,7 +384,7 @@
                 </div>
                 <div class="flex justify-end gap-2">
                     <button type="button" id="cancelar-comentario"
-                            class="inline-flex items-center justify-center px-4 py-2 rounded text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">
+                            class="inline-flex items-center justify-center px-4 py-2 rounded text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">
                         Cancelar
                     </button>
                     <button type="submit"

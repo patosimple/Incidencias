@@ -221,7 +221,7 @@
       // El <blockquote> es la marca estructural: Quill NO produce blockquotes
       // (no hay botón en la toolbar), así que el único <blockquote> en el body
       // ES la cita. nh3.clean lo conserva (está en _QUILL_TAGS).
-      return '<blockquote class="comentario-cita rounded-lg border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/40 px-3 py-2 text-xs">' +
+      return '<blockquote class="comentario-cita rounded-lg border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/40 px-3 py-2 text-xs">' +
              '<strong>' + escapeHtml(prefijo) + '</strong><br>' +
              escapeHtml(texto || '').replace(/\n/g, '<br>') +
              '</blockquote>';
@@ -279,12 +279,21 @@
       citaPreviewBox.innerHTML = html;
       citaPreviewBox.classList.remove('hidden');
       var bq = citaPreviewBox.querySelector('blockquote');
-      if (bq) aplicarColapsoCita(bq);
-      var quitarBtn = document.getElementById('quitar-cita');
-      if (quitarBtn) quitarBtn.classList.remove('hidden');
-      var quillBox = document.getElementById('quill-comentario');
-      if (quillBox) quillBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (bq) {
+        aplicarColapsoCita(bq);
+        agregarQuitarCita(bq);
+      }
+      // Llevar al FINAL de la página (scroll a lo último del contenedor #main):
+      // el objetivo es que se vea el box de Comentar completo. El focus del
+      // editor hace scroll al caret y pisaría scrollIntoView, por eso primero
+      // se enfoca y DESPUÉS se baja al fondo del contenedor.
       if (quillNuevo) quillNuevo.focus();
+      var main = document.getElementById('main') || document.querySelector('main');
+      if (main) {
+        var fondo = main.scrollHeight;
+        if (main.scrollTo) main.scrollTo({ top: fondo, behavior: 'smooth' });
+        else main.scrollTop = fondo;
+      }
     }
 
     function quitarCitaPreview() {
@@ -294,8 +303,6 @@
         citaPreviewBox.innerHTML = '';
         citaPreviewBox.classList.add('hidden');
       }
-      var quitarBtn = document.getElementById('quitar-cita');
-      if (quitarBtn) quitarBtn.classList.add('hidden');
     }
 
     function bindResponder() {
@@ -311,8 +318,6 @@
           mostrarCitaPreview('reply', leerAutor(card), texto);
         });
       });
-      var quitarBtn = document.getElementById('quitar-cita');
-      if (quitarBtn) quitarBtn.addEventListener('click', quitarCitaPreview);
     }
 
     // Botón flotante "Citar selección": se crea una sola vez (vive fuera de
@@ -337,7 +342,6 @@
     function bindCitarSeleccion() {
       if (!document.getElementById('comentario-form')) return;
       var btn = getBotonCitar();
-      var cardActual = null;
 
       function onMouseUp(e) {
         var sel = window.getSelection();
@@ -352,7 +356,9 @@
           ocultarBotonCitar();
           return;
         }
-        cardActual = cuerpo;
+        // La referencia se guarda en el botón (no en un closure). El handler de
+        // click consulta SIEMPRE el estado actual de la selección/área.
+        btn.__cardActual = cuerpo;
         var rect = r.getBoundingClientRect();
         btn.style.display = 'block';
         btn.style.left = Math.max(0, rect.left) + 'px';
@@ -364,6 +370,16 @@
         // Texto de la selección excluyendo citas anidadas (misma regla que
         // "Responder"): solo se cita el texto propio, nunca otra cita.
         var texto = textoSeleccionPropio(sel);
+        // cardActual se deriva de la selección VIVA (fallback: lo que guardó
+        // el último mouseup en el botón). Un closure capturado en un swap
+        // anterior quedaba huérfano tras el re-bind de la página.
+        var ancla = sel.anchorNode || sel.focusNode;
+        var elem = (ancla && ancla.nodeType === 1) ? ancla : (ancla && ancla.parentElement);
+        var cardActual = btn.__cardActual || null;
+        if (elem && elem.closest) {
+          var derivado = elem.closest('.comentario-cuerpo, .ticket-cuerpo');
+          if (derivado) cardActual = derivado;
+        }
         if (texto && cardActual) {
           if (cardActual.classList.contains('ticket-cuerpo')) {
             mostrarCitaPreview('ticket', cardActual.getAttribute('data-autor') || 'el ticket', texto);
@@ -379,14 +395,26 @@
         ocultarBotonCitar();
       }
 
+      // Los listeners del BOTÓN y de document se registran UNA sola vez: el botón
+      // es persistente (vive fuera de #ticket-pagina, sobrevive a los swaps) y
+      // re-bindear en cada initPagina acumulaba N handlers de click. El más viejo
+      // corría primero y limpiaba la selección (removeAllRanges) antes de que el
+      // handler con el área válida pudiera citar -> "Citar selección" dejaba de
+      // andar tras el primer swap.
+      if (!btn.__bindado) {
+        btn.__bindado = true;
+        btn.addEventListener('click', onBotonCitar);
+        document.addEventListener('pointerdown', dismiss);
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') ocultarBotonCitar(); });
+        document.addEventListener('scroll', function () { ocultarBotonCitar(); }, true);
+      }
+
+      // El mouseup sí se re-bindea por swap: los nodos .comentario-cuerpo /
+      // .ticket-cuerpo se reemplazan con cada swap y necesitan el listener nuevo.
       document.querySelectorAll('.comentario-cuerpo, .ticket-cuerpo').forEach(function (cuerpo) {
         cuerpo.removeEventListener('mouseup', onMouseUp);
         cuerpo.addEventListener('mouseup', onMouseUp);
       });
-      btn.addEventListener('click', onBotonCitar);
-      document.addEventListener('pointerdown', dismiss);
-      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') ocultarBotonCitar(); });
-      document.addEventListener('scroll', function () { ocultarBotonCitar(); }, true);
     }
 
     // Colapso de una cita larga (caracteres O saltos de línea) a 2 líneas con
@@ -404,10 +432,12 @@
       inner.className = 'text-xs text-gray-600 dark:text-gray-300 line-clamp-2 break-words whitespace-pre-wrap';
       while (bq.firstChild) inner.appendChild(bq.firstChild);
       bq.appendChild(inner);
+      var linea = document.createElement('div');
+      linea.className = 'mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 cita-acciones';
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = 'Ver cita completa';
-      btn.className = 'mt-1.5 text-xs font-medium text-brand-700 dark:text-brand-400 hover:underline';
+      btn.className = 'text-xs font-medium text-brand-700 dark:text-brand-400 hover:underline';
       btn.addEventListener('click', function (e) {
         e.preventDefault();
         var expandida = !inner.classList.contains('line-clamp-2');
@@ -419,7 +449,29 @@
           btn.textContent = 'Ver menos';
         }
       });
-      bq.appendChild(btn);
+      linea.appendChild(btn);
+      bq.appendChild(linea);
+    }
+
+    // "Quitar cita" dentro del box de la preview. Va en la MISMA línea que el
+    // toggle de colapso ("Ver cita completa"/"Ver menos") cuando existe, no como
+    // botón externo aparte. Al quitar se limpia la preview (y el __citaHtml).
+    function agregarQuitarCita(bq) {
+      var linea = bq.querySelector('.cita-acciones');
+      if (!linea) {
+        linea = document.createElement('div');
+        linea.className = 'mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 cita-acciones';
+        bq.appendChild(linea);
+      }
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'Quitar cita';
+      btn.className = 'text-xs font-medium text-red-600 dark:text-red-400 hover:underline';
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        quitarCitaPreview();
+      });
+      linea.appendChild(btn);
     }
 
     // Cita publicada: se envuelve en un cuadro (borde + fondo) para distinguirla
@@ -428,7 +480,7 @@
     // del cuadro se aplica acá en el cliente. El texto citado es inalterable.
     function cajonearCita(bq) {
       var wrapper = document.createElement('div');
-      wrapper.className = 'text-xs rounded-lg border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/40 px-3 py-2 my-2';
+      wrapper.className = 'text-xs rounded-lg border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/40 px-3 py-2 my-2';
       bq.parentNode.insertBefore(wrapper, bq);
       wrapper.appendChild(bq);
       aplicarColapsoCita(bq);
