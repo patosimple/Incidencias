@@ -7,9 +7,12 @@
 {% block extra_head %}
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
 <style>
-    /* Giro antihorario para el ícono del botón Analizar/Reanalizar: el
-       animate-spin de Tailwind gira en sentido horario y sus flechas
-       quedan "de cola" (parecen girar hacia atrás). */
+    /* El ícono del botón Analizar va espejado (wrapper scaleX(-1) en
+       ticket_pagina.html) y el espejo INVIERTE la dirección percibida del giro:
+       una rotación local horaria se ve antihoraria. Para que el usuario lo vea
+       girar EN SENTIDO HORARIO, el giro local debe ser antihorario.
+       animate-spin de Tailwind gira en horario (local) y con el espejo se
+       percibiría antihorario, por eso se usa spin-reverse acá. */
     @keyframes spin-reverse {
         from { transform: rotate(360deg); }
         to { transform: rotate(0deg); }
