@@ -38,9 +38,19 @@ def _tipo_por_nombre(nombre):
     return TipoAdjunto.DOCUMENTO
 
 
+MAX_ADJUNTO_BYTES = 8 * 1024 * 1024  # 8 MB
+
+
 def _guardar_adjuntos(archivos, *, ticket=None, comentario=None, usuario):
     """Guarda los archivos subidos, asignando el ticket o comentario correspondiente.
-    `archivos` es una lista de UploadedFile (campo múltiple 'archivos')."""
+    `archivos` es una lista de UploadedFile (campo múltiple 'archivos').
+    Lanza ValueError si algún archivo supera MAX_ADJUNTO_BYTES."""
+    for archivo in archivos:
+        if archivo.size > MAX_ADJUNTO_BYTES:
+            mb = round(archivo.size / (1024 * 1024), 1)
+            raise ValueError(
+                f'El archivo "{archivo.name}" pesa {mb} MB y el máximo permitido es 8 MB.'
+            )
     guardados = []
     for archivo in archivos:
         adj = Adjunto(
@@ -88,7 +98,7 @@ def _sistemas_visibles(usuario):
     return Sistema.objects.filter(usuariosistema__usuario=usuario)
 
 
-def _contexto_detalle(request, ticket, comentario_form=None, toast=None):
+def _contexto_detalle(request, ticket, comentario_form=None, toast=None, toast_tipo=None):
     """Contexto completo del detalle, compartido entre la vista GET y los
     re-renders de HTMX. Al mutar el ticket (tomar/liberar/estado/comentarios)
     los flags se recalculan acá con el estado ya actualizado.
@@ -128,19 +138,20 @@ def _contexto_detalle(request, ticket, comentario_form=None, toast=None):
             RolUsuario.COORDINADOR,
         ),
         "toast": toast,
+        "toast_tipo": toast_tipo,
     }
     analisis = list(ticket.analisis.filter(tipo=TipoAnalisis.TECNICO))
     ctx["analisis_conceptual"] = analisis[0] if analisis else None
     return ctx
 
 
-def _render_ticket_pagina(request, ticket, comentario_form=None, toast=None):
+def _render_ticket_pagina(request, ticket, comentario_form=None, toast=None, toast_tipo=None):
     """Renderiza el partial del detalle completo (#ticket-pagina), que HTMX
     usa para swappear la página sin recargar tras una acción."""
     return render(
         request,
         "core/partials/ticket_pagina.html",
-        _contexto_detalle(request, ticket, comentario_form, toast),
+        _contexto_detalle(request, ticket, comentario_form, toast, toast_tipo),
     )
 
 
@@ -269,11 +280,15 @@ class TicketCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         form.instance.solicitante = self.request.user
         response = super().form_valid(form)
-        _guardar_adjuntos(
-            self.request.FILES.getlist("archivos"),
-            ticket=self.object,
-            usuario=self.request.user,
-        )
+        try:
+            _guardar_adjuntos(
+                self.request.FILES.getlist("archivos"),
+                ticket=self.object,
+                usuario=self.request.user,
+            )
+        except ValueError as e:
+            form.add_error(None, str(e))
+            return self.form_invalid(form)
         # Acá, en Fase 2, se dispara generar_analisis_ticket.delay(self.object.id)
         return response
 
@@ -467,11 +482,16 @@ def editar_ticket(request, pk):
         if form.is_valid():
             ticket.modificado_en = timezone.now()
             form.save()
-            _guardar_adjuntos(
-                request.FILES.getlist("archivos"),
-                ticket=ticket,
-                usuario=request.user,
-            )
+            try:
+                _guardar_adjuntos(
+                    request.FILES.getlist("archivos"),
+                    ticket=ticket,
+                    usuario=request.user,
+                )
+            except ValueError as e:
+                if request.headers.get("HX-Request"):
+                    return _render_ticket_pagina(request, ticket, toast=str(e), toast_tipo="warning")
+                messages.warning(request, str(e))
             eliminar_pks = [
                 p.strip()
                 for p in request.POST.get("adjuntos_eliminar", "").split(",")
@@ -524,11 +544,16 @@ def agregar_comentario(request, pk):
         comentario.ticket = ticket
         comentario.usuario = request.user
         comentario.save()
-        _guardar_adjuntos(
-            request.FILES.getlist("archivos"),
-            comentario=comentario,
-            usuario=request.user,
-        )
+        try:
+            _guardar_adjuntos(
+                request.FILES.getlist("archivos"),
+                comentario=comentario,
+                usuario=request.user,
+            )
+        except ValueError as e:
+            if request.headers.get("HX-Request"):
+                return _render_ticket_pagina(request, ticket, toast=str(e), toast_tipo="warning")
+            messages.warning(request, str(e))
         if request.headers.get("HX-Request"):
             return _render_ticket_pagina(request, ticket)
         return redirect("ticket_detail", pk=pk)
@@ -556,11 +581,16 @@ def editar_comentario(request, pk):
             comentario.modificado_en = timezone.now()
             form.save()
             # Agregar adjuntos nuevos
-            _guardar_adjuntos(
-                request.FILES.getlist("archivos"),
-                comentario=comentario,
-                usuario=request.user,
-            )
+            try:
+                _guardar_adjuntos(
+                    request.FILES.getlist("archivos"),
+                    comentario=comentario,
+                    usuario=request.user,
+                )
+            except ValueError as e:
+                if request.headers.get("HX-Request"):
+                    return _render_ticket_pagina(request, comentario.ticket, toast=str(e), toast_tipo="warning")
+                messages.warning(request, str(e))
             # Eliminar adjuntos marcados (borra el archivo físico + registro)
             eliminar = request.POST.get("adjuntos_eliminar", "")
             eliminar_pks = [p.strip() for p in eliminar.split(",") if p.strip().isdigit()]
@@ -597,7 +627,7 @@ def eliminar_comentario(request, pk):
     comentario.soft_delete()
     if request.headers.get("HX-Request"):
         return _render_ticket_pagina(
-            request, comentario.ticket, toast="Comentario eliminado."
+            request, comentario.ticket, toast="Comentario eliminado.", toast_tipo="error"
         )
     messages.success(request, "Comentario eliminado.")
     return redirect("ticket_detail", pk=ticket_id)

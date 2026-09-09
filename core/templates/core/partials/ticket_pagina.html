@@ -1,4 +1,4 @@
-<div id="ticket-pagina" class="max-w-3xl mx-auto space-y-4"{% if toast %} data-toast="{{ toast }}"{% endif %}>
+<div id="ticket-pagina" class="max-w-3xl mx-auto space-y-4"{% if toast %} data-toast="{{ toast }}"{% endif %}{% if toast_tipo %} data-toast-tipo="{{ toast_tipo }}"{% endif %}>
 
     <!-- Flash messages: se re-renderizan en CADA swap HTMX para consumirlos de la
          sesión (si no, se acumulaban hasta el próximo render completo). -->
@@ -112,6 +112,7 @@
                 {% if puede_gestionar_ticket %}
                 <form method="post" action="{% url 'ticket_editar' ticket.pk %}"
                       hx-post="{% url 'ticket_editar' ticket.pk %}" hx-target="#ticket-pagina" hx-swap="outerHTML"
+                      hx-indicator="this"
                       class="hidden mt-3 space-y-2 editar-ticket-form" data-form-ticket="{{ ticket.pk }}" enctype="multipart/form-data" novalidate>
                     {% csrf_token %}
                     <input type="text" name="titulo" value="{{ ticket.titulo }}" placeholder="Título del ticket" maxlength="200">
@@ -151,7 +152,7 @@
                         <button type="button" data-cancelar-editar-ticket
                                 class="px-2.5 py-1 rounded text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">Cancelar</button>
                         <button type="submit"
-                                class="px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">Guardar</button>
+                                class="px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors"><svg class="htmx-indicator w-3.5 h-3.5 mr-1 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Guardar</button>
                     </div>
                 </form>
                 {% endif %}
@@ -297,6 +298,7 @@
                 {% endif %}
                 <form method="post" action="{% url 'comentario_editar' comentario.pk %}"
                       hx-post="{% url 'comentario_editar' comentario.pk %}" hx-target="#ticket-pagina" hx-swap="outerHTML"
+                      hx-indicator="this"
                       class="hidden mt-2 space-y-2 editar-comentario-form" data-form-comentario="{{ comentario.pk }}" enctype="multipart/form-data" novalidate>
                     {% csrf_token %}
                     <textarea name="cuerpo" class="hidden">{{ comentario.cuerpo }}</textarea>
@@ -336,7 +338,7 @@
                         <button type="button" data-cancelar-editar="{{ comentario.pk }}"
                                 class="px-2.5 py-1 rounded text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">Cancelar</button>
                         <button type="submit"
-                                class="px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">Guardar</button>
+                                class="px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors"><svg class="htmx-indicator w-3.5 h-3.5 mr-1 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Guardar</button>
                     </div>
                 </form>
                 {% if comentario.adjuntos.all %}
@@ -365,6 +367,7 @@
             <form id="comentario-form" method="post" enctype="multipart/form-data"
                   action="{% url 'ticket_comentar' ticket.pk %}"
                   hx-post="{% url 'ticket_comentar' ticket.pk %}" hx-target="#ticket-pagina" hx-swap="outerHTML"
+                  hx-indicator="this"
                   class="space-y-3" novalidate>
                 {% csrf_token %}
                 {{ comentario_form.cuerpo }}
@@ -391,6 +394,7 @@
                     </button>
                     <button type="submit"
                             class="inline-flex items-center justify-center px-4 py-2 rounded text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
+                        <svg class="htmx-indicator w-4 h-4 mr-1.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                         Comentar
                     </button>
                 </div>

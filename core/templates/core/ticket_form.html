@@ -152,12 +152,23 @@
         renderLista();
       });
       if (form) {
-        form.addEventListener('submit', function () {
+        form.addEventListener('submit', function (e) {
+          var maxBytes = 8 * 1024 * 1024;
+          for (var i = 0; i < items.length; i++) {
+            if (items[i].size > maxBytes) {
+              e.preventDefault();
+              var mb = (items[i].size / (1024 * 1024)).toFixed(1);
+              alert('El archivo "' + items[i].name + '" pesa ' + mb + ' MB y el máximo permitido es 8 MB.');
+              return;
+            }
+          }
           var finalDt = (window.DataTransfer ? new DataTransfer() : null);
           if (finalDt) {
             items.forEach(function (f) { finalDt.items.add(f); });
-            try { fileInput.files = finalDt.files; } catch (e) {}
+            try { fileInput.files = finalDt.files; } catch (err) {}
           }
+          var btn = form.querySelector('button[type="submit"]');
+          if (btn) { btn.disabled = true; btn.innerHTML = '<svg class="w-4 h-4 mr-1.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Creando...'; }
         });
       }
     }

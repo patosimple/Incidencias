@@ -79,6 +79,11 @@
         border-color: #475569;
       }
       .dark .ql-toolbar.ql-snow .ql-picker-options { background: #334155; }
+      /* HTMX indicator: spinner en botones durante request */
+      .htmx-indicator { display: none; }
+      .htmx-request .htmx-indicator,
+      .htmx-request.htmx-indicator { display: inline-flex; }
+      .htmx-request button[type="submit"] { opacity: .65; pointer-events: none; }
     </style>
 
     {% block extra_head %}{% endblock %}
@@ -385,11 +390,18 @@
   // Toast: notificación efímera (auto-dismiss) fuera del flujo del documento.
   // Las acciones HTMX que ya se confirman con el swap la disparan vía el
   // atributo data-toast del nodo #ticket-pagina recién llegado.
-  function mostrarToast(texto) {
+  function mostrarToast(texto, tipo) {
     var c = document.getElementById('toast');
     if (!c || !texto) return;
+    var colores = {
+      error:   'bg-red-600 text-white',
+      warning: 'bg-amber-500 text-gray-900',
+      success: 'bg-emerald-600 text-white',
+    };
+    var cls = colores[tipo] || 'bg-brand-800 text-white';
+    var dur = tipo === 'warning' ? 4600 : 2600;
     var t = document.createElement('div');
-    t.className = 'max-w-xs px-4 py-3 rounded-lg shadow-lg bg-brand-950 text-white text-sm transition-opacity duration-300 opacity-0';
+    t.className = 'max-w-xs px-4 py-3 rounded-lg shadow-lg ' + cls + ' text-sm transition-opacity duration-300 opacity-0';
     t.textContent = texto;
     c.appendChild(t);
     requestAnimationFrame(function () {
@@ -400,14 +412,16 @@
       setTimeout(function () {
         if (t.parentNode) t.parentNode.removeChild(t);
       }, 320);
-    }, 2600);
+    }, dur);
   }
   document.body.addEventListener('htmx:afterSettle', function () {
     var nodo = document.getElementById('ticket-pagina');
     var texto = nodo && nodo.getAttribute('data-toast');
     if (texto) {
+      var tipo = nodo.getAttribute('data-toast-tipo') || null;
       nodo.removeAttribute('data-toast');
-      mostrarToast(texto);
+      nodo.removeAttribute('data-toast-tipo');
+      mostrarToast(texto, tipo);
     }
   });
 </script>
