@@ -465,6 +465,66 @@ class TicketEdicionTest(TestCase):
         resp_detalle = self.client.get(reverse("ticket_detail", args=[self.ticket.pk]))
         self.assertEqual(resp_detalle.status_code, 404)
 
+    def test_eliminar_ticket_casca_soft_delete_a_comentarios(self):
+        com = Comentario.objects.create(
+            ticket=self.ticket, usuario=self.dueño, cuerpo="<p>Hola</p>"
+        )
+        self._login(self.dueño)
+        resp = self.client.post(
+            reverse("ticket_eliminar", args=[self.ticket.pk]),
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(resp.status_code, 204)
+        self.ticket.refresh_from_db()
+        com.refresh_from_db()
+        self.assertIsNotNone(self.ticket.eliminado_en)
+        self.assertEqual(com.eliminado_en, self.ticket.eliminado_en)
+        # El manager por defecto no ve los comentarios cascaded; all_objects
+        # conserva el histórico.
+        self.assertFalse(Comentario.objects.filter(ticket=self.ticket).exists())
+        self.assertTrue(Comentario.all_objects.filter(ticket=self.ticket).exists())
+
+    def test_soft_delete_cascade_y_restore(self):
+        com = Comentario.objects.create(
+            ticket=self.ticket, usuario=self.dueño, cuerpo="<p>c1</p>"
+        )
+        self.ticket.soft_delete()
+        self.ticket.refresh_from_db()
+        com.refresh_from_db()
+        self.assertEqual(com.eliminado_en, self.ticket.eliminado_en)
+        # restore: vuelve el ticket y los comentarios cascaded a visible.
+        self.ticket.restore()
+        self.ticket.refresh_from_db()
+        com.refresh_from_db()
+        self.assertIsNone(self.ticket.eliminado_en)
+        self.assertIsNone(com.eliminado_en)
+        self.assertTrue(Comentario.objects.filter(ticket=self.ticket).exists())
+
+    def test_soft_delete_no_pisa_borrado_individual_ni_restore_lo_vuelve(self):
+        com_moderado = Comentario.objects.create(
+            ticket=self.ticket, usuario=self.dueño, cuerpo="<p>mal</p>"
+        )
+        com_moderado.soft_delete()  # borrado individual previo (moderación)
+        com_normal = Comentario.objects.create(
+            ticket=self.ticket, usuario=self.dueño, cuerpo="<p>bien</p>"
+        )
+        self.ticket.soft_delete()
+        com_moderado.refresh_from_db()
+        com_normal.refresh_from_db()
+        self.ticket.refresh_from_db()
+        # El moderado conserva su propio eliminado_en (anterior al del ticket);
+        # el normal se casca con el del ticket.
+        self.assertNotEqual(com_moderado.eliminado_en, self.ticket.eliminado_en)
+        self.assertEqual(com_normal.eliminado_en, self.ticket.eliminado_en)
+        # restore solo revierte los cascaded: el moderado sigue borrado.
+        self.ticket.restore()
+        com_moderado.refresh_from_db()
+        com_normal.refresh_from_db()
+        self.ticket.refresh_from_db()
+        self.assertIsNone(self.ticket.eliminado_en)
+        self.assertIsNotNone(com_moderado.eliminado_en)
+        self.assertIsNone(com_normal.eliminado_en)
+
     def test_dueño_elimina_ticket_sin_htmx_redirige(self):
         self._login(self.dueño)
         resp = self.client.post(reverse("ticket_eliminar", args=[self.ticket.pk]))

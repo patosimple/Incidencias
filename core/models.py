@@ -121,8 +121,28 @@ class Ticket(models.Model):
     all_objects = models.Manager()
 
     def soft_delete(self):
-        self.eliminado_en = timezone.now()
+        now = timezone.now()
+        self.eliminado_en = now
         self.save(update_fields=["eliminado_en"])
+        # Cascada del soft delete (emula el ON DELETE CASCADE de la FK
+        # Comentario.ticket): los comentarios del ticket quedan también
+        # marcados como eliminados. Se usa el manager por defecto, así un
+        # comentario que ya estaba borrado individualmente conserva su propio
+        # eliminado_en (no se pisa con el del ticket).
+        self.comentarios.update(eliminado_en=now)
+
+    def restore(self):
+        """Revierte el soft delete: vuelve el ticket (y sus comentarios
+        cascaded) a visible. Solo se restauran los comentarios que llevan el
+        MISMO eliminado_en que el ticket (los que cascó soft_delete); los que
+        habían sido borrados individualmente antes conservan su eliminado_en."""
+        eliminado_en_del_ticket = self.eliminado_en
+        self.eliminado_en = None
+        self.save(update_fields=["eliminado_en"])
+        if eliminado_en_del_ticket:
+            Comentario.all_objects.filter(
+                ticket=self, eliminado_en=eliminado_en_del_ticket
+            ).update(eliminado_en=None)
 
     class Meta:
         verbose_name = "Ticket"
@@ -180,6 +200,10 @@ class Comentario(models.Model):
 
     def soft_delete(self):
         self.eliminado_en = timezone.now()
+        self.save(update_fields=["eliminado_en"])
+
+    def restore(self):
+        self.eliminado_en = None
         self.save(update_fields=["eliminado_en"])
 
     class Meta:
