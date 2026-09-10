@@ -56,7 +56,7 @@
 
     var editores = {}; // pk -> instancia Quill de edición (por comentario)
     var quillNuevo = null; // instancia Quill del form de comentario nuevo (para citar/responder)
-    var MAX_BYTES = 400 * 1024 * 1024; // 400 MB (prueba temporal)
+    var MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
     // Los forms de comentario se envían por HTMX, que serializa el form ANTES de
     // que corran sus listeners de 'submit' propios (siempre que htmx haya procesado
@@ -176,7 +176,7 @@
           Array.prototype.forEach.call(fileInput.files, function (f) {
             if (f.size > MAX_BYTES) {
               var mb = (f.size / (1024 * 1024)).toFixed(1);
-              mostrarToast('"' + f.name + '" pesa ' + mb + ' MB. Máximo: 400 MB.', 'warning');
+              mostrarToast('"' + f.name + '" pesa ' + mb + ' MB. Máximo: 10 MB.', 'warning');
               return;
             }
             items.push(f);
@@ -623,7 +623,7 @@
           if (hidden) hidden.value = '';
         };
 
-        function renderNuevo(f, idx) {
+        function renderNuevo(f) {
           var li = document.createElement('li');
           li.className = 'flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400';
           var b = document.createElement('button');
@@ -633,7 +633,8 @@
           b.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
           b.addEventListener('click', function (e) {
             e.preventDefault();
-            nuevos.splice(idx, 1);
+            var idx = nuevos.indexOf(f);
+            if (idx !== -1) nuevos.splice(idx, 1);
             li.remove();
           });
           li.appendChild(b);
@@ -661,16 +662,20 @@
           btn.addEventListener('click', function () { input.click(); });
         }
         input.addEventListener('change', function () {
+          var agregados = [];
           Array.prototype.forEach.call(input.files, function (f) {
             if (f.size > MAX_BYTES) {
               var mb = (f.size / (1024 * 1024)).toFixed(1);
-              mostrarToast('"' + f.name + '" pesa ' + mb + ' MB. Máximo: 400 MB.', 'warning');
+              mostrarToast('"' + f.name + '" pesa ' + mb + ' MB. Máximo: 10 MB.', 'warning');
               return;
             }
             nuevos.push(f);
+            agregados.push(f);
           });
           input.value = '';
-          nuevos.forEach(function (f, idx) { renderNuevo(f, idx); });
+          // Solo renderizar los del evento actual; renderNuevo elimina por
+          // referencia, así no se duplican los ya agregados en eventos previos.
+          agregados.forEach(function (f) { renderNuevo(f); });
         });
       });
     }
@@ -702,7 +707,7 @@
         if (hidden) hidden.value = '';
       };
 
-      function renderNuevo(f, idx) {
+      function renderNuevo(f) {
         var li = document.createElement('li');
         li.className = 'flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400';
         var b = document.createElement('button');
@@ -712,7 +717,8 @@
         b.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
         b.addEventListener('click', function (e) {
           e.preventDefault();
-          nuevos.splice(idx, 1);
+          var idx = nuevos.indexOf(f);
+          if (idx !== -1) nuevos.splice(idx, 1);
           li.remove();
         });
         li.appendChild(b);
@@ -739,16 +745,20 @@
         btn.addEventListener('click', function () { input.click(); });
       }
       input.addEventListener('change', function () {
+        var agregados = [];
         Array.prototype.forEach.call(input.files, function (f) {
           if (f.size > MAX_BYTES) {
             var mb = (f.size / (1024 * 1024)).toFixed(1);
-            mostrarToast('"' + f.name + '" pesa ' + mb + ' MB. Máximo: 400 MB.', 'warning');
+            mostrarToast('"' + f.name + '" pesa ' + mb + ' MB. Máximo: 10 MB.', 'warning');
             return;
           }
           nuevos.push(f);
+          agregados.push(f);
         });
         input.value = '';
-        nuevos.forEach(function (f, idx) { renderNuevo(f, idx); });
+        // Solo renderizar los del evento actual; renderNuevo elimina por
+        // referencia, así no se duplican los ya agregados en eventos previos.
+        agregados.forEach(function (f) { renderNuevo(f); });
       });
     }
 

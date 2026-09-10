@@ -84,6 +84,16 @@
       .htmx-request .htmx-indicator,
       .htmx-request.htmx-indicator { display: inline-flex; }
       .htmx-request button[type="submit"] { opacity: .65; pointer-events: none; }
+      /* Barra de progreso de subida de adjuntos (local a cada form, entre los
+         adjuntos y los botones). Determinada: width real del inner vía
+         xhr.upload.onprogress; indeterminada: animación CSS oscilante. */
+      .barra-progreso-inner { transition: width .25s ease; }
+      .barra-progreso-inner.indeterminado { animation: barra-progreso-indet 1.4s ease-in-out infinite; }
+      @keyframes barra-progreso-indet {
+        0%   { width: 15%; }
+        50%  { width: 70%; }
+        100% { width: 20%; }
+      }
     </style>
 
     {% block extra_head %}{% endblock %}
@@ -423,6 +433,69 @@
       nodo.removeAttribute('data-toast-tipo');
       mostrarToast(texto, tipo);
     }
+  });
+
+  // Barra de progreso de subida de adjuntos (LOCAL a cada form). 'barra' es el
+  // contenedor .barra-progreso que vive en el form; pct = null → indeterminada.
+  function mostrarProgreso(barra, pct) {
+    if (!barra) return;
+    var inner = barra.querySelector('.barra-progreso-inner');
+    barra.classList.remove('hidden');
+    if (inner) {
+      var indet = (pct === null || pct === undefined);
+      inner.classList.toggle('indeterminado', indet);
+      inner.style.width = indet ? '35%' : pct + '%';
+    }
+  }
+  function ocultarProgreso(barra) {
+    if (!barra) return;
+    barra.classList.add('hidden');
+    var inner = barra.querySelector('.barra-progreso-inner');
+    if (inner) {
+      inner.classList.remove('indeterminado');
+      inner.style.width = '0%';
+    }
+  }
+  function getCookieNombre(nombre) {
+    var cookies = document.cookie.split('; ');
+    for (var i = 0; i < cookies.length; i++) {
+      if (cookies[i].indexOf(nombre + '=') === 0) return cookies[i].substring(nombre.length + 1);
+    }
+    return '';
+  }
+
+  // Progreso REAL para los POST HTMX del detalle (comentar/editar con archivos):
+  // htmx expone el XHR en htmx:beforeSend, así que enganchamos el onprogress SIN
+  // interceptar nada del flujo (spinner, disabled, swap siguen exactamente igual).
+  // Solo actúa cuando el form dispara una subida con archivos pendientes.
+  document.body.addEventListener('htmx:beforeSend', function (evt) {
+    var elt = evt.detail && evt.detail.elt;
+    if (!elt || !elt.closest) return;
+    var form = (elt.tagName === 'FORM') ? elt : elt.closest('form');
+    if (!form) return;
+    var barra = form.querySelector('.barra-progreso');
+    if (!barra) return;
+    var tieneArchivos = (form.__adjuntosNuevos && form.__adjuntosNuevos.length)
+      || (form.__nuevosAdjuntos && form.__nuevosAdjuntos.length)
+      || (form.__nuevosAdjuntosTicket && form.__nuevosAdjuntosTicket.length);
+    if (!tieneArchivos) return;
+    mostrarProgreso(barra, null);
+    var xhr = evt.detail.xhr;
+    if (xhr && xhr.upload) {
+      xhr.upload.addEventListener('progress', function (e) {
+        if (e.lengthComputable && e.total > 0) {
+          mostrarProgreso(barra, Math.round((e.loaded / e.total) * 100));
+        }
+      });
+    }
+  });
+  document.body.addEventListener('htmx:afterRequest', function (evt) {
+    var elt = evt.detail && evt.detail.elt;
+    if (!elt || !elt.closest) return;
+    var form = (elt.tagName === 'FORM') ? elt : elt.closest('form');
+    if (!form) return;
+    var barra = form.querySelector('.barra-progreso');
+    if (barra) ocultarProgreso(barra);
   });
 </script>
 {% block extra_js %}{% endblock %}

@@ -61,8 +61,11 @@
                 </button>
             </div>
             <ul id="adjuntos-lista" class="mt-2 space-y-1"></ul>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Opcional. Podés elegir varios archivos de a uno.</p>
+<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Opcional. Podés elegir varios archivos de a uno.</p>
+        <div class="barra-progreso hidden h-1.5 rounded overflow-hidden bg-gray-200 dark:bg-slate-700" aria-hidden="true">
+            <div class="barra-progreso-inner h-full bg-brand-600" style="width:0%"></div>
         </div>
+    </div>
 
         <div class="pt-2 flex flex-col sm:flex-row gap-2 sm:justify-end">
 <a id="cancelar-ticket" href="{% url 'ticket_list' %}"
@@ -101,6 +104,12 @@
         placeholder: 'Escriba la descripción del ticket...',
         modules: { toolbar: [['bold', 'italic', 'underline', 'strike'], [{ 'list': 'ordered' }, { 'list': 'bullet' }], ['link']] }
       });
+      // Si el form vino re-renderizado con contenido (ej. errores de validación
+      // del server), volcar ese HTML al editor recién creado para que persista.
+      var contenido = textarea.value;
+      if (contenido) {
+        try { quill.clipboard.dangerouslyPasteHTML(contenido); } catch (e) {}
+      }
     }
     var form = document.getElementById('ticket-form');
     if (form && textarea) {
@@ -136,13 +145,13 @@
           lista.appendChild(li);
         });
       }
-      var MAX_BYTES = 400 * 1024 * 1024;
+      var MAX_BYTES = 10 * 1024 * 1024;
       btnAdjuntar.addEventListener('click', function () { fileInput.click(); });
       fileInput.addEventListener('change', function () {
         Array.prototype.forEach.call(fileInput.files, function (f) {
           if (f.size > MAX_BYTES) {
             var mb = (f.size / (1024 * 1024)).toFixed(1);
-            mostrarToast('"' + f.name + '" pesa ' + mb + ' MB. Máximo: 400 MB.', 'warning');
+            mostrarToast('"' + f.name + '" pesa ' + mb + ' MB. Máximo: 10 MB.', 'warning');
             return;
           }
           items.push(f);
@@ -162,6 +171,84 @@
           var btn = form.querySelector('button[type="submit"]');
           if (btn) { btn.disabled = true; btn.innerHTML = '<svg class="w-4 h-4 mr-1.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Creando...'; }
         });
+        // Validación client + barra de progreso con porcentaje REAL (XHR
+        // upload.onprogress). Interceptor en CAPTURE:
+        //  - La validación corre SIEMPRE (con o sin adjuntos); si falla, se
+        //    muestran los avisos y NO corre el bubble listener que pone el
+        //    botón en "Creando...".
+        //  - Si pasa y hay archivos, cancela el envío NATIVO (los demás
+        //    listeners de submit corren igual; el envío real es por XHR en un
+        //    setTimeout para que corran primero).
+        //  - Si pasa y NO hay archivos, deja pasar el submit normal intacto.
+        form.addEventListener('submit', function (e) {
+          // Validación client-side SIEMPRE (con o sin adjuntos): si falta algún
+          // obligatorio, no se navega ni se sube nada; se muestran los avisos y
+          // el form queda como estaba (texto y adjuntos intactos). Recién si
+          // pasa la validación entra en modo enviando/subida.
+          var descTextarea = form.querySelector('[name="descripcion_original"]');
+          var invalido = null;
+          var titulo = form.querySelector('[name="titulo"]');
+          if (titulo && !titulo.value.trim()) invalido = titulo;
+          if (!invalido) {
+            var sistema = form.querySelector('[name="sistema"]');
+            if (sistema && !sistema.value) invalido = sistema;
+          }
+          if (!invalido && quill && !quill.getText().trim()) invalido = descTextarea;
+          if (invalido) {
+            e.preventDefault();
+            e.stopImmediatePropagation(); // frená al bubble listener que pone el botón en "Creando..."
+            if (invalido === descTextarea) {
+              var contenedor = document.getElementById('quill-descripcion');
+              mostrarToast('Completá la descripción del ticket.', 'warning');
+              if (contenedor) contenedor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else if (typeof form.reportValidity === 'function') {
+              form.reportValidity(); // burbuja nativa en titulo/sistema
+            }
+            return;
+          }
+          if (!items.length) return; // sin adjuntos → submit normal (todo igual)
+          var barra = form.querySelector('.barra-progreso');
+          var cancelLink = form.querySelector('#cancelar-ticket');
+          var btn = form.querySelector('button[type="submit"]');
+          e.preventDefault();
+          setTimeout(function () {
+            var fd = new FormData(form);
+            fd.delete('archivos');
+            items.forEach(function (f) { fd.append('archivos', f, f.name); });
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', form.getAttribute('action') || window.location.href);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.setRequestHeader('X-CSRFToken', getCookieNombre('csrftoken'));
+            mostrarProgreso(barra, null);
+            if (xhr.upload) {
+              xhr.upload.addEventListener('progress', function (ev) {
+                if (ev.lengthComputable && ev.total > 0) {
+                  mostrarProgreso(barra, Math.round((ev.loaded / ev.total) * 100));
+                }
+              });
+            }
+            xhr.addEventListener('load', function () {
+              ocultarProgreso(barra);
+              // Éxito = la respuesta es la página del detalle del ticket creado
+              // (id="ticket-pagina"). Error de validación = la misma página
+              // re-renderizada con los errores (se re-renderiza el documento).
+              if (xhr.responseText.indexOf('id="ticket-pagina"') >= 0) {
+                window.location.href = xhr.responseURL || window.location.href;
+              } else if (typeof document.open === 'function') {
+                document.open();
+                document.write(xhr.responseText);
+                document.close();
+              }
+            });
+            xhr.addEventListener('error', function () {
+              ocultarProgreso(barra);
+              if (cancelLink) cancelLink.style.display = '';
+              if (btn) { btn.disabled = false; btn.innerHTML = 'Crear ticket'; }
+              mostrarToast('Error al subir los archivos. Reintentalo.', 'error');
+            });
+            xhr.send(fd);
+          }, 0);
+        }, true);
       }
     }
   })();

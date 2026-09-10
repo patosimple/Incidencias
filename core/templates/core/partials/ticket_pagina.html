@@ -142,6 +142,9 @@
                         </ul>
                         <input type="hidden" name="adjuntos_eliminar" value="">
                         <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Podés agregar archivos o quitar los existentes.</p>
+                        <div class="barra-progreso hidden h-1.5 rounded overflow-hidden bg-gray-200 dark:bg-slate-700" aria-hidden="true">
+                            <div class="barra-progreso-inner h-full bg-brand-600" style="width:0%"></div>
+                        </div>
                     </div>
                     <div class="flex justify-end gap-2">
                         <button type="button" data-cancelar-editar-ticket
@@ -323,6 +326,9 @@
                         </ul>
                         <input type="hidden" name="adjuntos_eliminar" value="">
                         <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Podés agregar archivos o quitar los existentes.</p>
+                        <div class="barra-progreso hidden h-1.5 rounded overflow-hidden bg-gray-200 dark:bg-slate-700" aria-hidden="true">
+                            <div class="barra-progreso-inner h-full bg-brand-600" style="width:0%"></div>
+                        </div>
                     </div>
                     <div class="flex justify-end gap-2">
                         <button type="button" data-cancelar-editar="{{ comentario.pk }}"
@@ -376,6 +382,9 @@
                         <p class="text-xs text-gray-500 dark:text-gray-400">Opcional. Podés elegir varios archivos de a uno.</p>
                     </div>
                     <ul id="adjuntos-lista" class="mt-2 space-y-1"></ul>
+                    <div class="barra-progreso hidden h-1.5 rounded overflow-hidden bg-gray-200 dark:bg-slate-700" aria-hidden="true">
+                        <div class="barra-progreso-inner h-full bg-brand-600" style="width:0%"></div>
+                    </div>
                 </div>
                 <div class="flex justify-end gap-2">
                     <button type="button" id="cancelar-comentario"
