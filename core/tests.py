@@ -10,6 +10,7 @@ from django.urls import reverse
 
 from core.management.commands.seed_tickets import _username
 from core.forms import _sanear_html
+from core.views import _guardar_adjuntos
 from core.models import (
     Adjunto,
     AnalisisIA,
@@ -741,4 +742,112 @@ class RespuestaComentarioTest(TestCase):
         self.assertNotIn("<script", reply.cuerpo)
         self.assertNotIn("alert", reply.cuerpo)
         self.assertIn("<p>Ok</p>", reply.cuerpo)
+
+
+@override_settings(
+    STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+)
+class AdjuntosExtensionesTest(TestCase):
+    """Whitelist de extensiones de adjunto: ejecutables/scripts/svg/macros de
+    Office quedan fuera (no se guarda ningún Adjunto) y las permitidas sí."""
+
+    def setUp(self):
+        Usuario = get_user_model()
+        self.sistema = Sistema.objects.create(codigo="BALANCES", nombre="Balances")
+        self.solicitante = Usuario.objects.create_user(
+            username="ana.adjuntos",
+            password="clave123",
+            rol="SOLICITANTE",
+            first_name="Ana",
+            last_name="Adjuntos",
+        )
+        UsuarioSistema.objects.create(usuario=self.solicitante, sistema=self.sistema)
+        self.ticket = Ticket.objects.create(
+            titulo="Titulo",
+            sistema=self.sistema,
+            solicitante=self.solicitante,
+            descripcion_original="<p>Descripcion</p>",
+            estado=EstadoTicket.PENDIENTE,
+        )
+
+    def _login(self, usuario):
+        self.client.login(username=usuario.username, password="clave123")
+
+    def test_crear_ticket_rechaza_exe(self):
+        self._login(self.solicitante)
+        malo = SimpleUploadedFile("virus.exe", b"MZ", content_type="application/octet-stream")
+        resp = self.client.post(
+            reverse("ticket_create"),
+            {
+                "titulo": "Ticket",
+                "sistema": self.sistema.pk,
+                "descripcion_original": "<p>Descripcion</p>",
+                "archivos": [malo],
+            },
+            format="multipart",
+        )
+        self.assertContains(resp, "virus.exe")
+        self.assertContains(resp, "no tiene un tipo permitido")
+        self.assertEqual(Adjunto.objects.count(), 0)
+
+    def test_agregar_comentario_rechaza_svg(self):
+        self._login(self.solicitante)
+        malo = SimpleUploadedFile("logo.svg", b"<svg/>", content_type="image/svg+xml")
+        resp = self.client.post(
+            reverse("ticket_comentar", args=[self.ticket.pk]),
+            {"cuerpo": "<p>Mira el svg</p>", "archivos": [malo]},
+            HTTP_HX_REQUEST="true",
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "logo.svg")
+        self.assertContains(resp, "no tiene un tipo permitido")
+        self.assertEqual(Adjunto.objects.count(), 0)
+        # El comentario igual queda creado (comportamiento histórico del manejo
+        # de error en agregar_comentario: el adjunto se intenta después de salvar).
+        self.assertEqual(Comentario.objects.count(), 1)
+
+    def test_editar_ticket_rechaza_docm(self):
+        self._login(self.solicitante)
+        malo = SimpleUploadedFile(
+            "macros.docm", b"PK",
+            content_type="application/vnd.ms-word.document.macroEnabled.12",
+        )
+        resp = self.client.post(
+            reverse("ticket_editar", args=[self.ticket.pk]),
+            {
+                "titulo": "Nuevo",
+                "descripcion_original": "<p>Nueva</p>",
+                "archivos": [malo],
+            },
+            HTTP_HX_REQUEST="true",
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "macros.docm")
+        self.assertContains(resp, "no tiene un tipo permitido")
+        self.assertEqual(Adjunto.objects.count(), 0)
+
+    @override_settings(MEDIA_ROOT=tempfile.mkdtemp(prefix="test_media_"))
+    def test_guardar_adjuntos_acepta_permitidas(self):
+        archivos = [
+            SimpleUploadedFile("reporte.pdf", b"pdf", content_type="application/pdf"),
+            SimpleUploadedFile(
+                "datos.xlsx", b"xlsx",
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
+            SimpleUploadedFile("captura.png", b"png", content_type="image/png"),
+            SimpleUploadedFile("captura.heic", b"heic", content_type="image/heic"),
+            SimpleUploadedFile("respaldos.zip", b"zip", content_type="application/zip"),
+            SimpleUploadedFile("notas.txt", b"txt", content_type="text/plain"),
+        ]
+        guardados = _guardar_adjuntos(archivos, ticket=self.ticket, usuario=self.solicitante)
+        self.assertEqual(len(guardados), 6)
+        self.assertEqual(Adjunto.objects.count(), 6)
+        self.assertEqual(
+            Adjunto.objects.filter(tipo_archivo=TipoAdjunto.IMAGEN).count(), 2  # png + heic
+        )
 

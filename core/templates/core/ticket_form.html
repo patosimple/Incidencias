@@ -85,6 +85,11 @@
 <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
 <script>
   (function () {
+    function extensionDe(nombre) {
+      var i = nombre.lastIndexOf('.');
+      if (i < 0) return '';
+      return nombre.slice(i).toLowerCase();
+    }
     var css = ["w-full", "text-sm", "bg-white", "dark:bg-slate-700", "text-gray-800",
                "dark:text-gray-100", "border", "border-gray-300", "dark:border-slate-600",
                "rounded", "px-3", "py-2", "focus:outline-none", "focus:ring-1",
@@ -146,12 +151,17 @@
         });
       }
       var MAX_BYTES = 10 * 1024 * 1024;
+      var EXTENSIONES_PERMITIDAS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.heic', '.heif', '.pdf', '.doc', '.docx', '.rtf', '.xls', '.xlsx', '.csv', '.ppt', '.pptx', '.txt', '.odt', '.ods', '.odp', '.zip', '.rar', '.7z'];
       btnAdjuntar.addEventListener('click', function () { fileInput.click(); });
       fileInput.addEventListener('change', function () {
         Array.prototype.forEach.call(fileInput.files, function (f) {
           if (f.size > MAX_BYTES) {
             var mb = (f.size / (1024 * 1024)).toFixed(1);
             mostrarToast('"' + f.name + '" pesa ' + mb + ' MB. Máximo: 10 MB.', 'warning');
+            return;
+          }
+          if (EXTENSIONES_PERMITIDAS.indexOf(extensionDe(f.name)) === -1) {
+            mostrarToast('"' + f.name + '" no es un tipo de archivo permitido.', 'warning');
             return;
           }
           items.push(f);

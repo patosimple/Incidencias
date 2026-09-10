@@ -57,6 +57,12 @@
     var editores = {}; // pk -> instancia Quill de edición (por comentario)
     var quillNuevo = null; // instancia Quill del form de comentario nuevo (para citar/responder)
     var MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+    function extensionDe(nombre) {
+      var i = nombre.lastIndexOf('.');
+      if (i < 0) return '';
+      return nombre.slice(i).toLowerCase();
+    }
+    var EXTENSIONES_PERMITIDAS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.heic', '.heif', '.pdf', '.doc', '.docx', '.rtf', '.xls', '.xlsx', '.csv', '.ppt', '.pptx', '.txt', '.odt', '.ods', '.odp', '.zip', '.rar', '.7z'];
 
     // Los forms de comentario se envían por HTMX, que serializa el form ANTES de
     // que corran sus listeners de 'submit' propios (siempre que htmx haya procesado
@@ -177,6 +183,10 @@
             if (f.size > MAX_BYTES) {
               var mb = (f.size / (1024 * 1024)).toFixed(1);
               mostrarToast('"' + f.name + '" pesa ' + mb + ' MB. Máximo: 10 MB.', 'warning');
+              return;
+            }
+            if (EXTENSIONES_PERMITIDAS.indexOf(extensionDe(f.name)) === -1) {
+              mostrarToast('"' + f.name + '" no es un tipo de archivo permitido.', 'warning');
               return;
             }
             items.push(f);
@@ -669,6 +679,10 @@
               mostrarToast('"' + f.name + '" pesa ' + mb + ' MB. Máximo: 10 MB.', 'warning');
               return;
             }
+            if (EXTENSIONES_PERMITIDAS.indexOf(extensionDe(f.name)) === -1) {
+              mostrarToast('"' + f.name + '" no es un tipo de archivo permitido.', 'warning');
+              return;
+            }
             nuevos.push(f);
             agregados.push(f);
           });
@@ -750,6 +764,10 @@
           if (f.size > MAX_BYTES) {
             var mb = (f.size / (1024 * 1024)).toFixed(1);
             mostrarToast('"' + f.name + '" pesa ' + mb + ' MB. Máximo: 10 MB.', 'warning');
+            return;
+          }
+          if (EXTENSIONES_PERMITIDAS.indexOf(extensionDe(f.name)) === -1) {
+            mostrarToast('"' + f.name + '" no es un tipo de archivo permitido.', 'warning');
             return;
           }
           nuevos.push(f);

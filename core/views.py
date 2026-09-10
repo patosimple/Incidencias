@@ -33,9 +33,27 @@ from .models import (
 
 def _tipo_por_nombre(nombre):
     ext = os.path.splitext(nombre)[1].lower()
-    if ext in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"):
+    if ext in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".heic", ".heif"):
         return TipoAdjunto.IMAGEN
     return TipoAdjunto.DOCUMENTO
+
+
+# Whitelist de extensiones de adjunto: todo lo que NO esté acá se rechaza.
+# Excluidos a propósito: ejecutables/scripts (.exe .msi .bat .cmd .ps1 .vbs .jar
+# .sh ...), .svg (puede embeder scripts), archivos de macro de Office
+# (.xlsm .docm .pptm — corren VBA) y formatos de documento activo (.html .xml).
+EXTENSIONES_ADJUNTO_PERMITIDAS = {
+    # imágenes / capturas
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".heic", ".heif",
+    # documentos ofimáticos + PDF + texto
+    ".pdf", ".doc", ".docx", ".rtf", ".xls", ".xlsx", ".csv",
+    ".ppt", ".pptx", ".txt",
+    # suites ofimáticas similares (LibreOffice/OpenOffice)
+    ".odt", ".ods", ".odp",
+    # comprimidos (el usuario los extrae localmente)
+    ".zip", ".rar", ".7z",
+}
+_MSG_EXTENSIONES_PERMITIDAS = "formatos: imágenes, PDF, documentos de Office, texto y comprimidos (zip/rar/7z)"
 
 
 MAX_ADJUNTO_BYTES = 10 * 1024 * 1024  # 10 MB
@@ -44,12 +62,18 @@ MAX_ADJUNTO_BYTES = 10 * 1024 * 1024  # 10 MB
 def _guardar_adjuntos(archivos, *, ticket=None, comentario=None, usuario):
     """Guarda los archivos subidos, asignando el ticket o comentario correspondiente.
     `archivos` es una lista de UploadedFile (campo múltiple 'archivos').
-    Lanza ValueError si algún archivo supera MAX_ADJUNTO_BYTES."""
+    Lanza ValueError si algún archivo supera MAX_ADJUNTO_BYTES o su extensión no está permitida."""
     for archivo in archivos:
         if archivo.size > MAX_ADJUNTO_BYTES:
             mb = round(archivo.size / (1024 * 1024), 1)
             raise ValueError(
                 f'El archivo "{archivo.name}" pesa {mb} MB y el máximo permitido es 10 MB.'
+            )
+        ext = os.path.splitext(archivo.name)[1].lower()
+        if ext not in EXTENSIONES_ADJUNTO_PERMITIDAS:
+            raise ValueError(
+                f'El archivo "{archivo.name}" no tiene un tipo permitido. '
+                f'Permitidos: {_MSG_EXTENSIONES_PERMITIDAS}.'
             )
     guardados = []
     for archivo in archivos:
