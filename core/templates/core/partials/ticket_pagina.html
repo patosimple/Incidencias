@@ -132,21 +132,16 @@
                         <ul id="adjuntos-edit-lista-ticket" class="mt-2 space-y-1">
                             {% for adj in ticket.adjuntos.all %}
                             <li class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200" data-adj-existente="{{ adj.pk }}">
-                                <span class="w-4 h-4 shrink-0 text-gray-400">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                </span>
+                                <button type="button" title="Quitar" data-quitar-existente="{{ adj.pk }}"
+                                        class="-ml-1 p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
                                 <span>{{ adj.nombre_archivo }}</span>
-                                <span class="ml-auto">
-                                    <button type="button" title="Quitar" data-quitar-existente="{{ adj.pk }}"
-                                            class="p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                                    </button>
-                                </span>
                             </li>
                             {% endfor %}
                         </ul>
                         <input type="hidden" name="adjuntos_eliminar" value="">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Podés agregar archivos o quitar los existentes (se borran del servidor).</p>
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Podés agregar archivos o quitar los existentes.</p>
                     </div>
                     <div class="flex justify-end gap-2">
                         <button type="button" data-cancelar-editar-ticket
@@ -318,21 +313,16 @@
                         <ul id="adjuntos-edit-lista-{{ comentario.pk }}" class="mt-2 space-y-1">
                             {% for adj in comentario.adjuntos.all %}
                             <li class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200" data-adj-existente="{{ adj.pk }}">
-                                <span class="w-4 h-4 shrink-0 text-gray-400">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                </span>
+                                <button type="button" title="Quitar" data-quitar-existente="{{ adj.pk }}"
+                                        class="-ml-1 p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
                                 <span>{{ adj.nombre_archivo }}</span>
-                                <span class="ml-auto">
-                                    <button type="button" title="Quitar" data-quitar-existente="{{ adj.pk }}"
-                                            class="p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                                    </button>
-                                </span>
                             </li>
                             {% endfor %}
                         </ul>
                         <input type="hidden" name="adjuntos_eliminar" value="">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Podés agregar archivos o quitar los existentes (se borran del servidor).</p>
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Podés agregar archivos o quitar los existentes.</p>
                     </div>
                     <div class="flex justify-end gap-2">
                         <button type="button" data-cancelar-editar="{{ comentario.pk }}"

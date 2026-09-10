@@ -65,7 +65,7 @@
         </div>
 
         <div class="pt-2 flex flex-col sm:flex-row gap-2 sm:justify-end">
-            <a href="{% url 'ticket_list' %}"
+<a id="cancelar-ticket" href="{% url 'ticket_list' %}"
                class="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">
                 Cancelar
             </a>
@@ -121,31 +121,30 @@
         items.forEach(function (f, idx) {
           var li = document.createElement('li');
           li.className = 'flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200';
-          var ic = document.createElement('span');
-          ic.className = 'w-4 h-4 shrink-0 text-gray-400';
-          ic.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>';
-          li.appendChild(ic);
-          li.appendChild(document.createTextNode(' ' + f.name));
-          var span = document.createElement('span');
-          span.className = 'ml-auto';
           var btn = document.createElement('button');
           btn.type = 'button';
           btn.title = 'Quitar';
-          btn.className = 'p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors';
+          btn.className = '-ml-1 p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors';
           btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
           btn.addEventListener('click', function (e) {
             e.preventDefault();
             items.splice(idx, 1);
             renderLista();
           });
-          span.appendChild(btn);
-          li.appendChild(span);
+          li.appendChild(btn);
+          li.appendChild(document.createTextNode(' ' + f.name));
           lista.appendChild(li);
         });
       }
+      var MAX_BYTES = 400 * 1024 * 1024;
       btnAdjuntar.addEventListener('click', function () { fileInput.click(); });
       fileInput.addEventListener('change', function () {
         Array.prototype.forEach.call(fileInput.files, function (f) {
+          if (f.size > MAX_BYTES) {
+            var mb = (f.size / (1024 * 1024)).toFixed(1);
+            mostrarToast('"' + f.name + '" pesa ' + mb + ' MB. Máximo: 400 MB.', 'warning');
+            return;
+          }
           items.push(f);
         });
         fileInput.value = ''; // permite volver a elegir el mismo archivo
@@ -153,20 +152,13 @@
       });
       if (form) {
         form.addEventListener('submit', function (e) {
-          var maxBytes = 8 * 1024 * 1024;
-          for (var i = 0; i < items.length; i++) {
-            if (items[i].size > maxBytes) {
-              e.preventDefault();
-              var mb = (items[i].size / (1024 * 1024)).toFixed(1);
-              alert('El archivo "' + items[i].name + '" pesa ' + mb + ' MB y el máximo permitido es 8 MB.');
-              return;
-            }
-          }
           var finalDt = (window.DataTransfer ? new DataTransfer() : null);
           if (finalDt) {
             items.forEach(function (f) { finalDt.items.add(f); });
             try { fileInput.files = finalDt.files; } catch (err) {}
           }
+          var cancelLink = form.querySelector('#cancelar-ticket');
+          if (cancelLink) cancelLink.style.display = 'none';
           var btn = form.querySelector('button[type="submit"]');
           if (btn) { btn.disabled = true; btn.innerHTML = '<svg class="w-4 h-4 mr-1.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Creando...'; }
         });

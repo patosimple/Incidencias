@@ -56,6 +56,7 @@
 
     var editores = {}; // pk -> instancia Quill de edición (por comentario)
     var quillNuevo = null; // instancia Quill del form de comentario nuevo (para citar/responder)
+    var MAX_BYTES = 400 * 1024 * 1024; // 400 MB (prueba temporal)
 
     // Los forms de comentario se envían por HTMX, que serializa el form ANTES de
     // que corran sus listeners de 'submit' propios (siempre que htmx haya procesado
@@ -155,31 +156,29 @@
           items.forEach(function (f, idx) {
             var li = document.createElement('li');
             li.className = 'flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200';
-            var ic = document.createElement('span');
-            ic.className = 'w-4 h-4 shrink-0 text-gray-400';
-            ic.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>';
-            li.appendChild(ic);
-            li.appendChild(document.createTextNode(' ' + f.name));
-            var span = document.createElement('span');
-            span.className = 'ml-auto';
             var btn = document.createElement('button');
             btn.type = 'button';
             btn.title = 'Quitar';
-            btn.className = 'p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors';
+            btn.className = '-ml-1 p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors';
             btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
             btn.addEventListener('click', function (e) {
               e.preventDefault();
               items.splice(idx, 1);
               renderLista();
             });
-            span.appendChild(btn);
-            li.appendChild(span);
+            li.appendChild(btn);
+            li.appendChild(document.createTextNode(' ' + f.name));
             lista.appendChild(li);
           });
         }
         btnAdjuntar.addEventListener('click', function () { fileInput.click(); });
         fileInput.addEventListener('change', function () {
           Array.prototype.forEach.call(fileInput.files, function (f) {
+            if (f.size > MAX_BYTES) {
+              var mb = (f.size / (1024 * 1024)).toFixed(1);
+              mostrarToast('"' + f.name + '" pesa ' + mb + ' MB. Máximo: 400 MB.', 'warning');
+              return;
+            }
             items.push(f);
           });
           fileInput.value = ''; // permite volver a elegir el mismo archivo
@@ -497,6 +496,20 @@
       });
     }
 
+    // Restaura un contenedor Quill a su estado original (pre-edit): Quill
+    // inserta la toolbar como HERMANA anterior del contenedor y agrega las
+    // clases ql-container/ql-editor/ql-snow. Limpiar solo el innerHTML no
+    // elimina la toolbar -> en cada re-edit se acumulaba una barra nueva.
+    function restaurarContenedorQuill(contenedor) {
+      if (!contenedor || !contenedor.parentNode) return;
+      var toolbar = contenedor.previousElementSibling;
+      if (toolbar && toolbar.classList && toolbar.classList.contains('ql-toolbar')) {
+        toolbar.parentNode.removeChild(toolbar);
+      }
+      contenedor.classList.remove('ql-container', 'ql-editor', 'ql-snow');
+      contenedor.innerHTML = '';
+    }
+
     // Editar comentario (solo autor): toggle form inline + Quill
     function cargarEditor(form) {
       var pk = form.getAttribute('data-form-comentario');
@@ -566,6 +579,18 @@
           var form = document.querySelector('[data-form-comentario="' + pk + '"]');
           if (form) form.classList.add('hidden');
           ocultarOriginalAlEditar(pk, false);
+          // Resetear Quill: borrar instancia y restaurar contenedor para re-init limpio
+          if (editores[pk]) { delete editores[pk]; }
+          var contenedor = form && form.querySelector('.quill-editor');
+          if (contenedor) restaurarContenedorQuill(contenedor);
+          // Limpiar cita fija del form de edición (se re-deriva al volver a editar)
+          if (form) {
+            form.__citaHtml = '';
+            var citaFija = form.querySelector('.cita-fija');
+            if (citaFija) { citaFija.innerHTML = ''; citaFija.classList.add('hidden'); }
+            // Adjuntos: descartar los nuevos y desmarcar los existentes quitados
+            if (form.__resetAdjuntos) form.__resetAdjuntos();
+          }
         });
       });
 
@@ -581,30 +606,40 @@
         var nuevos = []; // archivos nuevos agregados en esta edición
         form.__nuevosAdjuntos = nuevos;
 
+        // Descarta todo lo tocado de adjuntos en esta edición (se usa en Cancelar):
+        // borra los archivos nuevos de la lista y desmarca los existentes quitados.
+        form.__resetAdjuntos = function () {
+          nuevos.length = 0;
+          // Los agregados por JS no tienen data-adj-existente
+          lista.querySelectorAll('li:not([data-adj-existente])').forEach(function (li) {
+            li.remove();
+          });
+          // Restaurar existentes tachados (quitar el mark y re-habilitar el botón)
+          lista.querySelectorAll('li[data-adj-existente].line-through').forEach(function (li) {
+            li.classList.remove('opacity-40', 'line-through');
+            var b = li.querySelector('[data-quitar-existente]');
+            if (b) b.disabled = false;
+          });
+          if (hidden) hidden.value = '';
+        };
+
         function renderNuevo(f, idx) {
           var li = document.createElement('li');
           li.className = 'flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400';
-          var ic = document.createElement('span');
-          ic.className = 'w-4 h-4 shrink-0 text-gray-400';
-          ic.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>';
-          li.appendChild(ic);
-          var t = document.createElement('span');
-          t.textContent = f.name + ' (nuevo)';
-          li.appendChild(t);
-          var span = document.createElement('span');
-          span.className = 'ml-auto';
           var b = document.createElement('button');
           b.type = 'button';
           b.title = 'Quitar';
-          b.className = 'p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors';
+          b.className = '-ml-1 p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors';
           b.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
           b.addEventListener('click', function (e) {
             e.preventDefault();
             nuevos.splice(idx, 1);
             li.remove();
           });
-          span.appendChild(b);
-          li.appendChild(span);
+          li.appendChild(b);
+          var t = document.createElement('span');
+          t.textContent = f.name + ' (nuevo)';
+          li.appendChild(t);
           lista.appendChild(li);
         }
 
@@ -626,7 +661,14 @@
           btn.addEventListener('click', function () { input.click(); });
         }
         input.addEventListener('change', function () {
-          Array.prototype.forEach.call(input.files, function (f) { nuevos.push(f); });
+          Array.prototype.forEach.call(input.files, function (f) {
+            if (f.size > MAX_BYTES) {
+              var mb = (f.size / (1024 * 1024)).toFixed(1);
+              mostrarToast('"' + f.name + '" pesa ' + mb + ' MB. Máximo: 400 MB.', 'warning');
+              return;
+            }
+            nuevos.push(f);
+          });
           input.value = '';
           nuevos.forEach(function (f, idx) { renderNuevo(f, idx); });
         });
@@ -646,30 +688,37 @@
       var nuevos = []; // archivos nuevos agregados en esta edición
       form.__nuevosAdjuntosTicket = nuevos;
 
+      // Descarta todo lo tocado de adjuntos en esta edición (se usa en Cancelar)
+      form.__resetAdjuntos = function () {
+        nuevos.length = 0;
+        lista.querySelectorAll('li:not([data-adj-existente])').forEach(function (li) {
+          li.remove();
+        });
+        lista.querySelectorAll('li[data-adj-existente].line-through').forEach(function (li) {
+          li.classList.remove('opacity-40', 'line-through');
+          var b = li.querySelector('[data-quitar-existente]');
+          if (b) b.disabled = false;
+        });
+        if (hidden) hidden.value = '';
+      };
+
       function renderNuevo(f, idx) {
         var li = document.createElement('li');
         li.className = 'flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400';
-        var ic = document.createElement('span');
-        ic.className = 'w-4 h-4 shrink-0 text-gray-400';
-        ic.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>';
-        li.appendChild(ic);
-        var t = document.createElement('span');
-        t.textContent = f.name + ' (nuevo)';
-        li.appendChild(t);
-        var span = document.createElement('span');
-        span.className = 'ml-auto';
         var b = document.createElement('button');
         b.type = 'button';
         b.title = 'Quitar';
-        b.className = 'p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors';
+        b.className = '-ml-1 p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 transition-colors';
         b.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
         b.addEventListener('click', function (e) {
           e.preventDefault();
           nuevos.splice(idx, 1);
           li.remove();
         });
-        span.appendChild(b);
-        li.appendChild(span);
+        li.appendChild(b);
+        var t = document.createElement('span');
+        t.textContent = f.name + ' (nuevo)';
+        li.appendChild(t);
         lista.appendChild(li);
       }
 
@@ -690,7 +739,14 @@
         btn.addEventListener('click', function () { input.click(); });
       }
       input.addEventListener('change', function () {
-        Array.prototype.forEach.call(input.files, function (f) { nuevos.push(f); });
+        Array.prototype.forEach.call(input.files, function (f) {
+          if (f.size > MAX_BYTES) {
+            var mb = (f.size / (1024 * 1024)).toFixed(1);
+            mostrarToast('"' + f.name + '" pesa ' + mb + ' MB. Máximo: 400 MB.', 'warning');
+            return;
+          }
+          nuevos.push(f);
+        });
         input.value = '';
         nuevos.forEach(function (f, idx) { renderNuevo(f, idx); });
       });
@@ -712,7 +768,7 @@
           }
           Swal.fire({
             title: '¿Eliminar ticket?',
-            text: 'El ticket y su historial quedarán ocultos. Esta acción no se puede deshacer.',
+            text: 'Se eliminará este ticket y todos sus comentarios. Esta acción no se puede deshacer.',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -768,6 +824,13 @@
     }
 
     function bindEditarTicket() {
+      // Título original del ticket (server-render): se restaura al Cancelar para
+      // que una edición posterior no muestre el valor editado anteriormente.
+      var formPrincipal = document.querySelector('.editar-ticket-form');
+      if (formPrincipal) {
+        var inputTitulo = formPrincipal.querySelector('input[name=titulo]');
+        if (inputTitulo) formPrincipal.__tituloOriginal = inputTitulo.value;
+      }
       document.querySelectorAll('[data-editar-ticket]').forEach(function (btn) {
         btn.addEventListener('click', function () {
           var form = document.querySelector('.editar-ticket-form');
@@ -785,6 +848,21 @@
           var form = document.querySelector('.editar-ticket-form');
           if (form) form.classList.add('hidden');
           ocultarOriginalAlEditarTicket(false);
+          // Resetear Quill del ticket: borrar instancia y restaurar contenedor
+          editorTicket = null;
+          var editBtn = document.querySelector('[data-editar-ticket]');
+          if (editBtn) editBtn.__quillListo = false;
+          var contenedor = form && form.querySelector('.quill-editor-ticket');
+          if (contenedor) restaurarContenedorQuill(contenedor);
+          // Restaurar título original
+          if (form) {
+            if (form.__tituloOriginal !== undefined) {
+              var ti = form.querySelector('input[name=titulo]');
+              if (ti) ti.value = form.__tituloOriginal;
+            }
+            // Adjuntos: descartar nuevos y desmarcar existentes quitados
+            if (form.__resetAdjuntos) form.__resetAdjuntos();
+          }
         });
       });
     }
@@ -981,6 +1059,33 @@
       });
     }
 
+    // Bloqueo de Cancelar + deshabilitar Submit al enviar cualquier form HTMX
+    // o el form normal de nuevo ticket. Evita cancelaciones a medias durante la
+    // subida de adjuntos. El swap HTMX / la navegación restaura los botones;
+    // si la request HTMX falla sin swap, se restauran en los eventos de error.
+    function bindBloquearSubmit() {
+      var forms = document.querySelectorAll('#comentario-form, .editar-comentario-form, .editar-ticket-form');
+      forms.forEach(function (form) {
+        var row = form.querySelector('.flex.justify-end');
+        var cancel = row ? row.querySelector('button[type="button"]') : null;
+        var submit = form.querySelector('button[type="submit"]');
+
+        form.addEventListener('submit', function () {
+          if (cancel) cancel.style.display = 'none';
+          if (submit) submit.disabled = true;
+        });
+
+        // Si la request HTMX falla (503/500 o error de red), no hay swap: hay
+        // que devolverle al usuario los botones para poder reintentar.
+        var restaurar = function () {
+          if (cancel) cancel.style.display = '';
+          if (submit) submit.disabled = false;
+        };
+        form.addEventListener('htmx:responseError', restaurar);
+        form.addEventListener('htmx:sendError', restaurar);
+      });
+    }
+
     // Re-inicializa todos los bindings de la página. Se corre al cargar y
     // después de cada swap HTMX (#ticket-pagina), porque HTMX reemplaza el DOM
     // y las instancias de Quill / listeners anteriores quedan huérfanos.
@@ -1006,6 +1111,7 @@
       bindEliminarTicket();
       bindAnalizar();
       bindCollapse();
+      bindBloquearSubmit();
     }
 
     initPagina();

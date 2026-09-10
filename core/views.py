@@ -38,7 +38,7 @@ def _tipo_por_nombre(nombre):
     return TipoAdjunto.DOCUMENTO
 
 
-MAX_ADJUNTO_BYTES = 8 * 1024 * 1024  # 8 MB
+MAX_ADJUNTO_BYTES = 400 * 1024 * 1024  # 400 MB (prueba temporal)
 
 
 def _guardar_adjuntos(archivos, *, ticket=None, comentario=None, usuario):
@@ -49,7 +49,7 @@ def _guardar_adjuntos(archivos, *, ticket=None, comentario=None, usuario):
         if archivo.size > MAX_ADJUNTO_BYTES:
             mb = round(archivo.size / (1024 * 1024), 1)
             raise ValueError(
-                f'El archivo "{archivo.name}" pesa {mb} MB y el máximo permitido es 8 MB.'
+                f'El archivo "{archivo.name}" pesa {mb} MB y el máximo permitido es 400 MB.'
             )
     guardados = []
     for archivo in archivos:
