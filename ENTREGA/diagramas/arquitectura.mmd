@@ -1,0 +1,27 @@
+flowchart LR
+    subgraph Cliente["Frontend (navegador)"]
+        A["Templates Django + HTMX + Tailwind CDN<br/>(dark mode, paleta brand #007AC3)"]
+    end
+
+    subgraph Servidor["Servidor web"]
+        C["Whitenoise + Gunicorn"]
+        D["Django 5.2<br/>views / forms / templates"]
+    end
+
+    subgraph IA["Capa IA (llamadas HTTP reales)"]
+        E["ai/providers.py<br/>Groq / Gemini / OpenRouter / NVIDIA / Ollama"]
+        F["ai/tasks.py<br/>_ejecutar_analisis()"]
+    end
+
+    subgraph Persistencia["Memoria persistente"]
+        G[("PostgreSQL<br/>(Neon/Supabase)")]
+    end
+
+    A -- "HTMX (hx-get/hx-post JSON)" --> C
+    C --> D
+    D -- "script de tareas (Huey síncrono)" --> F
+    F --> E
+    E --> H["APIs IA externas<br/>(Groq/Gemini/OpenRouter/NVIDIA, <br/>solo si hay key)"]
+    E --> I["Ollama local<br/>localhost:11434<br/>(sin key, sin nube)"]
+    D -- "lectura/escritura (ORM)" --> G
+    E -- "guardado de AnalisisIA" --> G

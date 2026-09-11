@@ -1,0 +1,20 @@
+stateDiagram-v2
+    [*] --> PENDIENTE : Se crea el ticket
+
+    PENDIENTE --> EN_PROCESO : Dev toma el ticket<br/>(guarda estado_previo=PENDIENTE)
+    PENDIENTE --> CERRADO : Dueño/Dev/Coord lo cierra sin tomar
+    PENDIENTE --> PENDIENTE : Se edita (dueño)
+
+    EN_PROCESO --> CERRADO : Dueño/Dev/Coord cierra
+    EN_PROCESO --> PENDIENTE : El ultimo colaborador activo libera<br/>(restaura estado_previo)
+
+    CERRADO --> REABIERTO : Dueño/Dev/Coord reabre<br/>(dev no-colaborador queda auto-tomado)
+
+    REABIERTO --> CERRADO : Dueño/Dev/Coord cierra
+    REABIERTO --> REABIERTO : Un dev se suma como colaborador<br/>(se queda REABIERTO, suma persona)
+
+    note right of REABIERTO
+        Estado_previo NO se toca desde REABIERTO;
+        el ultimo colaborador activo que libera
+        deja el ticket en REABIERTO (sin colaborador)
+    end note
