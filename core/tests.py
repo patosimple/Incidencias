@@ -1124,3 +1124,114 @@ class LecturaTicketTest(TestCase):
         self.assertFalse(resp.context["es_mostrando_nuevos"])
         self.assertIn("mostrar=nuevos", resp.context["url_lista_novedades"])
 
+
+@override_settings(
+    STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+)
+class XssVistaTest(TestCase):
+    """Nivel vista (E2E): postear vectores XSS reales vía el test client y
+    verificar que llegan saneados a la DB (sin <script>/eventos/URLs
+    peligrosas) y que el render del detalle no expone esos tags. Se usa POST
+    HTTP directo (sin Quill) para simular un atacante que saltea el editor."""
+
+    VECTORES = [
+        "<p>Hola <script>alert(1)</script> mundo</p>",
+        '<p><img src=x onerror=alert(1)></p>',
+        '<p><a href="javascript:alert(1)">click</a></p>',
+        '<p><svg onload=alert(1)></svg></p>',
+        '<details open ontoggle=alert(1)>detalle</details>',
+        '<p>Hola <iframe src="javascript:alert(1)"></iframe> mundo</p>',
+    ]
+
+    def setUp(self):
+        Usuario = get_user_model()
+        self.sistema = Sistema.objects.create(codigo="BALANCES", nombre="Balances")
+        self.solicitante = Usuario.objects.create_user(
+            username="ana.xss", password="clave123", rol="SOLICITANTE",
+            first_name="Ana", last_name="XSS",
+        )
+        UsuarioSistema.objects.create(usuario=self.solicitante, sistema=self.sistema)
+        self.ticket = Ticket.objects.create(
+            titulo="Titulo", sistema=self.sistema, solicitante=self.solicitante,
+            descripcion_original="<p>Ok</p>", estado=EstadoTicket.PENDIENTE,
+        )
+        self.client.login(username="ana.xss", password="clave123")
+
+    def _sano(self, html):
+        return all(
+            token not in html
+            for token in ("<script", "onerror=", "onload=", "ontoggle=", "javascript:", "<iframe", "<svg")
+        )
+
+    def test_crear_ticket_no_guarda_scripts(self):
+        for i, vector in enumerate(self.VECTORES):
+            resp = self.client.post(
+                reverse("ticket_create"),
+                {
+                    "titulo": f"Ticket XSS {i}",
+                    "sistema": self.sistema.pk,
+                    "descripcion_original": vector,
+                },
+            )
+            # Algunos vectores sanear a contenido vacío → el form pide el
+            # campo (200 con errores); el resto crea y redirige (302).
+            self.assertIn(resp.status_code, (200, 302), f"vector {vector!r}")
+        tickets = Ticket.objects.exclude(pk=self.ticket.pk)
+        for t in tickets:
+            self.assertTrue(self._sano(t.descripcion_original), repr(t.descripcion_original))
+        # Por lo menos los vectores que sobreviven al saneo llegaron a crearse.
+        overvivientes = sum(1 for v in self.VECTORES if _sanear_html(v))
+        self.assertEqual(tickets.count(), overvivientes)
+
+    def test_comentar_no_guarda_scripts(self):
+        for vector in self.VECTORES:
+            resp = self.client.post(
+                reverse("ticket_comentar", args=[self.ticket.pk]),
+                {"cuerpo": vector},
+                HTTP_HX_REQUEST="true",
+            )
+            self.assertEqual(resp.status_code, 200, f"vector {vector!r}")
+        comentarios = Comentario.objects.all()
+        self.assertEqual(comentarios.count(), len(self.VECTORES))
+        for c in comentarios:
+            self.assertTrue(self._sano(c.cuerpo), repr(c.cuerpo))
+
+    def test_editar_ticket_sanea_descripcion(self):
+        resp = self.client.post(
+            reverse("ticket_editar", args=[self.ticket.pk]),
+            {"titulo": "Nuevo titulo", "descripcion_original": "<p>Hola <script>alert(2)</script></p>"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.ticket.refresh_from_db()
+        self.assertNotIn("<script", self.ticket.descripcion_original)
+        self.assertIn("Hola", self.ticket.descripcion_original)  # texto se conserva
+
+    def test_detalle_no_renderiza_onerror_de_comentario(self):
+        # Camino real del atacante: el comentario entra por el form (que sanea).
+        self.client.post(
+            reverse("ticket_comentar", args=[self.ticket.pk]),
+            {"cuerpo": '<p>Mira <img src=x onerror=alert(1)></p>'},
+            HTTP_HX_REQUEST="true",
+        )
+        resp = self.client.get(reverse("ticket_detail", args=[self.ticket.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Mira")
+        # Sin onerror en todo el render (ni en el comentario ni en otra parte).
+        self.assertNotIn("onerror", resp.content.decode("utf-8"))
+        self.assertNotIn("alert(1)", resp.content.decode("utf-8"))
+
+    def test_detalle_no_renderiza_scripts_de_ticket(self):
+        # El ticket (ya limpio en DB por el saneo al crear) renderiza sin tags vivos.
+        self.ticket.descripcion_original = _sanear_html(
+            "<p>Buen texto <script>alert(1)</script> y sigue</p>"
+        )
+        self.ticket.save()
+        resp = self.client.get(reverse("ticket_detail", args=[self.ticket.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Buen texto")
+        self.assertNotIn("alert(1)", resp.content.decode("utf-8"))
+
