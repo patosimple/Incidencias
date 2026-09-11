@@ -383,12 +383,17 @@ def main():
             "corre con el mismo codigo, lo que permite desarrollo sin keys ni "
             "costo.")
     _titulo(doc, "Pregunta 4 - Limitaciones concretas vs API en la nube", 2)
-    _p(doc, "[Borrador] Hardware del equipo (Xeon W3680, 10GB, sin GPU util) "
-            "limita a modelos de ~3B (qwen2.5:3b / llama3.2:3b), con velocidad "
-            "de ~8-15 tok/s vs los ~27B de Groq con latencia menor. "
+    _p(doc, "[Borrador] Comparacion de tiempos de analisis local vs nube "
+            "(se completara con las mediciones reales): el analisis con el "
+            "modelo local (qwen2.5:3b) tarda [T_LOCAL] vs la API en la nube "
+            "(Groq) que tarda [T_NUBE]. La implementacion final esta prevista "
+            "sobre un servidor de la organizacion con caracteristicas "
+            "superiores a los equipos de desarrollo, lo que reduce la brecha "
+            "de rendimiento. La calidad del modelo local de ~3B es inferior a "
+            "la de los ~27B de Groq para el caso de uso especifico. "
             "Mantenimiento (actualizar el modelo, ollama pull) recae en el "
-            "equipo. No conviene para volumen alto ni para tareas globales "
-            "largas.")
+            "equipo local. No conviene para volumen alto ni para tareas "
+            "globales largas.")
 
     _titulo(doc, "Entregable opcional — captura de Ollama local", 2)
     _p(doc, "[COMPLETAR captura tras ejecutar, p.ej.:]")

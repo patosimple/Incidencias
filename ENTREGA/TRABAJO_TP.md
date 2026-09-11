@@ -180,8 +180,55 @@ templates reales + Edge headless para exportar a PNG). Hay dos enfoques:
 - Necesita `python-pptx` (instalar en el venv cuando se haga).
 - Formato: 1 slide por pantalla (título + captura/réplica PNG + anotación breve).
 - Nace de las réplicas del Enfoque A (o capturas reales si se prefiere).
-- Pantallas típicas: login, listado (desktop/móvil/dark), crear ticket (Quill),
-  detalle con análisis IA expandido/colapsado, admin de usuarios, modal Swal.
+- Pantallas previstas (a confirmar al implementar): login, listado desktop,
+  listado móvil (cards), crear ticket (Quill + adjuntos), detalle con análisis IA
+  expandido/colapsado, comentario con cita, detalle CERRADO, menú de usuario,
+  admin de usuarios, empty state, dark mode.
+
+### 7.1 Manual de uso — TOC validado por el usuario (12/09/2026)
+Manual = una sola página web heredando `base.html`, con TOC de anclas + secciones
+colapsables, réplicas estáticas (las clases Tailwind reales). Estructura:
+
+**Parte general (todos los roles)**
+1. Roles y permisos (Solicitante/Desarrollador/Coordinador — `rol_badge`)
+2. Primeros pasos (login, logout, cambiar contraseña)
+3. Ciclo de vida del ticket (estados + transiciones con `estado_badge`)
+4. Listado de tickets (filtros sistema/estado/colaborador/novedades, orden por
+   columnas, paginación, indicador de novedades)
+5. Crear un ticket (campos, editor Quill, adjuntos múltiples, detalle a incluir)
+6. Detalle del ticket (metadatos, autor, colaboradores, adjuntos)
+7. Comentarios (crear, responder/citar, editar/eliminar, adjuntos)
+8. Editar/eliminar el propio ticket (solo dueño, mientras no esté CERRADO)
+9. Adjuntos (subir/descargar, tipos permitidos, límite 10 MB, storage efímero demo)
+10. Preguntas frecuentes (5-6 FAQs)
+
+**Solo desarrollo (oculto a solicitantes)**
+11. Toma y liberación (tomar → EN_PROCESO; liberar; REABIERTO)
+12. Cierre y reapertura por gestión (dev que reabre sin colaborar queda auto-tomado)
+13. Filtro "Colaborador" (tomado) — solo rol DESARROLLADOR
+14. Análisis IA (Analizar/Reanalizar, qué devuelve, reintentos, proveedores)
+15. Colores de badge según quién tomó (verde=yo / azul=otro / rojo=sin tomar)
+
+**Administración (solo staff/superuser)**
+16. Gestión de usuarios y accesos (UsuarioAdmin + UsuarioSistemaInline)
+17. Configuración IA (ModeloIA / ConfiguracionIA)
+18. Nota técnica (restauración de soft-deletes: `Ticket.restore()`/`Comentario.restore()`)
+
+### 7.2 Capturas reales que DEBE entregar el usuario (para manual/PPTX)
+Elementos puntuales van como réplicas; las vistas de página completa necesitan
+capturas reales del usuario (`capturas/`, PNG ~1280px, datos del seed/demo, sin
+info sensible):
+1. Login
+2. Listado desktop con filtros+orden activos y badge "tomado" (rol dev)
+3. Listado móvil (cards)
+4. Crear ticket (form + editor Quill + adjuntos)
+5. Detalle EN_PROCESO tomado por el usuario (Tomar/Cerrar/Liberar + colaboradores)
+6. Comentario con cita/blockquote (modo Responder)
+7. Detalle CERRADO (badge gris + botón Reabrir)
+8. Sección Análisis IA expandida (DEV/COORD)
+9. `/admin/` (lista de usuarios o edición con inline de sistemas)
+10. Menú de usuario desplegado (Administración/Cambiar contraseña/Salir)
+11. *Opcional*: alguna de las anteriores en dark mode
 
 ---
 
@@ -189,8 +236,23 @@ templates reales + Edge headless para exportar a PNG). Hay dos enfoques:
 - La app ya tiene **Ollama como proveedor** (`OllamaProvider`, formato NATIVO,
   sin key, `localhost:11434`); registrado en BD (`gemma2:2b`, NATIVO). NO es el
   modelo activo (Groq sigue activo).
-- El usuario busca/descarga `qwen2.5:3b` (recomendado para su equipo: Xeon
-  W3680, 10 GB DDR3, sin GPU útil → modelos ~3B, ~8–15 tok/s).
+- para las mediciones se usa **`qwen2.5:3b-instruct-q4_K_M`** (ya pull, 1.9 GB).
+  Medición de referencia local (11/09/2026): **~6 tok/s** de decode → un análisis
+  completo ≈ **1.5-2 min**. **El informe NO incluye detalle de equipos**: solo va
+  la comparación de tiempos local vs nube (la implementación final irá a un
+  servidor propio de la organización con recursos superiores a los equipos de
+  desarrollo).
+- ⏳ **Pendiente (plan 11/09/2026): medir tiempos local vs nube y volcarlos en
+  el Word, sección 4 (evidencia)**. **Flujo acordado**: el usuario pasa el texto
+  de un ticket → el agente devuelve el **prompt full** que se le mandaría a la
+  IA (armado con `_construir_mensajes` de `ai/providers.py`: system + user con
+  título/sistema/descripción) → el usuario lo corre con `ollama run
+  qwen2.5:3b-instruct-q4_K_M` y mide tiempo/tok/s → comparar contra Groq
+  (modelo activo) en el informe. ⏳ **Timeout por proveedor (eventualmente)**:
+  base 60s en `ai/providers.py`; `OllamaProvider` pisa a 240s + envolver
+  `ConnectionError`/`Timeout` y 5xx como `RetryableProviderError`; prueba con
+  una sola pestaña de Chrome (con muchas pestañas quedan ~0.8 GB libres → swap;
+  1 tab alcanza).
 - **RAG v1 pendiente** (manuales de uso por sistema embebidos localmente con
   `nomic-embed-text`; diseño dual por flag `RAG_MANUAL`). Detalle completo en
   `AGENTS.md` (sección "PENDIENTE — Contexto IA de manuales de uso (RAG v1)").
@@ -206,4 +268,5 @@ templates reales + Edge headless para exportar a PNG). Hay dos enfoques:
   y `seed_tickets.py` (solicitantes `maria.lopez`/`carlos.gonzalez`/... password
   `soli`).
 - Paleta brand: ver `core/templates/core/base.html` (tailwind.config inline).
-- Hardware del usuario (justifica modelos 3B): `C:\Users\Patricio\Desktop\P.xml`.
+- Entorno de implementación final: servidor propio de la organización (recursos
+  superiores a los equipos de desarrollo); los tiempos locales son referenciales.
