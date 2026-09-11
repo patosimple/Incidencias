@@ -28,6 +28,7 @@
 
     <select name="sistema"
             class="w-full sm:w-auto text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500">
+        <option value="" disabled selected hidden>Sistema</option>
         <option value="">Todos los sistemas</option>
         {% for s in sistemas_disponibles %}
         <option value="{{ s.pk }}" {% if request.GET.sistema == s.pk|stringformat:"s" %}selected{% endif %}>
@@ -38,6 +39,7 @@
 
     <select name="estado"
             class="w-full sm:w-auto text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500">
+        <option value="" disabled selected hidden>Estado</option>
         <option value="">Todos los estados</option>
         {% for valor, etiqueta in estados_disponibles %}
         <option value="{{ valor }}" {% if request.GET.estado == valor %}selected{% endif %}>
@@ -49,6 +51,7 @@
     {% if es_desarrollador %}
     <select name="tomado"
             class="w-full sm:w-auto text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500">
+        <option value="" disabled selected hidden>Colaborador</option>
         <option value="">Todos</option>
         <option value="por_mi" {% if request.GET.tomado == 'por_mi' %}selected{% endif %}>Tomados por mí</option>
         <option value="por_otros" {% if request.GET.tomado == 'por_otros' %}selected{% endif %}>Tomados por otros</option>
@@ -61,7 +64,8 @@
     {# En modo cliente lo maneja el JS del listado; en modo server sube por GET (hx-trigger change). #}
     <select name="mostrar" id="novedades-select"
             class="md:hidden w-full sm:w-auto text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500">
-        <option value="" {% if not es_mostrando_nuevos %}selected{% endif %}>Todos los tickets</option>
+        <option value="" disabled selected hidden>Novedades</option>
+        <option value="">Todos los tickets</option>
         <option value="nuevos" {% if es_mostrando_nuevos %}selected{% endif %}>Solo con novedades</option>
     </select>
 
