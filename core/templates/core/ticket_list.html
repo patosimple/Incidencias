@@ -56,10 +56,9 @@
     </select>
     {% endif %}
 
-    {# Toggle de novedades en MÓVIL (md-): en la tabla md+ vive en el header
-       (#novedades-toggle); al ocultarse los headers se agrega este select para
-       que el filtro "todos / solo novedades" siga disponible. En modo cliente lo
-       maneja el JS del listado; en modo server sube por GET (hx-trigger change). #}
+    {# Toggle de novedades en MÓVIL (md-): en la tabla md+ vive en el header (#novedades-toggle). #}
+    {# Al ocultarse los headers se agrega este select para que el filtro "todos / solo novedades" siga disponible. #}
+    {# En modo cliente lo maneja el JS del listado; en modo server sube por GET (hx-trigger change). #}
     <select name="mostrar" id="novedades-select"
             class="md:hidden w-full sm:w-auto text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500">
         <option value="" {% if not es_mostrando_nuevos %}selected{% endif %}>Todos los tickets</option>
