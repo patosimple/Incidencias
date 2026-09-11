@@ -56,6 +56,16 @@
     </select>
     {% endif %}
 
+    {# Toggle de novedades en MÓVIL (md-): en la tabla md+ vive en el header
+       (#novedades-toggle); al ocultarse los headers se agrega este select para
+       que el filtro "todos / solo novedades" siga disponible. En modo cliente lo
+       maneja el JS del listado; en modo server sube por GET (hx-trigger change). #}
+    <select name="mostrar" id="novedades-select"
+            class="md:hidden w-full sm:w-auto text-sm bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500">
+        <option value="" {% if not es_mostrando_nuevos %}selected{% endif %}>Todos los tickets</option>
+        <option value="nuevos" {% if es_mostrando_nuevos %}selected{% endif %}>Solo con novedades</option>
+    </select>
+
 
     {% if not MODO_FILTRO_CLIENTE %}
         {% if request.GET.q or request.GET.sistema or request.GET.estado or request.GET.tomado or request.GET.mostrar %}
@@ -120,6 +130,7 @@
     var novedadesBtn = document.getElementById('novedades-toggle');
     var novedadesLleno = document.getElementById('novedades-circle-lleno');
     var novedadesMedio = document.getElementById('novedades-circle-medio');
+    var novedadesSelect = document.getElementById('novedades-select');
     var mostrar = novedadesBtn && novedadesBtn.getAttribute('data-estado') === 'nuevos' ? 'nuevos' : '';
 
     function syncNovedadesToggle() {
@@ -129,6 +140,8 @@
         if (novedadesLleno) novedadesLleno.style.display = esNuevos ? 'inline' : 'none';
         if (novedadesMedio) novedadesMedio.style.display = esNuevos ? 'none' : 'inline';
         novedadesBtn.title = esNuevos ? 'Ver todos los tickets' : 'Ver solo los que tienen novedades';
+        // El select móvil (md-) refleja el mismo estado que el toggle del header.
+        if (novedadesSelect) novedadesSelect.value = esNuevos ? 'nuevos' : '';
     }
 
     function toggleNovedades() {
@@ -263,6 +276,12 @@
     if (estadoSelect) estadoSelect.addEventListener('change', filtrar);
     if (tomadoSelect) tomadoSelect.addEventListener('change', filtrar);
     if (novedadesBtn) novedadesBtn.addEventListener('click', toggleNovedades);
+    if (novedadesSelect) novedadesSelect.addEventListener('change', function () {
+        mostrar = novedadesSelect.value;
+        syncNovedadesToggle();
+        pagina = 1;
+        filtrar();
+    });
 
     document.querySelectorAll('th[data-col]').forEach(function (th) {
         th.addEventListener('click', function () {
