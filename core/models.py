@@ -107,6 +107,9 @@ class Ticket(models.Model):
     )
     creado_en = models.DateTimeField(auto_now_add=True)
     cerrado_en = models.DateTimeField(null=True, blank=True)
+    reabierto_en = models.DateTimeField(
+        null=True, blank=True, help_text="Fecha de la última reapertura (CERRADO -> REABIERTO)"
+    )
     modificado_en = models.DateTimeField(null=True, blank=True, help_text="Última edición (solo solicitante dueño)")
     # Soft delete: al eliminar un ticket se setea eliminado_en (NULL = visible).
     # El registro se conserva (histórico); se oculta con el manager por defecto.
@@ -263,6 +266,31 @@ class Adjunto(models.Model):
             raise ValidationError(
                 "El adjunto debe pertenecer a un ticket o a un comentario, no a ambos."
             )
+
+
+# ---------------------------------------------------------------------------
+# Lectura de tickets por usuario (indicador de novedades en el listado)
+# ---------------------------------------------------------------------------
+
+class LecturaTicket(models.Model):
+    """Última visita del usuario al detalle del ticket. Usada para marcar en el
+    listado los tickets "no vistos" o con actividad nueva desde la última visita
+    (comentario nuevo, cambio de estado o edición posterior a la lectura).
+
+    Es por-usuario y privada: cada quien ve solo su propia lectura. No depende
+    del rol (todos los roles se registran al abrir el detalle)."""
+    usuario = models.ForeignKey(
+        Usuario, on_delete=models.CASCADE, related_name="lecturas_tickets"
+    )
+    ticket = models.ForeignKey(
+        Ticket, on_delete=models.CASCADE, related_name="lecturas_usuarios"
+    )
+    ultima_lectura_en = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        unique_together = ("usuario", "ticket")
+        verbose_name = "Lectura de ticket"
+        verbose_name_plural = "Lecturas de tickets"
 
 
 # ---------------------------------------------------------------------------

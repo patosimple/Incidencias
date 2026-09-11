@@ -1,4 +1,5 @@
 import os
+import re
 import tempfile
 from unittest.mock import patch
 
@@ -7,6 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from core.management.commands.seed_tickets import _username
 from core.forms import _sanear_html
@@ -16,6 +18,7 @@ from core.models import (
     AnalisisIA,
     Comentario,
     EstadoTicket,
+    LecturaTicket,
     ModeloIA,
     Sistema,
     Ticket,
@@ -850,4 +853,274 @@ class AdjuntosExtensionesTest(TestCase):
         self.assertEqual(
             Adjunto.objects.filter(tipo_archivo=TipoAdjunto.IMAGEN).count(), 2  # png + heic
         )
+
+
+@override_settings(
+    STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+)
+class LecturaTicketTest(TestCase):
+    """Indicador de novedades en el listado: registra la última lectura por
+    usuario y marca como "nuevo" lo no leído o con actividad posterior."""
+
+    def setUp(self):
+        Usuario = get_user_model()
+        self.sistema = Sistema.objects.create(codigo="BALANCES", nombre="Balances")
+        self.solicitante = Usuario.objects.create_user(
+            username="ana.novedades",
+            password="clave123",
+            rol="SOLICITANTE",
+            first_name="Ana",
+            last_name="Novedades",
+        )
+        UsuarioSistema.objects.create(usuario=self.solicitante, sistema=self.sistema)
+        self.dev = Usuario.objects.create_user(
+            username="dev.novedades",
+            password="clave123",
+            rol="DESARROLLADOR",
+            first_name="Dev",
+            last_name="Novedades",
+        )
+        UsuarioSistema.objects.create(usuario=self.dev, sistema=self.sistema)
+        self.ticket = Ticket.objects.create(
+            titulo="Tickete de pruebas",
+            sistema=self.sistema,
+            solicitante=self.solicitante,
+            descripcion_original="<p>Descripcion</p>",
+            estado=EstadoTicket.PENDIENTE,
+        )
+        self.client.login(username="ana.novedades", password="clave123")
+
+    def _abrir_detalle(self):
+        return self.client.get(reverse("ticket_detail", args=[self.ticket.pk]))
+
+    def _novedad_html(self, resp, pk):
+        """Devuelve '1'/'0' según el data-novedad del primer nodo del ticket
+        (fila de tabla) en el HTML de la lista, o None si no está."""
+        m = re.search(
+            rf'data-ticket-id="{pk}"[^>]*data-novedad="(\d)"',
+            resp.content.decode("utf-8"),
+        )
+        return m.group(1) if m else None
+
+    def test_abrir_detalle_registra_lectura(self):
+        self.assertEqual(LecturaTicket.objects.count(), 0)
+        self._abrir_detalle()
+        lectura = LecturaTicket.objects.get(
+            usuario=self.solicitante, ticket=self.ticket
+        )
+        self.assertIsNotNone(lectura.ultima_lectura_en)
+        # Abrir de nuevo no duplica: es un upsert por (usuario, ticket)
+        self._abrir_detalle()
+        self.assertEqual(LecturaTicket.objects.count(), 1)
+
+    def test_toggle_circulo_default_todos_por_data_estado(self):
+        # Por defecto se ven TODOS y el estado lo declara el server en
+        # `data-estado="todos"`; el círculo medio (semicírculo) va `display:inline`
+        # y el lleno `display:none`, vía style inline (no clases/atributos).
+        resp = self.client.get(reverse("ticket_list"))
+        html = resp.content.decode()
+        self.assertTrue(re.search(r'id="novedades-toggle".*?data-estado="todos"', html, re.S))
+        self.assertIn(
+            'id="novedades-circle-lleno" viewBox="0 0 20 20" class="w-3 h-3 pointer-events-none" style="display:none"',
+            html,
+        )
+        self.assertIn(
+            'id="novedades-circle-medio" viewBox="0 0 20 20" class="w-3 h-3 pointer-events-none" style="display:inline"',
+            html,
+        )
+        self.assertFalse(resp.context["es_mostrando_nuevos"])
+        # Con ?mostrar=nuevos (p.ej. toggle server/HTMX) se invierte: lleno visible.
+        resp = self.client.get(reverse("ticket_list"), {"mostrar": "nuevos"})
+        html = resp.content.decode()
+        self.assertTrue(re.search(r'id="novedades-toggle".*?data-estado="nuevos"', html, re.S))
+        self.assertIn(
+            'id="novedades-circle-lleno" viewBox="0 0 20 20" class="w-3 h-3 pointer-events-none" style="display:inline"',
+            html,
+        )
+        self.assertIn(
+            'id="novedades-circle-medio" viewBox="0 0 20 20" class="w-3 h-3 pointer-events-none" style="display:none"',
+            html,
+        )
+        self.assertTrue(resp.context["es_mostrando_nuevos"])
+
+    def test_sin_lectura_es_novedad_y_abrir_la_limpia(self):
+        resp = self.client.get(reverse("ticket_list"))
+        self.assertEqual(self._novedad_html(resp, self.ticket.pk), "1")
+        self._abrir_detalle()
+        resp = self.client.get(reverse("ticket_list"))
+        self.assertEqual(self._novedad_html(resp, self.ticket.pk), "0")
+
+    def test_comentario_posterior_genera_novedad(self):
+        self._abrir_detalle()
+        Comentario.objects.create(
+            ticket=self.ticket, usuario=self.solicitante, cuerpo="<p>Nuevo comentario</p>"
+        )
+        resp = self.client.get(reverse("ticket_list"))
+        self.assertEqual(self._novedad_html(resp, self.ticket.pk), "1")
+
+    def test_cambio_de_estado_posterior_genera_novedad(self):
+        self._abrir_detalle()
+        self.ticket.estado = EstadoTicket.CERRADO
+        self.ticket.cerrado_en = timezone.now()
+        self.ticket.save()
+        resp = self.client.get(reverse("ticket_list"))
+        self.assertEqual(self._novedad_html(resp, self.ticket.pk), "1")
+
+    def test_edicion_posterior_genera_novedad(self):
+        self._abrir_detalle()
+        self.ticket.modificado_en = timezone.now()
+        self.ticket.save()
+        resp = self.client.get(reverse("ticket_list"))
+        self.assertEqual(self._novedad_html(resp, self.ticket.pk), "1")
+
+    def test_comentario_eliminado_no_genera_novedad(self):
+        self._abrir_detalle()
+        comentario = Comentario.objects.create(
+            ticket=self.ticket, usuario=self.solicitante, cuerpo="<p>Otro mas</p>"
+        )
+        comentario.soft_delete()
+        resp = self.client.get(reverse("ticket_list"))
+        self.assertEqual(self._novedad_html(resp, self.ticket.pk), "0")
+
+    @override_settings(MODO_FILTRO_CLIENTE=False)
+    def test_filtro_server_mostrar_nuevos(self):
+        # Ticket B: nunca leído -> novedad. Ticket A: leído y sin actividad -> no.
+        ticket_b = Ticket.objects.create(
+            titulo="Sin leer",
+            sistema=self.sistema,
+            solicitante=self.solicitante,
+            descripcion_original="<p>B</p>",
+            estado=EstadoTicket.PENDIENTE,
+        )
+        self._abrir_detalle()
+        resp = self.client.get(reverse("ticket_list"), {"mostrar": "nuevos"})
+        ids = [t.pk for t in resp.context["tickets"]]
+        self.assertIn(ticket_b.pk, ids)
+        self.assertNotIn(self.ticket.pk, ids)
+
+    @override_settings(MODO_FILTRO_CLIENTE=False)
+    def test_filtro_server_incluye_comentario_posterior(self):
+        self._abrir_detalle()
+        Comentario.objects.create(
+            ticket=self.ticket, usuario=self.solicitante, cuerpo="<p>Actividad</p>"
+        )
+        resp = self.client.get(reverse("ticket_list"), {"mostrar": "nuevos"})
+        self.assertIn(self.ticket.pk, [t.pk for t in resp.context["tickets"]])
+
+    @override_settings(MODO_FILTRO_CLIENTE=False)
+    def test_filtro_server_sin_parametro_devuelve_todo(self):
+        self._abrir_detalle()
+        self.ticket.cerrado_en = timezone.now()
+        self.ticket.estado = EstadoTicket.CERRADO
+        self.ticket.save()
+        resp = self.client.get(reverse("ticket_list"))
+        self.assertIn(self.ticket.pk, [t.pk for t in resp.context["tickets"]])
+
+    def test_reapertura_posterior_genera_novedad(self):
+        # ana lee el ticket; otro desarrollador lo reabre -> ana lo ve como novedad.
+        self._abrir_detalle()
+        self.client.post(
+            reverse("ticket_cambiar_estado", args=[self.ticket.pk]),
+            {"estado": "CERRADO"},
+        )
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.estado, EstadoTicket.CERRADO)
+        self.client.logout()
+        self.client.login(username="dev.novedades", password="clave123")
+        self.client.post(
+            reverse("ticket_cambiar_estado", args=[self.ticket.pk]),
+            {"estado": "REABIERTO"},
+        )
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.estado, EstadoTicket.REABIERTO)
+        self.assertIsNotNone(self.ticket.reabierto_en)
+        self.client.logout()
+        self.client.login(username="ana.novedades", password="clave123")
+        resp = self.client.get(reverse("ticket_list"))
+        self.assertEqual(self._novedad_html(resp, self.ticket.pk), "1")
+
+    def test_reabrir_el_propio_no_auto_marca(self):
+        # ana cierra y reabre su propio ticket: en el flujo real el redirect al
+        # detalle (o el swap HTMX) refresca su lectura, así no se auto-marca.
+        self._abrir_detalle()
+        self.client.post(
+            reverse("ticket_cambiar_estado", args=[self.ticket.pk]),
+            {"estado": "CERRADO"},
+            follow=True,
+        )
+        self.client.post(
+            reverse("ticket_cambiar_estado", args=[self.ticket.pk]),
+            {"estado": "REABIERTO"},
+            follow=True,
+        )
+        resp = self.client.get(reverse("ticket_list"))
+        self.assertEqual(self._novedad_html(resp, self.ticket.pk), "0")
+
+    def test_editar_comentario_posterior_genera_novedad(self):
+        # Comentario creado, ambos leen; luego el autor lo edita -> el otro lo
+        # ve como novedad, el autor no (su lectura se refresca al editar).
+        comentario = Comentario.objects.create(
+            ticket=self.ticket, usuario=self.solicitante, cuerpo="<p>v1</p>"
+        )
+        self._abrir_detalle()
+        self.client.login(username="dev.novedades", password="clave123")
+        self.client.get(reverse("ticket_detail", args=[self.ticket.pk]))
+        resp = self.client.get(reverse("ticket_list"))
+        self.assertEqual(self._novedad_html(resp, self.ticket.pk), "0")
+        self.client.login(username="ana.novedades", password="clave123")
+        self.client.post(
+            reverse("comentario_editar", args=[comentario.pk]),
+            {"cuerpo": "<p>v2</p>"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.client.login(username="dev.novedades", password="clave123")
+        resp = self.client.get(reverse("ticket_list"))
+        self.assertEqual(self._novedad_html(resp, self.ticket.pk), "1")
+        self.client.login(username="ana.novedades", password="clave123")
+        resp = self.client.get(reverse("ticket_list"))
+        self.assertEqual(self._novedad_html(resp, self.ticket.pk), "0")
+
+    @override_settings(MODO_FILTRO_CLIENTE=False)
+    def test_filtro_server_incluye_reapertura(self):
+        self._abrir_detalle()
+        self.client.post(
+            reverse("ticket_cambiar_estado", args=[self.ticket.pk]),
+            {"estado": "CERRADO"},
+        )
+        self.client.post(
+            reverse("ticket_cambiar_estado", args=[self.ticket.pk]),
+            {"estado": "REABIERTO"},
+        )
+        resp = self.client.get(reverse("ticket_list"), {"mostrar": "nuevos"})
+        self.assertIn(self.ticket.pk, [t.pk for t in resp.context["tickets"]])
+
+    @override_settings(MODO_FILTRO_CLIENTE=False)
+    def test_filtro_server_incluye_comentario_editado(self):
+        comentario = Comentario.objects.create(
+            ticket=self.ticket, usuario=self.solicitante, cuerpo="<p>v1</p>"
+        )
+        self._abrir_detalle()
+        self.client.login(username="dev.novedades", password="clave123")
+        self.client.get(reverse("ticket_detail", args=[self.ticket.pk]))
+        self.client.login(username="ana.novedades", password="clave123")
+        self.client.post(
+            reverse("comentario_editar", args=[comentario.pk]),
+            {"cuerpo": "<p>v2</p>"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.client.login(username="dev.novedades", password="clave123")
+        resp = self.client.get(reverse("ticket_list"), {"mostrar": "nuevos"})
+        self.assertIn(self.ticket.pk, [t.pk for t in resp.context["tickets"]])
+
+    @override_settings(MODO_FILTRO_CLIENTE=False)
+    def test_toggle_contexto_circulo(self):
+        resp = self.client.get(reverse("ticket_list"), {"mostrar": "nuevos"})
+        self.assertTrue(resp.context["es_mostrando_nuevos"])
+        self.assertNotIn("mostrar=", resp.context["url_lista_novedades"])
+        resp = self.client.get(reverse("ticket_list"))
+        self.assertFalse(resp.context["es_mostrando_nuevos"])
+        self.assertIn("mostrar=nuevos", resp.context["url_lista_novedades"])
 

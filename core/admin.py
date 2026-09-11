@@ -4,7 +4,7 @@ from django.contrib.auth.admin import UserAdmin
 from .forms import UsuarioCreationForm
 from .models import (
     Usuario, Sistema, UsuarioSistema, Ticket, TicketDesarrollador,
-    Comentario, Adjunto, ModeloIA, ConfiguracionIA, AnalisisIA,
+    Comentario, Adjunto, LecturaTicket, ModeloIA, ConfiguracionIA, AnalisisIA,
 )
 
 
@@ -85,6 +85,13 @@ class ComentarioAdmin(admin.ModelAdmin):
 @admin.register(Adjunto)
 class AdjuntoAdmin(admin.ModelAdmin):
     list_display = ("nombre_archivo", "tipo_archivo", "ticket", "comentario", "subido_por")
+
+
+@admin.register(LecturaTicket)
+class LecturaTicketAdmin(admin.ModelAdmin):
+    list_display = ("usuario", "ticket", "ultima_lectura_en")
+    list_filter = ("usuario",)
+    search_fields = ("usuario__username", "ticket__titulo")
 
 
 @admin.register(ModeloIA)

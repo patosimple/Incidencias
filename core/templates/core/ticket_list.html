@@ -58,7 +58,7 @@
 
 
     {% if not MODO_FILTRO_CLIENTE %}
-        {% if request.GET.q or request.GET.sistema or request.GET.estado or request.GET.tomado %}
+        {% if request.GET.q or request.GET.sistema or request.GET.estado or request.GET.tomado or request.GET.mostrar %}
         <a href="{% url 'ticket_list' %}"
            class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 w-full sm:w-auto text-center sm:self-center underline">
             Limpiar
@@ -105,12 +105,38 @@
             estado: n.getAttribute('data-estado') || '',
             tomado: n.getAttribute('data-tomado') || '0',
             tomadoMi: n.getAttribute('data-tomado-mi') || '0',
+            novedad: n.getAttribute('data-novedad') || '0',
             titulo: (n.querySelector('.font-medium') || {}).textContent ? n.querySelector('.font-medium').textContent.toLowerCase() : ''
         };
     }
 
     var filtrados = [];   // ids que pasan el filtro actual
     var pagina = 1;
+
+    // Toggle de novedades del header (círculo): mitad lleno = viendo todos;
+    // lleno = filtrando solo los que tienen novedades. El estado lo declara el
+    // server en `data-estado` del botón y la visibilidad se controla inline
+    // (`style.display`), sin depender de clases/atributos que algo pueda pisar.
+    var novedadesBtn = document.getElementById('novedades-toggle');
+    var novedadesLleno = document.getElementById('novedades-circle-lleno');
+    var novedadesMedio = document.getElementById('novedades-circle-medio');
+    var mostrar = novedadesBtn && novedadesBtn.getAttribute('data-estado') === 'nuevos' ? 'nuevos' : '';
+
+    function syncNovedadesToggle() {
+        if (!novedadesBtn) return;
+        var esNuevos = mostrar === 'nuevos';
+        novedadesBtn.setAttribute('data-estado', esNuevos ? 'nuevos' : 'todos');
+        if (novedadesLleno) novedadesLleno.style.display = esNuevos ? 'inline' : 'none';
+        if (novedadesMedio) novedadesMedio.style.display = esNuevos ? 'none' : 'inline';
+        novedadesBtn.title = esNuevos ? 'Ver todos los tickets' : 'Ver solo los que tienen novedades';
+    }
+
+    function toggleNovedades() {
+        mostrar = mostrar === 'nuevos' ? '' : 'nuevos';
+        syncNovedadesToggle();
+        pagina = 1;
+        filtrar();
+    }
 
     // Ordenamiento por columnas (afecta a todo el dataset, no solo la pagina).
     // Orden inicial: # desc (= numero de ticket mas nuevo primero), coincide con el
@@ -165,6 +191,7 @@
             var ok = true;
             if (sistema && d.sistema !== sistema) ok = false;
             if (ok && estado && d.estado !== estado) ok = false;
+            if (ok && mostrar === 'nuevos' && d.novedad !== '1') ok = false;
             if (ok && tomado) {
                 if (tomado === 'por_mi' && d.tomadoMi !== '1') ok = false;
                 if (tomado === 'por_otros' && (d.tomado !== '1' || d.tomadoMi === '1')) ok = false;
@@ -235,6 +262,7 @@
     if (sistemaSelect) sistemaSelect.addEventListener('change', filtrar);
     if (estadoSelect) estadoSelect.addEventListener('change', filtrar);
     if (tomadoSelect) tomadoSelect.addEventListener('change', filtrar);
+    if (novedadesBtn) novedadesBtn.addEventListener('click', toggleNovedades);
 
     document.querySelectorAll('th[data-col]').forEach(function (th) {
         th.addEventListener('click', function () {
@@ -252,6 +280,7 @@
     });
 
     pintarIndicadores();
+    syncNovedadesToggle();
     filtrar();
 })();
 </script>

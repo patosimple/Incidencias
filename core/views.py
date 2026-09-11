@@ -1,4 +1,5 @@
 import os
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
@@ -6,7 +7,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import PasswordChangeView
 from django.core.exceptions import PermissionDenied
-from django.db.models import Prefetch
+from django.db.models import F, OuterRef, Prefetch, Q, Subquery
+from django.db.models.functions import Greatest
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -22,6 +24,7 @@ from .models import (
     AnalisisIA,
     Comentario,
     EstadoTicket,
+    LecturaTicket,
     RolUsuario,
     Sistema,
     Ticket,
@@ -166,6 +169,15 @@ def _contexto_detalle(request, ticket, comentario_form=None, toast=None, toast_t
     }
     analisis = list(ticket.analisis.filter(tipo=TipoAnalisis.TECNICO))
     ctx["analisis_conceptual"] = analisis[0] if analisis else None
+
+    # Marca el ticket como leído por el usuario actual (indicador de novedades
+    # del listado). Se upserta en cada apertura del detalle (GET y swaps HTMX),
+    # para cada rol, sin importar quién tomó el ticket.
+    LecturaTicket.objects.update_or_create(
+        usuario=request.user,
+        ticket=ticket,
+        defaults={"ultima_lectura_en": timezone.now()},
+    )
     return ctx
 
 
@@ -248,14 +260,51 @@ class TicketListView(LoginRequiredMixin, ListView):
                 elif tomado == "sin_tomar":
                     qs = qs.exclude(ticketdesarrollador__activo=True).distinct()
 
+            # Filtro "mostrar=nuevos": solo tickets con actividad nueva para el
+            # usuario logueado (nunca leídos o con creado/cerrado/editado/último
+            # comentario visible posterior a su última lectura).
+            mostrar = self.request.GET.get("mostrar")
+            if mostrar == "nuevos":
+                ultima_lectura = Subquery(
+                    LecturaTicket.objects.filter(
+                        usuario=usuario, ticket=OuterRef("pk")
+                    ).values("ultima_lectura_en")[:1]
+                )
+                ultimo_comentario = Subquery(
+                    Comentario.objects.filter(ticket=OuterRef("pk"))
+                    .annotate(_efectivo=Greatest("creado_en", "modificado_en"))
+                    .order_by("-_efectivo")
+                    .values("_efectivo")[:1]
+                )
+                qs = qs.annotate(
+                    _ultima_lectura=ultima_lectura,
+                    _ultimo_comentario=ultimo_comentario,
+                ).filter(
+                    Q(_ultima_lectura__isnull=True)
+                    | Q(creado_en__gt=F("_ultima_lectura"))
+                    | Q(cerrado_en__gt=F("_ultima_lectura"))
+                    | Q(reabierto_en__gt=F("_ultima_lectura"))
+                    | Q(modificado_en__gt=F("_ultima_lectura"))
+                    | Q(_ultimo_comentario__gt=F("_ultima_lectura"))
+                )
+
         # Prefetch de colaboradores activos (read-only) para pintar el badge
         # de ticket reabierto "tomado" (verde) vs "sin tomar" (rojo).
+        # También se prefetchan los comentarios visibles (solo sus fechas) para
+        # computar en Python la "última actividad" del indicador de novedades.
         qs = qs.prefetch_related(
             Prefetch(
                 "ticketdesarrollador_set",
                 queryset=TicketDesarrollador.objects.filter(activo=True),
                 to_attr="colabs_activos",
-            )
+            ),
+            Prefetch(
+                "comentarios",
+                queryset=Comentario.objects.only(
+                    "ticket_id", "creado_en", "modificado_en"
+                ),
+                to_attr="comentarios_recientes",
+            ),
         )
         return qs
 
@@ -275,6 +324,17 @@ class TicketListView(LoginRequiredMixin, ListView):
         ctx["estados_disponibles"] = EstadoTicket.choices
         # Select "tomado/sin tomar" solo visible para desarrolladores
         ctx["es_desarrollador"] = usuario.rol == RolUsuario.DESARROLLADOR
+        # Toggle de novedades: círculo del header de la lista. El estado visual
+        # (mitad lleno = viendo todos; lleno = solo novedades) y la URL a la que
+        # lleva el clic (en modo server) se computan acá en una sola vez.
+        mostrando_nuevos = self.request.GET.get("mostrar") == "nuevos"
+        ctx["es_mostrando_nuevos"] = mostrando_nuevos
+        params = {k: v for k, v in self.request.GET.items() if k != "mostrar"}
+        if not mostrando_nuevos:
+            params["mostrar"] = "nuevos"
+        base = reverse("ticket_list")
+        query = urlencode(params)
+        ctx["url_lista_novedades"] = f"{base}?{query}" if query else base
         # Marcar "tomado" (tiene colaborador activo) por ticket para el badge.
         # Se asigna como atributo real de instancia porque resolver anotaciones
         # dentro de {% include ... with %} recursiona en Django.
@@ -288,6 +348,35 @@ class TicketListView(LoginRequiredMixin, ListView):
                 (td.usuario.get_full_name() or td.usuario.username)
                 for td in getattr(t, "colabs_activos", [])
             )
+        # Indicador de novedades por-usuario: un ticket "tiene novedad" si nunca
+        # se leyó o si hubo actividad (creado/cerrado/editado o el último
+        # comentario visible) posterior a la última lectura. Se computa con un
+        # mapa de lecturas del usuario (1 query) + los comentarios prefetched.
+        lecturas = dict(
+            LecturaTicket.objects.filter(usuario=usuario).values_list(
+                "ticket_id", "ultima_lectura_en"
+            )
+        )
+        for t in ctx["tickets"]:
+            lectura = lecturas.get(t.pk)
+            if lectura is None:
+                t.novedad = True
+                continue
+            fechas = [
+                f
+                for f in (
+                    t.creado_en,
+                    t.cerrado_en,
+                    t.reabierto_en,
+                    t.modificado_en,
+                )
+                if f
+            ]
+            fechas.extend(
+                (c.modificado_en or c.creado_en)
+                for c in getattr(t, "comentarios_recientes", [])
+            )
+            t.novedad = bool(fechas) and max(fechas) > lectura
         return ctx
 
 
@@ -468,9 +557,11 @@ def cambiar_estado_ticket(request, pk):
 
     if nuevo_estado == EstadoTicket.CERRADO:
         ticket.cerrado_en = timezone.now()
+        ticket.reabierto_en = None
         ticket.estado_previo = None
     elif nuevo_estado == EstadoTicket.REABIERTO:
         ticket.cerrado_en = None
+        ticket.reabierto_en = timezone.now()
         # Si reabre un desarrollador que no es colaborador, se suma como colaborador activo.
         if (
             request.user.rol == RolUsuario.DESARROLLADOR
@@ -486,7 +577,9 @@ def cambiar_estado_ticket(request, pk):
                 td.save(update_fields=["activo"])
 
     ticket.estado = nuevo_estado
-    ticket.save(update_fields=["estado", "cerrado_en", "estado_previo"])
+    ticket.save(
+        update_fields=["estado", "cerrado_en", "reabierto_en", "estado_previo"]
+    )
     if request.headers.get("HX-Request"):
         return _render_ticket_pagina(request, ticket)
     return redirect("ticket_detail", pk=pk)
