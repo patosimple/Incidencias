@@ -116,22 +116,27 @@ La app queda en `http://localhost:8000` y el admin en `http://localhost:8000/adm
 ```
 
 **Qué hace `seed_tickets`**: crea **5 usuarios solicitantes** de prueba (todos
-con acceso a BALANCES + FINANCIAMIENTO, password `soli`) y una tanda
-de tickets demo contables. El flag `--tickets N` controla la cantidad de
-tickets demo a crear (`--tickets 20` crea 20; **default: 10**).
+con acceso a BALANCES + FINANCIAMIENTO, password `soli`) y **5 tickets reales
+del dominio** (incidencias de Balances/Financiamiento, una por solicitante,
+preservando el sistema original). Además crea el **desarrollador demo
+`dev.demo`** (password `desa`), que es `is_staff` con acceso al admin para
+gestionar usuarios/sistemas/modelos IA. El flag `--tickets N` controla la
+cantidad de tickets (`--tickets 20` crea 20; **default: 5**, recorre en ciclo
+los 5 reales reasignando solicitantes sin repetir).
 
-| Usuario solicitante | |
+| Usuario demo | |
 |---|---|
-| `maria.lopez`, `carlos.gonzalez`, `lucia.fernandez`, `joaquin.rodriguez`, `valentina.martinez` | password: `soli` |
+| `maria.lopez`, `carlos.gonzalez`, `lucia.fernandez`, `joaquin.rodriguez`, `valentina.martinez` (Solicitantes) | password: `soli` |
+| `dev.demo` (Desarrollador) | password: `desa` |
 
-`--reset` borra exclusivamente esos 5 usuarios y sus tickets (no toca otros
-usuarios). `--reset_all` hace una **limpieza total**: borra todos los
-tickets/comentarios/adjuntos del sistema (incluidos los `soft-deleted`) y los
-usuarios del seed, conserva Sistemas/catálogo IA y usuarios no-demo, y
-reinicia el contador de id de `Ticket` a 0 (el próximo ticket es el **1**).
-No recrea nada: tras `--reset_all` corré `seed_tickets` de nuevo si querés
-sembrar. Tip: `on_delete` de `Ticket.solicitante` es `PROTECT`, no se puede
-borrar un usuario que tenga tickets asociados.
+`--reset` borra exclusivamente esos 5 usuarios, `dev.demo` y sus tickets (no
+toca otros users). `--reset_all` hace una **limpieza total**: borra todos los
+tickets/comentarios/adjuntos del sistema (incluidos los `soft-deleted`), los
+usuarios del seed y `dev.demo`, conserva Sistemas/catálogo IA y usuarios
+no-demo, y reinicia el contador de id de `Ticket` a 0 (el próximo ticket es el
+**1**). No recrea nada: tras `--reset_all` corré `seed_tickets` de nuevo si
+querés sembrar. Tip: `on_delete` de `Ticket.solicitante` es `PROTECT`, no se
+puede borrar un usuario que tenga tickets asociados.
 
 ### 6. Levantar la app
 
