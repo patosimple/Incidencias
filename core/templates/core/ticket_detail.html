@@ -1007,6 +1007,13 @@
       }
       formAnalizar.setAttribute('data-original', texto.textContent);
 
+      // TEMPORAL (testear): tiempo total desde que se apretó el botón hasta que
+      // la respuesta quedó lista (incluye reintentos y render del cuadro).
+      var inicioMs = 0;
+      function tiempoTotal() {
+        return ((Date.now() - inicioMs) / 1000).toFixed(1) + 's';
+      }
+
       function intentar(n) {
         fetch(formAnalizar.action, {
           method: 'POST',
@@ -1014,7 +1021,8 @@
             'X-CSRFToken': csrf,
             'X-Requested-With': 'XMLHttpRequest'
           },
-          credentials: 'same-origin'
+          credentials: 'same-origin',
+          body: new FormData(formAnalizar)
         }).then(function (resp) {
           return resp.json().then(function (data) {
             // Error transitorio: reintentar mientras queden intentos
@@ -1025,7 +1033,7 @@
             }
             // Éxito: mostrar mensaje verde inline y refrescar el contenido (sin recargar)
             if (data.ok) {
-              mostrarExito(data.message || 'Análisis actualizado.');
+              mostrarExito((data.message || 'Análisis actualizado.') + ' (' + tiempoTotal() + ')');
               if (data.cuerpo) {
                 // Reemplazar el contenido: el HTML viene con su propio <div id=cuerpo-analizar>
                 var nuevo = document.createElement('div');
@@ -1043,11 +1051,11 @@
               return;
             }
             // Fallo final (agotó reintentos o error duro): mostrar el error inline
-            mostrarError(data.message || 'No se pudo generar el análisis. Intentá de nuevo.');
+            mostrarError((data.message || 'No se pudo generar el análisis. Intentá de nuevo.') + ' (' + tiempoTotal() + ')');
             finalizar(null);
           });
         }).catch(function () {
-          mostrarError('Error de conexión. Revisá tu red e intentá de nuevo.');
+          mostrarError('Error de conexión. Revisá tu red e intentá de nuevo.' + ' (' + tiempoTotal() + ')');
           finalizar(null);
         });
       }
@@ -1058,6 +1066,7 @@
         limpiarMsg();             // ocultar mensajes inline previos
         setBtn(true);
         texto.textContent = 'Analizando...';
+        inicioMs = Date.now();
         intentar(0);
       });
     }

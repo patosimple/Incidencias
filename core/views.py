@@ -1,4 +1,5 @@
 import os
+import time
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -796,9 +797,20 @@ def analizar_ticket(request, pk):
 
     es_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
+    # TEMPORAL (para testear): checkbox "manual" del form-analizar. Desmarcado =>
+    # el análisis NO incluye el manual de uso (solo Sistema.prompt). El form
+    # manda "on" (checked) u "off" (hidden previo al checkbox); si no llega el
+    # campo (cliente no-HTML), default True = comportamiento previo.
+    usar_manual = request.POST.get("manual", "on") == "on"
+
+    inicio = time.monotonic()
     try:
-        _ejecutar_analisis(ticket.pk)
+        _ejecutar_analisis(ticket.pk, usar_manual=usar_manual)
+        # En AJAX el tiempo total lo ajusta el cliente en el HTML (incluye los
+        # reintentos y el render); acá solo el detalle para el fallback sin JS.
         mensaje = "Análisis actualizado."
+        if not es_ajax:
+            mensaje += f" ({time.monotonic() - inicio:.1f}s)"
         if es_ajax:
             # Éxito AJAX: se muestra verde inline (#analizar-msg) y se devuelve el
             # HTML del cuerpo de la tarjeta para refrescarla sin recargar la página.
@@ -823,21 +835,24 @@ def analizar_ticket(request, pk):
         messages.success(request, mensaje)
     except RetryableProviderError as exc:
         if es_ajax:
-            mensaje = (str(exc) if request.user.rol != RolUsuario.SOLICITANTE
+            mensaje = (f"ERROR al analizar: {exc}"
+                       if request.user.rol != RolUsuario.SOLICITANTE
                        else "Servicio de IA temporalmente saturado. Intentá de nuevo más tarde.")
             return JsonResponse({"ok": False, "retryable": True, "message": mensaje}, status=503)
-        mensaje = "No se pudo generar el análisis (servicio de IA temporalmente saturado). Intentá de nuevo."
+        detalle = f" ({time.monotonic() - inicio:.1f}s)"
+        mensaje = f"ERROR al analizar: No se pudo generar el análisis (servicio de IA temporalmente saturado). Intentá de nuevo.{detalle}"
         messages.error(request, mensaje)
     except Exception as exc:
         if es_ajax:
             mensaje = ("No se pudo generar el análisis. Intentá de nuevo más tarde."
                        if request.user.rol == RolUsuario.SOLICITANTE
-                       else f"No se pudo generar el análisis: {exc}")
+                       else f"ERROR al analizar: {exc}")
             return JsonResponse({"ok": False, "retryable": False, "message": mensaje}, status=400)
         if request.user.rol == RolUsuario.SOLICITANTE:
             messages.error(request, "No se pudo generar el análisis. Intentá de nuevo más tarde.")
         else:
-            messages.error(request, f"No se pudo generar el análisis: {exc}")
+            mensaje = f"ERROR al analizar: {exc}" + f" ({time.monotonic() - inicio:.1f}s)"
+            messages.error(request, mensaje)
 
     # Sólo llega acá en el fallback sin JS: los paths AJAX retornan antes.
     return redirect("ticket_detail", pk=ticket.pk)

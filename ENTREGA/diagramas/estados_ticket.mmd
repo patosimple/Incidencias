@@ -13,6 +13,12 @@ stateDiagram-v2
     REABIERTO --> CERRADO : Dueño/Dev/Coord cierra
     REABIERTO --> REABIERTO : Un dev se suma como colaborador<br/>(se queda REABIERTO, suma persona)
 
+    note right of EN_PROCESO
+        Edicion del dueno permitida en todo
+        estado abierto (PENDIENTE / EN_PROCESO /
+        REABIERTO); NO en CERRADO
+    end note
+
     note right of REABIERTO
         Estado_previo NO se toca desde REABIERTO;
         el ultimo colaborador activo que libera

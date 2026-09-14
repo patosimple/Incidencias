@@ -128,11 +128,13 @@ class Ticket(models.Model):
         self.eliminado_en = now
         self.save(update_fields=["eliminado_en"])
         # Cascada del soft delete (emula el ON DELETE CASCADE de la FK
-        # Comentario.ticket): los comentarios del ticket quedan también
-        # marcados como eliminados. Se usa el manager por defecto, así un
-        # comentario que ya estaba borrado individualmente conserva su propio
-        # eliminado_en (no se pisa con el del ticket).
-        self.comentarios.update(eliminado_en=now)
+        # Comentario.ticket): los comentarios visibles del ticket quedan
+        # también marcados como eliminados. Se pasa por el manager filtrado
+        # (Comentario.objects), NO por el related manager `self.comentarios`
+        # (que usa el _base_manager sin filtrar): así un comentario que ya
+        # estaba borrado individualmente conserva su propio eliminado_en
+        # (no se pisa con el del ticket).
+        Comentario.objects.filter(ticket=self).update(eliminado_en=now)
 
     def restore(self):
         """Revierte el soft delete: vuelve el ticket (y sus comentarios

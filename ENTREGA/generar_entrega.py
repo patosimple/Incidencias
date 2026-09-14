@@ -359,18 +359,30 @@ def main():
     # ====================================================== PARTE 2
     _titulo(doc, "PARTE 2 — IA local en tu proyecto", 1)
     _p(doc, "Nota: la aplicacion ya incorpora Ollama como proveedor local "
-            "(formato NATIVO, sin key). El plan RAG (manuales de uso de cada "
-            "sistema embebidos localmente con nomic-embed-text) esta acordado "
-            "y pendiente. Esto da sustento concreto a las respuestas.")
+            "(formato NATIVO, sin key). Como contexto del analisis, el prompt "
+            "se arma con la descripcion del ticket, la descripcion oficial del "
+            "sistema (Sistema.prompt) y el manual de uso del sistema en texto "
+            "plano (manuales_rag/<codigo>, leido al momento de analizar). Se "
+            "evaluaron dos variantes para incorporar los manuales: RAG "
+            "vectorial (embeddings locales con nomic-embed-text + pgvector) y "
+            "enviar el manual completo en el prompt. Se eligio esta ultima "
+            "porque los manuales son acotados (BALANCES ~24 KB, FINANCIAMIENTO "
+            "~16 KB, ~10-12K tokens) y entran enteros en el contexto: el modelo "
+            "ve todo el contenido, sin riesgo de fragmentos mal seleccionados "
+            "por similitud; ademas evita pgvector, el pipeline de indexado y la "
+            "carga de un modelo de embeddings en Ollama por analisis. El RAG "
+            "quedo documentado como plan para escalar a manuales grandes.")
 
     _titulo(doc, "Pregunta 1 - Que papel jugaria un LLM/SLM local", 2)
     _p(doc, "[Borrador] Podria reemplazar la API externa para escenarios "
             "sensibles: los tickets de Financiamiento politico no deberian salir "
             "de la organizacion. El provider Ollama ya existe en la app: "
-            "cambiando el modelo activo el analisis corre local. Ademas haria "
-            "algo nuevo: embeddings locales (nomic-embed-text) para RAG sobre "
-            "los manuales de uso sin enviar datos a la nube. Seria un "
-            "componente de soporte intercambiable, no el agente principal.")
+            "cambiando el modelo activo el analisis corre local. Hoy el "
+            "contexto del analisis ya incluye el manual de uso del sistema "
+            "(txt completo, sin que los datos salgan de la org); a futuro "
+            "podria sumarle embeddings locales (nomic-embed-text) para RAG "
+            "sobre esos manuales. Seria un componente de soporte "
+            "intercambiable, no el agente principal.")
     _titulo(doc, "Pregunta 2 - Que le aportaria al usuario", 2)
     _p(doc, "[Borrador] Privacidad (los datos sensibles no salen de la org), "
             "cero costo por token y funcionamiento offline. En experiencia, "

@@ -22,14 +22,22 @@ un worker hay que correr un proceso aparte; `immediate` lo evita.
 from huey.contrib.djhuey import task
 
 from core.models import Ticket, AnalisisIA, TipoAnalisis
-from .providers import get_active_provider, VERSION_PROMPT, html_a_texto_plano
+from .providers import (
+    get_active_provider,
+    VERSION_PROMPT,
+    html_a_texto_plano,
+    _leer_manual_sistema,
+)
 
 
-def _ejecutar_analisis(ticket_id: int):
+def _ejecutar_analisis(ticket_id: int, usar_manual: bool = True):
     """Lógica pura: genera el análisis TÉCNICO y lo guarda en la DB.
 
     Separa la lógica del wrapper de Huey para que la vista pueda llamarla
     directamente (sin que @task capture las excepciones).
+
+    `usar_manual` permite (TEMPORAL, para testear) excluir el manual de uso del
+    prompt; por defecto True (comportamiento actual).
     """
     ticket = Ticket.objects.select_related("sistema").get(pk=ticket_id)
     provider = get_active_provider()
@@ -37,12 +45,18 @@ def _ejecutar_analisis(ticket_id: int):
     # La descripción se guarda como HTML (Quill). Al modelo le mandamos el
     # texto plano: sin tags/entidades, ese texto es SOLO el dato a analizar.
     texto_plano = html_a_texto_plano(ticket.descripcion_original)
+    # Manual de uso del sistema (manuales_rag/<codigo>/*.txt): entra como
+    # referencia documental junto a Sistema.prompt (se complementan: el manual
+    # describe "cómo se usa", el prompt "qué es"). "" si no hay manual -> el
+    # flujo queda idéntico al anterior (solo Sistema.prompt).
+    manual_sistema = _leer_manual_sistema(ticket.sistema) if usar_manual else ""
     resultado = provider.generar_analisis(
         texto_plano,
         TipoAnalisis.TECNICO,
         titulo=ticket.titulo,
         sistema_nombre=ticket.sistema.nombre,
         prompt_sistema=ticket.sistema.prompt or "",
+        manual_sistema=manual_sistema,
     )
 
     # Borra los análisis previos del ticket (reanalizar => reemplaza).

@@ -248,14 +248,52 @@ info sensible):
   IA (armado con `_construir_mensajes` de `ai/providers.py`: system + user con
   título/sistema/descripción) → el usuario lo corre con `ollama run
   qwen2.5:3b-instruct-q4_K_M` y mide tiempo/tok/s → comparar contra Groq
-  (modelo activo) en el informe. ⏳ **Timeout por proveedor (eventualmente)**:
-  base 60s en `ai/providers.py`; `OllamaProvider` pisa a 240s + envolver
-  `ConnectionError`/`Timeout` y 5xx como `RetryableProviderError`; prueba con
-  una sola pestaña de Chrome (con muchas pestañas quedan ~0.8 GB libres → swap;
-  1 tab alcanza).
+  (modelo activo) en el informe.
+- ✅ **Timeout por proveedor IMPLEMENTADO (13/09/2026)**: base 60s
+  (`TIMEOUT`) en `ai/providers.py`; `OllamaProvider` pisa a `TIMEOUT_OLLAMA` =
+  240s (decode local lento; el análisis completo va en un solo POST) y envuelve
+  `ConnectionError`/`Timeout` y 5xx como `RetryableProviderError` (el cliente
+  los reintenta con "Reintento N..."). ✅ **URL de Ollama normalizada**
+  (`_normalizar_host_ollama`, 13/09/2026): `OLLAMA_HOST` de máquina viene como
+  bind del daemon (`0.0.0.0`, sin esquema/puerto) → se convierte a
+  `http://127.0.0.1:11434`. Prueba: una sola pestaña de Chrome (con muchas
+  pestañas quedan ~0.8 GB libres → swap; 1 tab alcanza).
 - **RAG v1 pendiente** (manuales de uso por sistema embebidos localmente con
   `nomic-embed-text`; diseño dual por flag `RAG_MANUAL`). Detalle completo en
   `AGENTS.md` (sección "PENDIENTE — Contexto IA de manuales de uso (RAG v1)").
+- **Decisión 13/09/2026 — manual txt completo en el prompt, NO embeddings
+  (para el informe: costos/beneficios de txt vs embedding)**: se decidió enviar
+  el manual de uso **completo** en el prompt en lugar de implementar RAG
+  vectorial, tras conversar con el agente IA los costos/beneficios de ambas
+  variantes. Por qué conviene txt en este caso:
+  - Los manuales son **chicos** (BALANCES 24.5 KB / FINANCIAMIENTO 16.4 KB ≈
+    ~10-12K tokens): entran **enteros** en el contexto del modelo. El modelo ve
+    **todo** el contenido (calidad ≥ RAG, sin riesgo de fragmentos mal
+    elegidos por similitud).
+  - El embedding aporta **escalabilidad** (manuales de cientos de páginas) y
+    **ahorro de tokens/prefill**, dos cosas que no se necesitan a esta escala;
+    no mejora la respuesta y agrega complejidad (pgvector, pipeline de
+    indexado, `nomic-embed-text` a cargo en Ollama).
+  - Además, el RAG exige **1 embedding local por análisis** (la query) y, si
+    el chat corre en Ollama, alternar chat↔embeddings **re-swapea los modelos**
+    (arranques extra). Con manual completo no hay nada de eso.
+  - **Estado: IMPLEMENTADO (13/09/2026, `VERSION_PROMPT` = v6)**: la descripción
+    del ticket se envía junto al **manual completo** (`_leer_manual_sistema`
+    lee `manuales_rag/<codigo>/*.txt`, resolución por `Sistema.codigo`, tope
+    `MAX_MANUAL_CARACTERES` = 30000) y **`Sistema.prompt` se envía también**
+    (se complementan: el manual describe "cómo se usa", el prompt "qué es" —
+    sin manual, el comportamiento queda como antes, prompt solo). Si más
+    adelante se hace la versión embeddings, la variable `RAG_MANUAL` y el
+    pipeline quedan planeados en `AGENTS.md`.
+  - **Fix esquema JSON con modelos chicos (13/09/2026, v4→v5→v6)**: con el
+    manual completo (~24K chars) el qwen2.5:3b local inventaba OTRO esquema de
+    JSON (`{"ticket": {...}}`) → el análisis se guardaba con los campos vacíos.
+    **Fix**: `_construir_mensajes` repite el esquema de salida OBLIGATORIO al
+    FINAL del `user` (los últimos tokens pesan más). Verificado contra Ollama
+    real con manual completo (las 6 claves correctas). Mientras dure la etapa
+    de pruebas de AnalisisIA con Ollama hay TEMPORAL (ver `AGENTS.md`
+    "TEMPORAL para testear") un checkbox "manual" para comparar con/sin manual
+    y el tiempo total del análisis en el mensaje.
 - Para el entregable opcional de captura: `ollama run qwen2.5:3b` + pregunta del
   dominio (ej. ventajas/riesgos de LLM local vs nube en Financiamiento político).
 

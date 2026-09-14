@@ -1,15 +1,25 @@
+import json
 import os
 import re
+import requests
 import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from ai.providers import (
+    GroqProvider,
+    _leer_manual_sistema,
+    _normalizar_host_ollama,
+    _recortar_manual,
+)
+from ai.providers import OllamaProvider, RetryableProviderError, TIMEOUT_OLLAMA
 from core.management.commands.seed_tickets import _username
 from core.forms import _sanear_html
 from core.views import _guardar_adjuntos
@@ -107,7 +117,9 @@ class AnalisisIATest(TestCase):
         with patch("core.views._ejecutar_analisis") as mock_task:
             resp = self.client.post(reverse("ticket_analizar", args=[self.ticket.pk]))
         self.assertEqual(resp.status_code, 302)
-        mock_task.assert_called_once_with(self.ticket.pk)
+        # TEMPORAL: la vista pasa el flag usar_manual (default True si no llega
+        # el campo del checkbox). Se vuelve a la firma simple al revertir.
+        mock_task.assert_called_once_with(self.ticket.pk, usar_manual=True)
 
     def test_detalle_muestra_analisis_tecnico(self):
         self._crear_analisis()
@@ -227,6 +239,211 @@ class AnalisisIATest(TestCase):
         self.assertEqual(resp.status_code, 302)
         resp2 = self.client.get(reverse("ticket_detail", args=[self.ticket.pk]))
         self.assertContains(resp2, 'id="form-analizar"')
+
+
+class ManualPromptTest(TestCase):
+    """Fase manual txt: el manual de uso entra al prompt como referencia
+    documental, junto a Sistema.prompt (se complementan, no se reemplazan)."""
+
+    def setUp(self):
+        self.sistema = Sistema.objects.create(
+            codigo="BALANCES",
+            nombre="Balances",
+            prompt="Descripción oficial del sistema.",
+        )
+        self.modelo = ModeloIA.objects.create(proveedor="Groq", modelo="test-model")
+        self.provider = GroqProvider(self.modelo)
+
+    def _mensajes(self, manual_sistema=""):
+        return self.provider._construir_mensajes(
+            "La pantalla queda en blanco al cargar el balance.",
+            titulo="Pantalla en blanco",
+            sistema_nombre=self.sistema.nombre,
+            prompt_sistema=self.sistema.prompt,
+            manual_sistema=manual_sistema,
+        )
+
+    def _user_y_system(self, manual_sistema=""):
+        mensajes = self._mensajes(manual_sistema=manual_sistema)
+        user = next(m["content"] for m in mensajes if m["role"] == "user")
+        system = next(m["content"] for m in mensajes if m["role"] == "system")
+        return user, system
+
+    def test_manual_entra_al_user_y_system_lo_declara_referencia(self):
+        user, system = self._user_y_system(
+            manual_sistema="El sistema permite cargar saldos y generar reportes."
+        )
+        self.assertIn("Manual de uso del sistema", user)
+        self.assertIn("El sistema permite cargar saldos", user)
+        # El system declara que el manual es material de referencia (no órdenes)
+        # y queda cubierto por la defensa anti prompt-injection.
+        self.assertIn("material documental de referencia", system)
+
+    def test_prompt_y_manual_coexisten(self):
+        user, _ = self._user_y_system(manual_sistema="Manual de uso completo.")
+        self.assertIn("Descripción oficial del sistema.", user)
+        self.assertIn("Manual de uso completo.", user)
+
+    def test_sin_manual_no_aparece_bloque_y_prompt_sigue(self):
+        user, _ = self._user_y_system()
+        self.assertNotIn("Manual de uso del sistema", user)
+        self.assertIn("Descripción oficial del sistema.", user)
+
+    def test_leer_manual_desde_carpeta_por_codigo(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            carpeta = Path(tmp) / "BALANCES"
+            carpeta.mkdir()
+            (carpeta / "BALANCES_Documentacion_RAG.txt").write_text(
+                "Contenido del manual.", encoding="utf-8"
+            )
+            with patch("ai.providers.MANUALES_DIR", Path(tmp)):
+                self.assertEqual(
+                    _leer_manual_sistema(self.sistema),
+                    "Contenido del manual.",
+                )
+
+    def test_leer_manual_sin_carpeta_devuelve_vacio(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("ai.providers.MANUALES_DIR", Path(tmp)):
+                self.assertEqual(_leer_manual_sistema(self.sistema), "")
+
+    def test_leer_manual_lee_utf8(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            carpeta = Path(tmp) / "FINANCIAMIENTO"
+            carpeta.mkdir()
+            (carpeta / "FINANCIAMIENTO_Documentacion_RAG.txt").write_text(
+                "Manual con tildes: presentación, elecciones, borrador.",
+                encoding="utf-8",
+            )
+            with patch("ai.providers.MANUALES_DIR", Path(tmp)):
+                self.assertIn("presentación", _leer_manual_sistema(
+                    Sistema(codigo="FINANCIAMIENTO")
+                ))
+
+    def test_truncado_por_max_manual_caracteres(self):
+        with patch("ai.providers.MAX_MANUAL_CARACTERES", 50):
+            recortado = _recortar_manual("x" * 200)
+        self.assertTrue(recortado.startswith("x" * 50))
+        self.assertIn("truncado por límite de tamaño", recortado)
+
+    def test_sin_truncado_si_no_alcanza_el_tope(self):
+        recortado = _recortar_manual("texto corto")
+        self.assertEqual(recortado, "texto corto")
+
+
+class OllamaHostTest(SimpleTestCase):
+    """Normalización de OLLAMA_HOST a una URL usable como cliente (sin red).
+
+    OLLAMA_HOST suele venir del entorno como bind del daemon ('0.0.0.0') o sin
+    esquema/puerto; el provider debe convertirla a http://<host>:11434.
+    """
+
+    def _norm(self, host):
+        return _normalizar_host_ollama(host)
+
+    def test_vacio_usa_default(self):
+        self.assertEqual(self._norm(""), "http://localhost:11434")
+        self.assertEqual(self._norm(None), "http://localhost:11434")
+
+    def test_bind_del_daemon_sin_esquema_ni_puerto(self):
+        self.assertEqual(self._norm("0.0.0.0"), "http://127.0.0.1:11434")
+
+    def test_bind_con_puerto_sin_esquema(self):
+        self.assertEqual(self._norm("0.0.0.0:11434"), "http://127.0.0.1:11434")
+
+    def test_host_puro_sin_esquema_ni_puerto(self):
+        self.assertEqual(self._norm("localhost"), "http://localhost:11434")
+        self.assertEqual(self._norm("127.0.0.1"), "http://127.0.0.1:11434")
+
+    def test_host_puro_con_puerto_sin_esquema(self):
+        self.assertEqual(self._norm("localhost:11434"), "http://localhost:11434")
+
+    def test_url_completa_y_con_puerto(self):
+        self.assertEqual(
+            self._norm("http://localhost:11434"), "http://localhost:11434"
+        )
+        self.assertEqual(
+            self._norm("http://127.0.0.1:11434"), "http://127.0.0.1:11434"
+        )
+
+    def test_url_sin_puerto_completa_el_default(self):
+        self.assertEqual(self._norm("http://localhost"), "http://localhost:11434")
+
+    def test_puerto_no_default_se_respeta(self):
+        self.assertEqual(self._norm("http://mi-host:6000"), "http://mi-host:6000")
+        self.assertEqual(self._norm("mi-host:6000"), "http://mi-host:6000")
+
+
+class OllamaTimeoutTest(SimpleTestCase):
+    """El provider de Ollama tiene timeout propio (decode local lento) y
+    envuelve timeout/conexión/5xx como RetryableProviderError (sin red)."""
+
+    def _provider(self):
+        return OllamaProvider(
+            ModeloIA(proveedor="Ollama", modelo="qwen2.5:3b-instruct-q4_K_M")
+        )
+
+    def _respuesta_ok(self):
+        # La respuesta real de /api/chat es {"message": {"content": "<json string>"}}:
+        # el content que escribe el modelo viaja como STRING, no como objeto.
+        inner = (
+            '{"problema":"a","comportamiento_esperado":"b",'
+            '"comportamiento_observado":"c","pasos_reproducir":"d",'
+            '"datos_relevantes":"e","informacion_faltante":"f"}'
+        )
+        content = json.dumps({"message": {"content": inner}})
+        fake = requests.models.Response()
+        fake.status_code = 200
+        fake._content = content.encode()
+        fake.encoding = "utf-8"
+        fake.headers = {}
+        return fake
+
+    def test_usa_timeout_propio_no_el_generico(self):
+        provider = self._provider()
+        with patch("ai.providers.requests.post", return_value=self._respuesta_ok()) as post:
+            provider.generar_analisis("ticket", "TECNICO")
+        self.assertNotEqual(post.call_args.kwargs["timeout"], 60)
+        self.assertEqual(post.call_args.kwargs["timeout"], TIMEOUT_OLLAMA)
+
+    def test_timeout_es_retryable(self):
+        provider = self._provider()
+        with patch(
+            "ai.providers.requests.post",
+            side_effect=requests.exceptions.Timeout(),
+        ):
+            with self.assertRaises(RetryableProviderError):
+                provider.generar_analisis("ticket", "TECNICO")
+
+    def test_connection_error_es_retryable(self):
+        provider = self._provider()
+        with patch(
+            "ai.providers.requests.post",
+            side_effect=requests.exceptions.ConnectionError(),
+        ):
+            with self.assertRaises(RetryableProviderError):
+                provider.generar_analisis("ticket", "TECNICO")
+
+    def test_5xx_es_retryable(self):
+        provider = self._provider()
+        for code in (500, 502, 503, 504, 429):
+            fake = requests.models.Response()
+            fake.status_code = code
+            fake.reason = "x"
+            fake.url = "http://host/api/chat"
+            fake.headers = {}
+            with self.subTest(code=code), patch(
+                "ai.providers.requests.post", return_value=fake
+            ):
+                with self.assertRaises(RetryableProviderError):
+                    provider.generar_analisis("ticket", "TECNICO")
+
+    def test_200_ok_parsea_el_analisis(self):
+        provider = self._provider()
+        with patch("ai.providers.requests.post", return_value=self._respuesta_ok()):
+            analisis = provider.generar_analisis("ticket", "TECNICO")
+        self.assertEqual(analisis.problema, "a")
+        self.assertEqual(analisis.informacion_faltante, "f")
 
 
 @override_settings(

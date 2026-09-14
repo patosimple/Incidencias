@@ -13,15 +13,22 @@ flowchart LR
         F["ai/tasks.py<br/>_ejecutar_analisis()"]
     end
 
+    subgraph Contexto["Contexto del analisis (archivos locales)"]
+        M["Manuales de uso<br/>(manuales_rag/&lt;codigo&gt;/&lt;CODIGO&gt;_Documentacion_RAG.txt)"]
+    end
+
     subgraph Persistencia["Memoria persistente"]
-        G[("PostgreSQL<br/>(Neon/Supabase)")]
+        G[("PostgreSQL<br/>(Neon en produccion / local en dev)")]
+        S["Adjuntos: FileSystemStorage<br/>(Supabase Storage: pendiente)"]
     end
 
     A -- "HTMX (hx-get/hx-post JSON)" --> C
     C --> D
     D -- "script de tareas (Huey síncrono)" --> F
     F --> E
+    F -- "manual de uso (txt completo) + Sistema.prompt" --> M
     E --> H["APIs IA externas<br/>(Groq/Gemini/OpenRouter/NVIDIA, <br/>solo si hay key)"]
     E --> I["Ollama local<br/>localhost:11434<br/>(sin key, sin nube)"]
     D -- "lectura/escritura (ORM)" --> G
-    E -- "guardado de AnalisisIA" --> G
+    D -- "subir / descargar adjuntos" --> S
+    F -- "guardado de AnalisisIA" --> G

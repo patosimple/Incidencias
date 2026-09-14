@@ -13,11 +13,12 @@ sequenceDiagram
     V->>V: verifica permisos (DEV/COORD)
     V->>T: _ejecutar_analisis(ticket.id)
     T->>T: obtiene ticket + Sistema
-    T->>T: construye mensajes (system/user, anti prompt-injection)
+    T->>T: lee manual de uso (manuales_rag/<codigo>, txt completo) + Sistema.prompt
+    T->>T: construye mensajes (system/user, anti prompt-injection, manual + prompt)
     T->>T: pasa HTML de la descripcion a texto plano
     T->>P: instantiate provider segun ConfiguracionIA.modelo_activo
     P->>L: POST /v1/chat/completions (HTTP real)
-    L-->>P: respuesta texto (JSON mode o instruct)
+    L-->>P: respuesta texto (segun formato_salida: RESPONSE_FORMAT / NATIVO / NINGUNO)
     P-->>T: texto crudo
     T->>T: _extraer_json (tolera ruido)
     T->>DB: borra AnalisisIA previo del tipo TECNICO

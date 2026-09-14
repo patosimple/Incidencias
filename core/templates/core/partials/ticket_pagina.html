@@ -222,6 +222,14 @@
             <div class="shrink-0">
                 <form method="post" action="{% url 'ticket_analizar' ticket.pk %}" id="form-analizar">
                     {% csrf_token %}
+                    {# TEMPORAL (testear): checkbox para incluir/excluir el manual de uso del prompt. #}
+                    <input type="hidden" name="manual" value="off">
+                    <label class="inline-flex items-center gap-1 mr-3 text-xs text-gray-600 dark:text-gray-300 select-none cursor-pointer"
+                           title="Incluir/excluir el manual de uso del sistema en el análisis (temporal)">
+                        <input type="checkbox" name="manual" checked
+                               class="rounded border-gray-300 text-brand-600 focus:ring-brand-500 w-3.5 h-3.5">
+                        manual
+                    </label>
                     <button type="submit" id="btn-analizar"
                             class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 transition-colors">
                         <span class="inline-flex" style="transform: scaleX(-1);">

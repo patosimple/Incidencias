@@ -56,3 +56,6 @@ flowchart LR
     ADM --> AD_SIST
     ADM --> AD_USR
     ADM --> AD_IA
+
+    nota["Nota: rol de negocio y acceso a /admin/ estan desacoplados.<br/>Un DESARROLLADOR con is_staff (p.ej. dev.demo) tambien administra<br/>usuarios, sistemas, ModeloIA y ConfiguracionIA; el superuser ve todo.<br/>La seccion standalone 'Acceso a sistemas' del admin es solo superuser."]
+    nota -.-> ADM

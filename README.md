@@ -167,7 +167,7 @@ Web: `http://localhost:8000` · Admin: `http://localhost:8000/admin/`
 | `DJANGO_DEBUG` | `True` en dev / `False` en producción. |
 | `DJANGO_ALLOWED_HOSTS` | Hosts permitidos. `*` abre a cualquier host (no comentar para "restringir": el default es `['*']`). Vacía = solo `localhost`/`127.0.0.1`/`.onrender.com`. |
 | `GROQ_API_KEY`, `GOOGLE_AI_API_KEY`, `OPENROUTER_API_KEY`, `NVIDIA_API_KEY` | API keys de IA (solo se usa la del proveedor activo). |
-| `OLLAMA_HOST` | Host de Ollama (opcional, default `http://localhost:11434`). |
+| `OLLAMA_HOST` | Host de Ollama (opcional, default `http://localhost:11434`). Puede venir como bind del daemon (`0.0.0.0`); el provider lo normaliza a URL de cliente (`http://127.0.0.1:11434`) vía `_normalizar_host_ollama()`. |
 | `MODO_FILTRO_CLIENTE` | `True` = filtrado/paginación en el navegador; `False` = server-side con HTMX. |
 | `AI_IMMEDIATE` | `True` = Huey síncrono (sin worker); `False` = cola real, levantar el worker con `manage.py run_huey`. |
 

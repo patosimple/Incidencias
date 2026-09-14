@@ -24,6 +24,9 @@ build/
 *.swo
 *~
 
+# Office lock files
+~$*.docx
+
 # OS
 Thumbs.db
 .DS_Store
