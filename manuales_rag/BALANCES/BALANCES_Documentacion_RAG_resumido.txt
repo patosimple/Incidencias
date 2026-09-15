@@ -1,0 +1,87 @@
+# SPECA web | Resumen para análisis de incidencias
+
+## General
+
+Sistema de presentación de estados contables anuales (SPECA web) para agrupaciones políticas ante la Justicia Nacional Electoral. El usuario carga balances, notas, anexos e informes de auditoría y los presenta electrónicamente.
+
+## Inicio de sesión
+
+Se accede con el correo electrónico registrado ante la Secretaría Electoral y la contraseña. El usuario puede recuperar la contraseña desde "¿Olvidó su contraseña?".
+
+## Balance 2024 (primera implementación)
+
+Como es la primera vez que se usa SPECA web, para el ejercicio cerrado al 31/12/2025 se debe cargar primero el balance anterior (2024):
+- Datos de la carátula del ejercicio 2024 ya presentado
+- Saldos finales de cuentas Patrimoniales y de Resultados en moneda de cierre al 31/12/2024
+- Para cuentas colectivas (Contribuciones y Donaciones, Transferencias, Proveedores): un solo registro por el importe del saldo final
+- Estado de Flujo de efectivo al 31/12/2024
+- El balance 2023 no requiere carga alguna: sus importes salen en cero en la información comparativa del 2024
+- NO es necesario cargar: notas, anexo de capacitación, informe del auditor (solo guardar fecha del informe)
+
+## Creación de estado contable
+
+Se crea desde el botón "Agregar" en la pantalla de inicio. Se completan datos de la agrupación política y del ejercicio. El sistema muestra el coeficiente de reexpresión (IPC INDEC), editable.
+
+Campos no editables después de guardar: Orden, Distrito, Cod. Partido, Fechas del Ejercicio. Si se comete error, hay que eliminar y crear uno nuevo.
+
+## Carga de datos
+
+### Saldos de carga directa
+Para cuentas como "Caja": se ingresa el importe en Debe o Haber. El saldo acumulado se calcula automáticamente.
+
+### Saldos por detalle
+Para cuentas como "Bancos": se accede al formulario "Detalle" (botón "Detalle"), se agregan registros individuales con "Agregar" y "Crear".
+
+### Notas a los rubros patrimoniales
+Se acceden desde el ícono en la pantalla de "Saldos". Se carga contenido en el formulario y se guarda.
+
+### Aportes privados
+Puede ser carga manual ("Agregar") o importación ("Importar") de archivos Excel o CSV/TXT. Hay 4 modelos de importación según el tipo de contribución (personas humanas/jurídicas, dinero/especie).
+
+Modalidades de aporte en dinero: 2=Cheque, 3=Transferencia bancaria, 4=Transferencia electrónica, 5=Depósito en cuenta bancaria, 6=Tarjeta de crédito, 7=Tarjeta de débito.
+
+En importación: el CUIT no debe poseer guiones; campos como localidad, distrito, tipo de aporte y género solo admiten valores específicos (verificar en formulario de carga manual).
+
+### Errores de importación
+El sistema muestra aviso de error y permite descargar archivo con log de errores que indica ubicación y motivo del error.
+
+## Control de balanceo
+
+El sistema verifica la ecuación patrimonial: Activo = Pasivo + Patrimonio Neto. Muestra botón indicador de balanceo o "NO BALANCEADO" con la diferencia.
+
+## Anexos voluntarios
+
+Permiten crear listados de hasta 2 columnas alfanuméricas + 1 columna de importes. Se acceden desde "Anexos voluntarios" en el menú izquierdo. La información del anexo es ampliatoria y descriptiva, pero NO modifica los valores de la pantalla de saldos, que deben coincidir con la del anexo.
+
+## Notas
+
+Tipos: automáticas (composición de cuentas), adicionales a rubros patrimoniales, obligatorias, voluntarias, a anexos, a estados contables. Las notas obligatorias se numeran primero. Campo "Título" obligatorio. Se puede cargar texto por teclado o pegando de procesador de texto.
+
+## Anexo capacitación
+
+Compuesto por 4 pestañas: Actividades (descripción, fechas, lugares), Personas y temas (participantes, docentes), Financiamiento (montos, sumas percibidas), Notas complementarias.
+
+## Informe del auditor
+
+Se carga en ítem homónimo. Texto libre de hasta 11.400 caracteres. Se puede teclear o pegar de documento externo.
+
+## Estado de Flujo de Efectivo
+
+Se carga por el método directo desde el menú "Flujo de efectivo".
+
+## Generación de reportes
+
+Desde "Reportes" en menú inferior izquierdo. Permite ver en pantalla o descargar PDF. Los reportes son solo para control, no forman parte de la presentación digital.
+
+## Presentación
+
+Desde menú "Acciones" → "Presentar". Verifica: informe del auditor cargado y cuentas balanceadas. Al presentar se genera código de seguridad, desaparece marca de agua "Vista Previa". El estado cambia a "Recibido" cuando la Secretaría lo confirma. Una vez presentado, la edición queda deshabilitada; vuelve a ser editable (estado "Borrador") solo si la Secretaría rechaza la presentación.
+
+## Rectificación
+
+Solo para estados presentados ante la Justicia. Se clona el estado contable, generando uno nuevo en "Borrador". No es recomendable por normativa.
+
+## Consultas
+
+- Mesa de ayuda: (011) 4342-4403, cnelectoral.mayuda.auditores@pjn.gov.ar
+- Cuestiones técnico-contables: (011) 4370-2568, cnelectoral.auditores@pjn.gov.ar

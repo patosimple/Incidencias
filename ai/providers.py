@@ -54,6 +54,35 @@ class RetryableProviderError(Exception):
     """Error transitorio (429/5xx/timeout) que el cliente puede reintentar."""
 
 
+class ProviderError(Exception):
+    """Error no transitorio del provider (4xx que no es retryable)."""
+
+
+def _es_contexto_demasiado_grande(exc) -> bool:
+    """Detecta si un error HTTP indica que el payload/prompt es demasiado grande.
+
+    Cubre dos escenarios:
+    - 413 Payload Too Large (Groq, Ollama, otros)
+    - 400 + body con "context_length_exceeded" o "reduce the length"
+      (convención OpenAI-compatible: Groq, OpenRouter, etc.)
+    """
+    resp = getattr(exc, "response", None)
+    if resp is None:
+        return False
+    if resp.status_code == 413:
+        return True
+    if resp.status_code == 400:
+        try:
+            body = resp.json()
+            err = body.get("error", {})
+            code = err.get("code", "")
+            msg = str(err.get("message", "")).lower()
+            return code == "context_length_exceeded" or "reduce the length" in msg
+        except (ValueError, AttributeError, KeyError):
+            pass
+    return False
+
+
 def html_a_texto_plano(html: str) -> str:
     """Convierte el HTML que guarda Quill en texto plano legible.
 
@@ -86,6 +115,10 @@ def _leer_manual_sistema(sistema) -> str:
     `Sistema.codigo` coincide con la carpeta, así que no hace falta guardar el
     manual en la DB ni un campo de path. Devuelve `""` si no hay manual, para
     que el flujo quede idéntico al de hoy (solo `Sistema.prompt`).
+
+    OJO: excluye los `*_resumido.txt` (nivel 2 de la escalera de degradación por
+    contexto). Si no, al agregar un resumido a la carpeta este se concatenaría
+    al "manual completo", inflando el nivel 1 y haciendo más probable el 413.
     """
     codigo = getattr(sistema, "codigo", None) or sistema
     if not codigo:
@@ -95,6 +128,30 @@ def _leer_manual_sistema(sistema) -> str:
         return ""
     textos = []
     for archivo in sorted(carpeta.glob("*.txt")):
+        if archivo.name.endswith("_resumido.txt"):
+            continue
+        try:
+            textos.append(archivo.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError):
+            continue
+    return _recortar_manual("\n\n".join(t.strip() for t in textos if t.strip()))
+
+
+def _leer_manual_resumido(sistema) -> str:
+    """Lee el manual RESUMIDO del sistema desde `manuales_rag/<codigo>/*_resumido.txt`.
+
+    Se usa como segundo nivel de la escalera de degradación: si el manual completo
+    causa 413/context_length_exceeded, se reintenta con el resumido antes de
+    probar sin manual. Devuelve "" si no existe archivo resumido.
+    """
+    codigo = getattr(sistema, "codigo", None) or sistema
+    if not codigo:
+        return ""
+    carpeta = MANUALES_DIR / str(codigo)
+    if not (carpeta.is_dir()):
+        return ""
+    textos = []
+    for archivo in sorted(carpeta.glob("*_resumido.txt")):
         try:
             textos.append(archivo.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError):
@@ -424,7 +481,13 @@ class OllamaProvider(AIProvider):
         if self.modelo_ia.formato_salida == FormatoSalidaIA.NATIVO:
             payload["format"] = "json"
         try:
-            resp = requests.post(url, json=payload, timeout=TIMEOUT_OLLAMA)
+            # Ollama es local (localhost/127.0.0.1): `proxies=None` evita que un
+            # HTTP_PROXY corporativo activo intercepte el request al daemon y
+            # devuelva 503. Solo afecta esta llamada; nada más se ve alterado.
+            resp = requests.post(
+                url, json=payload, timeout=TIMEOUT_OLLAMA,
+                proxies={"http": None, "https": None},
+            )
             if resp.status_code in RETRYABLE_STATUS:
                 raise RetryableProviderError(f"{resp.status_code} del proveedor {self.modelo_ia.proveedor}")
             resp.raise_for_status()

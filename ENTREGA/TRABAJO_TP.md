@@ -292,8 +292,32 @@ info sensible):
     FINAL del `user` (los últimos tokens pesan más). Verificado contra Ollama
     real con manual completo (las 6 claves correctas). Mientras dure la etapa
     de pruebas de AnalisisIA con Ollama hay TEMPORAL (ver `AGENTS.md`
-    "TEMPORAL para testear") un checkbox "manual" para comparar con/sin manual
-    y el tiempo total del análisis en el mensaje.
+    "TEMPORAL para testear"): un checkbox "manual" (hoy **oculto** en la UI —
+    `<label class="hidden">` — pero checkeado y funcional, para poder
+    comparar con/sin manual si hace falta) y el tiempo total del análisis
+    (hoy **oculto en la card de éxito**, visible solo en los errores).
+- **Escalera de degradación por contexto (13-14/09/2026, IMPLEMENTADO)**:
+  cuando el prompt completo (con manual txt) devuelve **413** o **400 +
+  `context_length_exceeded`/`reduce the length`**, `_ejecutar_analisis`
+  re-intenta SOLO en server con el **manual resumido** (`*_resumido.txt`,
+  generados para BALANCES y FINANCIAMIENTO) y, si sigue, **sin manual**.
+  Si todos los niveles agotan → `ProviderError` (error duro, el cliente
+  muestra etiqueta roja). **Ollama local: SIEMPRE sin manual** (solo
+  `Sistema.prompt`), aunque el checkbox esté activo — `_ejecutar_analisis`
+  fuerza `usar_manual=False` para `OllamaProvider` (los manuales no caben en
+  el contexto del modelo local y degradaban el decode/JSON). La escalera
+  silenciosa queda reservada a los providers cloud. Detalle técnico completo
+  en `AGENTS.md` ("Escalera de degradación silenciosa por contexto").
+- **`proxies` en Ollama (fix 14/09/2026)**: `OllamaProvider.generar_analisis`
+  manda `proxies={"http": None, "https": None}` para que un proxy corporativo
+  (`HTTP_PROXY`/`HTTPS_PROXY`) no intercepte la llamada a `127.0.0.1:11434`
+  (daba 503). No-op en equipos sin proxy; afecta solo esa llamada.
+- **Seed `seed_init` respeta el modelo Ollama local (14/09/2026)**: si existe
+  un `ModeloIA` de Ollama con modelo, el seed NO lo pisa (ni `modelo` ni
+  `formato_salida` — la configuración local depende del equipo); solo crea el
+  registro con el modelo del seed si no existe, y actualiza la fila Ollama solo
+  si quedó sin modelo. El resto de los proveedores conserva el comportamiento
+  (se actualiza SIEMPRE al catálogo).
 - Para el entregable opcional de captura: `ollama run qwen2.5:3b` + pregunta del
   dominio (ej. ventajas/riesgos de LLM local vs nube en Financiamiento político).
 

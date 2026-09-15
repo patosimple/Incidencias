@@ -1033,7 +1033,7 @@
             }
             // Éxito: mostrar mensaje verde inline y refrescar el contenido (sin recargar)
             if (data.ok) {
-              mostrarExito((data.message || 'Análisis actualizado.') + ' (' + tiempoTotal() + ')');
+              mostrarExito(data.message || 'Análisis actualizado.');
               if (data.cuerpo) {
                 // Reemplazar el contenido: el HTML viene con su propio <div id=cuerpo-analizar>
                 var nuevo = document.createElement('div');

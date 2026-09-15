@@ -158,17 +158,27 @@ class Command(BaseCommand):
                             "(activo o con análisis)"))
 
                 cambios = []
-                if objetivo.modelo != datos["modelo"]:
-                    cambios.append(f"modelo {objetivo.modelo} -> {datos['modelo']}")
-                    objetivo.modelo = datos["modelo"]
-                if objetivo.formato_salida != datos["formato_salida"]:
-                    cambios.append(f"formato_salida {objetivo.formato_salida} -> {datos['formato_salida']}")
-                    objetivo.formato_salida = datos["formato_salida"]
+                # Ollama es local: el modelo puede variar según el rendimiento del
+                # equipo (configuraciones distintas). Si el registro ya existe con un
+                # modelo, NO se pisa (ni modelo ni formato_salida): se respeta la
+                # configuración local. Solo se crea con el del seed si no existe.
+                es_ollama_local = proveedor == "Ollama" and bool(objetivo.modelo)
+                if es_ollama_local:
+                    self.stdout.write(self.style.WARNING(
+                        f"  ModeloIA {objetivo}: se conserva la configuración local "
+                        f"(modelo '{objetivo.modelo}'); el seed no la pisa"))
+                else:
+                    if objetivo.modelo != datos["modelo"]:
+                        cambios.append(f"modelo {objetivo.modelo} -> {datos['modelo']}")
+                        objetivo.modelo = datos["modelo"]
+                    if objetivo.formato_salida != datos["formato_salida"]:
+                        cambios.append(f"formato_salida {objetivo.formato_salida} -> {datos['formato_salida']}")
+                        objetivo.formato_salida = datos["formato_salida"]
 
                 if cambios:
                     objetivo.save()
                     self.stdout.write(f"  ModeloIA {objetivo.proveedor}: actualizado ({', '.join(cambios)})")
-                else:
+                elif not es_ollama_local:
                     self.stdout.write(f"  ModeloIA {objetivo}: ya existía")
 
             if primero is None:

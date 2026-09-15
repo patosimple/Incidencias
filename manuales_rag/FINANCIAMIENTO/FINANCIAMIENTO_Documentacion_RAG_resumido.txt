@@ -1,0 +1,70 @@
+# FINANCIAMIENTO | Resumen para análisis de incidencias
+
+## General
+
+Sistema web para la carga y presentación de informes de financiamiento político conforme a la Ley 26.215. Los usuarios navegan formularios por secciones para completar datos de ingresos, egresos y patrimonio de campañas electorales.
+
+## Inicio de sesión
+
+Se ingresa con el mail registrado y la contraseña. Se puede ver la contraseña con el ícono de ojo. Recuperación de contraseña desde "¿Olvidó su contraseña?" → se envía mail con link para restablecer.
+
+## Pantalla principal
+
+Dos apartados: barra superior (cerrar sesión, cambiar contraseña, enlace "Informes" para volver al inicio) y administración de informes.
+
+## Crear informe
+
+Botón "agregar" (esquina superior derecha). Seleccionar: Acto electoral (ej: Elecciones Nacionales 2021) → Etapa (ej: Segunda vuelta) → Tipo de informe:
+- Primarias: "lista" o "agrupación"
+- Generales/Segunda vuelta: "previo" o "final"
+
+Se muestra la lista de informes disponibles según el partido/alianza del usuario. Click en "+" crea el informe y redirige a los formularios. Se avanza con "siguiente" y se cierra con "finalizar". El informe queda en estado "borrador".
+
+## Informes finales con migración
+
+Los informes finales pueden importar datos de informes previos del mismo partido:
+- Presidente/Vicepresidente: migración desde informe previo del mismo cargo
+- Senadores/Diputados: migración desde previo de senadores, diputados o ambos (misma agrupación y acto electoral)
+
+Se elige el informe previo desde un desplegable y se importa, o se continúa sin importar.
+
+## Estados del informe
+
+- Borrador: editable
+- Preparado: listo para ser recibido por la secretaría (firma y subir a Lex100)
+- Recibido: confirmado por la secretaría
+
+## Acciones sobre informes
+
+- Editar (ícono lápiz): solo en estado "borrador"
+- Presentar (botón "presentar"): cambia de borrador a preparado; requiere confirmación. Una vez presentado, se debe imprimir y firmar el informe (Ley 26.215) para digitalizarlo y subirlo a Lex100.
+- Volver a borrador: desde preparado, para hacer correcciones
+- Borrar (ícono rojo): solo en borrador o preparado; irreversible
+- Rectificar: solo en estado "recibido"; clona el informe en borrador con la misma información
+
+## Navegación del informe
+
+Menú lateral para ir directo a cada sección. Dentro de algunos apartados hay pestañas (ej: "Contribuciones y donaciones" y "Transf. otros órganos o distritos"). Secciones expandibles con ícono de flecha.
+
+## Importación de archivos
+
+Disponible en algunos apartados (ej: contribuciones y donaciones privadas de personas humanas). Se descarga formato Excel desde "Descargar excel con formato de importación". Consideraciones:
+- CUIT sin guiones
+- Campos obligatorios con valores específicos (localidad, distrito, tipo de aporte, género)
+- Verificar valores posibles en el formulario de carga manual
+
+## Registros cargados
+
+Aparecen listados para editar individualmente o eliminar (individual o masivamente).
+
+## Impresión y descarga
+
+Desde ícono de impresora en cualquier informe (cualquier estado). Vista previa con opciones de imprimir o descargar PDF.
+
+## Filtrado y orden
+
+Pantalla principal: filtrar por acto electoral, etapa o código de informe. Barra de búsqueda por texto. Ordenamiento por columnas (asc/desc). Cantidad de informes por página configurable (default 5).
+
+## Vista previa
+
+Botón "vista previa" en la parte inferior derecha de cada sección. Muestra estado actual del informe con opciones de imprimir o descargar.

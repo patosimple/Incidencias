@@ -3,8 +3,9 @@ import os
 import re
 import requests
 import tempfile
+from contextlib import ExitStack
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -16,10 +17,13 @@ from django.utils import timezone
 from ai.providers import (
     GroqProvider,
     _leer_manual_sistema,
+    _leer_manual_resumido,
+    _es_contexto_demasiado_grande,
     _normalizar_host_ollama,
     _recortar_manual,
 )
-from ai.providers import OllamaProvider, RetryableProviderError, TIMEOUT_OLLAMA
+from ai.providers import OllamaProvider, RetryableProviderError, TIMEOUT_OLLAMA, ProviderError
+from ai.tasks import _ejecutar_analisis
 from core.management.commands.seed_tickets import _username
 from core.forms import _sanear_html
 from core.views import _guardar_adjuntos
@@ -1451,4 +1455,315 @@ class XssVistaTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Buen texto")
         self.assertNotIn("alert(1)", resp.content.decode("utf-8"))
+
+
+class DetectorContextoTest(SimpleTestCase):
+    """_es_contexto_demasiado_grande detecta 413 y 400+context_length_exceeded
+    (lo que activa la escalera silenciosa); el resto NO se degrada."""
+
+    def _http_error(self, status, body=None):
+        resp = requests.models.Response()
+        resp.status_code = status
+        resp.reason = "error"
+        resp.url = "http://api/chat/completions"
+        resp.headers = {}
+        if body is not None:
+            resp._content = json.dumps(body).encode()
+            resp.encoding = "utf-8"
+        else:
+            resp._content = b""
+            resp.encoding = "utf-8"
+        return requests.exceptions.HTTPError(f"{status} error", response=resp)
+
+    def test_413_es_contexto(self):
+        self.assertTrue(_es_contexto_demasiado_grande(self._http_error(413)))
+
+    def test_400_context_length_exceeded_es_contexto(self):
+        self.assertTrue(_es_contexto_demasiado_grande(self._http_error(
+            400, {"error": {"code": "context_length_exceeded"}}
+        )))
+
+    def test_400_reduce_length_es_contexto(self):
+        self.assertTrue(_es_contexto_demasiado_grande(self._http_error(
+            400, {"error": {"message": "Please reduce the length of the messages or completion."}}
+        )))
+
+    def test_400_otro_codigo_no_es_contexto(self):
+        self.assertFalse(_es_contexto_demasiado_grande(self._http_error(
+            400, {"error": {"code": "invalid_api_key"}}
+        )))
+
+    def test_503_no_es_contexto(self):
+        self.assertFalse(_es_contexto_demasiado_grande(self._http_error(503)))
+
+    def test_sin_response_no_es_contexto(self):
+        self.assertFalse(_es_contexto_demasiado_grande(ValueError("sin response")))
+
+
+class ManualResumidoTest(TestCase):
+    """_leer_manual_resumido lee SOLO el `*_resumido.txt` (nunca el completo)."""
+
+    def setUp(self):
+        self.sistema = Sistema.objects.create(codigo="BALANCES", nombre="Balances")
+
+    def test_lee_solo_el_resumido(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            carpeta = Path(tmp) / "BALANCES"
+            carpeta.mkdir()
+            (carpeta / "BALANCES_Documentacion_RAG.txt").write_text(
+                "MANUAL COMPLETO", encoding="utf-8"
+            )
+            (carpeta / "BALANCES_Documentacion_RAG_resumido.txt").write_text(
+                "RESUMIDO", encoding="utf-8"
+            )
+            with patch("ai.providers.MANUALES_DIR", Path(tmp)):
+                self.assertEqual(_leer_manual_resumido(self.sistema), "RESUMIDO")
+
+    def test_sin_resumido_devuelve_vacio(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            carpeta = Path(tmp) / "BALANCES"
+            carpeta.mkdir()
+            (carpeta / "BALANCES_Documentacion_RAG.txt").write_text(
+                "MANUAL COMPLETO", encoding="utf-8"
+            )
+            with patch("ai.providers.MANUALES_DIR", Path(tmp)):
+                self.assertEqual(_leer_manual_resumido(self.sistema), "")
+
+    def test_sin_carpeta_devuelve_vacio(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("ai.providers.MANUALES_DIR", Path(tmp)):
+                self.assertEqual(_leer_manual_resumido(self.sistema), "")
+
+    def test_manual_completo_excluye_resumido(self):
+        # Regresión: _leer_manual_sistema NO debe concatenar el *_resumido.txt
+        # (antes, con glob("*.txt"), el resumido inflaba el "manual completo").
+        with tempfile.TemporaryDirectory() as tmp:
+            carpeta = Path(tmp) / "BALANCES"
+            carpeta.mkdir()
+            (carpeta / "BALANCES_Documentacion_RAG.txt").write_text(
+                "MANUAL COMPLETO", encoding="utf-8"
+            )
+            (carpeta / "BALANCES_Documentacion_RAG_resumido.txt").write_text(
+                "MANUAL RESUMIDO", encoding="utf-8"
+            )
+            with patch("ai.providers.MANUALES_DIR", Path(tmp)):
+                self.assertEqual(_leer_manual_sistema(self.sistema), "MANUAL COMPLETO")
+
+    def test_manual_completo_sin_resumido_no_cambia(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            carpeta = Path(tmp) / "BALANCES"
+            carpeta.mkdir()
+            (carpeta / "BALANCES_Documentacion_RAG.txt").write_text(
+                "SOLO COMPLETO", encoding="utf-8"
+            )
+            with patch("ai.providers.MANUALES_DIR", Path(tmp)):
+                self.assertEqual(_leer_manual_sistema(self.sistema), "SOLO COMPLETO")
+
+
+class EscaladorContextoTest(TestCase):
+    """Escalera de degradación silenciosa en _ejecutar_analisis (413 /
+    context_length_exceeded): manual completo → manual resumido → sin manual.
+    Si agota los 3 niveles lanza ProviderError; si el error NO es de contexto
+    (503/retryable) propaga tal cual sin degradar."""
+
+    def setUp(self):
+        Usuario = get_user_model()
+        self.sistema = Sistema.objects.create(codigo="BALANCES", nombre="Balances")
+        self.solicitante = Usuario.objects.create_user(
+            username="esc.solicitante",
+            password="clave123",
+            rol="SOLICITANTE",
+        )
+        self.ticket = Ticket.objects.create(
+            titulo="Error al cargar",
+            sistema=self.sistema,
+            solicitante=self.solicitante,
+            descripcion_original="Falla al guardar.",
+            estado=EstadoTicket.PENDIENTE,
+        )
+        self.modelo = ModeloIA.objects.create(proveedor="Groq", modelo="test-model")
+        self.manual_completo = "MANUAL COMPLETO"
+        self.manual_resumido = "MANUAL RESUMIDO"
+
+    def _http_error(self, status, body=None):
+        resp = requests.models.Response()
+        resp.status_code = status
+        resp.reason = "error"
+        resp.url = "http://api/chat/completions"
+        resp.headers = {}
+        if body is not None:
+            resp._content = json.dumps(body).encode()
+            resp.encoding = "utf-8"
+        else:
+            resp._content = b""
+            resp.encoding = "utf-8"
+        return requests.exceptions.HTTPError(f"{status} error", response=resp)
+
+    def _resultado_ok(self):
+        from ai.providers import AnalisisGenerado
+        return AnalisisGenerado(
+            problema="P", comportamiento_esperado="CE",
+            comportamiento_observado="CO", pasos_reproducir="PR",
+            datos_relevantes="DR", informacion_faltante="IF",
+        )
+
+    def _provider_mock(self, side_effects):
+        provider = Mock()
+        provider.modelo_ia = self.modelo
+        provider.generar_analisis.side_effect = side_effects
+        return provider
+
+    def _patch_contexto(self, provider):
+        stack = ExitStack()
+        stack.enter_context(patch("ai.tasks.get_active_provider", return_value=provider))
+        stack.enter_context(patch("ai.tasks._leer_manual_sistema", return_value=self.manual_completo))
+        stack.enter_context(patch("ai.tasks._leer_manual_resumido", return_value=self.manual_resumido))
+        return stack
+
+    def test_413_degrada_a_resumido_y_exito(self):
+        provider = self._provider_mock([
+            self._http_error(413),
+            self._resultado_ok(),
+        ])
+        with self._patch_contexto(provider):
+            _ejecutar_analisis(self.ticket.pk)
+        calls = provider.generar_analisis.call_args_list
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[0].kwargs["manual_sistema"], self.manual_completo)
+        self.assertEqual(calls[1].kwargs["manual_sistema"], self.manual_resumido)
+        self.assertEqual(AnalisisIA.objects.count(), 1)
+
+    def test_413_degrada_hasta_vacio(self):
+        provider = self._provider_mock([
+            self._http_error(413),
+            self._http_error(413),
+            self._resultado_ok(),
+        ])
+        with self._patch_contexto(provider):
+            _ejecutar_analisis(self.ticket.pk)
+        calls = provider.generar_analisis.call_args_list
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(calls[0].kwargs["manual_sistema"], self.manual_completo)
+        self.assertEqual(calls[1].kwargs["manual_sistema"], self.manual_resumido)
+        self.assertEqual(calls[2].kwargs["manual_sistema"], "")
+        self.assertEqual(AnalisisIA.objects.count(), 1)
+
+    def test_413_agota_escalera_lanza_provider_error(self):
+        provider = self._provider_mock([
+            self._http_error(413),
+            self._http_error(413),
+            self._http_error(413),
+        ])
+        with self._patch_contexto(provider):
+            with self.assertRaises(ProviderError):
+                _ejecutar_analisis(self.ticket.pk)
+        self.assertEqual(provider.generar_analisis.call_count, 3)
+        self.assertEqual(AnalisisIA.objects.count(), 0)
+
+    def test_400_context_length_exceeded_activa_escalera(self):
+        provider = self._provider_mock([
+            self._http_error(400, {"error": {"code": "context_length_exceeded"}}),
+            self._resultado_ok(),
+        ])
+        with self._patch_contexto(provider):
+            _ejecutar_analisis(self.ticket.pk)
+        calls = provider.generar_analisis.call_args_list
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[1].kwargs["manual_sistema"], self.manual_resumido)
+
+    def test_400_sin_body_no_degrada(self):
+        provider = self._provider_mock([self._http_error(400)])  # 400 sin body JSON
+        with self._patch_contexto(provider):
+            with self.assertRaises(requests.exceptions.HTTPError):
+                _ejecutar_analisis(self.ticket.pk)
+        self.assertEqual(provider.generar_analisis.call_count, 1)
+
+    def test_retryable_no_degrada(self):
+        provider = self._provider_mock([RetryableProviderError("502")])
+        with self._patch_contexto(provider):
+            with self.assertRaises(RetryableProviderError):
+                _ejecutar_analisis(self.ticket.pk)
+        self.assertEqual(provider.generar_analisis.call_count, 1)
+
+    def test_usar_manual_false_no_lee_manual(self):
+        provider = self._provider_mock([self._resultado_ok()])
+        with patch("ai.tasks.get_active_provider", return_value=provider), \
+             patch("ai.tasks._leer_manual_sistema") as m_full, \
+             patch("ai.tasks._leer_manual_resumido") as m_res:
+            _ejecutar_analisis(self.ticket.pk, usar_manual=False)
+        provider.generar_analisis.assert_called_once()
+        self.assertEqual(provider.generar_analisis.call_args.kwargs["manual_sistema"], "")
+        m_full.assert_not_called()
+        m_res.assert_not_called()
+        self.assertEqual(AnalisisIA.objects.count(), 1)
+
+    def test_ollama_siempre_sin_manual(self):
+        # Ollama local: aunque usar_manual=True (checkbox activo), NO se lee ni
+        # se envía el manual; solo Sistema.prompt (manual_sistema="").
+        from ai.providers import OllamaProvider
+        modelo = ModeloIA.objects.create(proveedor="Ollama", modelo="qwen2.5:3b")
+        provider = OllamaProvider(modelo)
+        mock_gen = Mock(return_value=self._resultado_ok())
+        with patch.object(provider, "generar_analisis", mock_gen), \
+             patch("ai.tasks.get_active_provider", return_value=provider), \
+             patch("ai.tasks._leer_manual_sistema") as m_full, \
+             patch("ai.tasks._leer_manual_resumido") as m_res:
+            _ejecutar_analisis(self.ticket.pk, usar_manual=True)
+        mock_gen.assert_called_once()
+        self.assertEqual(mock_gen.call_args.kwargs["manual_sistema"], "")
+        m_full.assert_not_called()
+        m_res.assert_not_called()
+        self.assertEqual(AnalisisIA.objects.count(), 1)
+
+
+class SeedModelosIATest(TestCase):
+    """Regla del seed para Ollama: si el registro local ya existe con un modelo,
+    NO se pisa (configuración según rendimiento del equipo); si no existe, se
+    crea con el modelo del seed. El resto de los proveedores se actualiza igual."""
+
+    def _cmd(self):
+        from core.management.commands.seed_init import Command
+        cmd = Command()
+        cmd.update_prompt = False
+        return cmd
+
+    def _seed(self, cmd):
+        cmd._seed_modelos_ia()
+
+    def test_ollama_sin_existir_se_crea_con_modelo_del_seed(self):
+        ModeloIA.objects.filter(proveedor="Ollama").delete()
+        cmd = self._cmd()
+        self._seed(cmd)
+        ollama = ModeloIA.objects.get(proveedor="Ollama")
+        self.assertIn(ollama.modelo, {"gemma2:2b"})
+        self.assertEqual(ollama.formato_salida, "NATIVO")
+
+    def test_ollama_existente_con_modelo_no_se_pisa(self):
+        ModeloIA.objects.filter(proveedor="Ollama").delete()
+        existente = ModeloIA.objects.create(proveedor="Ollama", modelo="qwen2.5:3b", formato_salida="NATIVO")
+        cmd = self._cmd()
+        self._seed(cmd)
+        ollama = ModeloIA.objects.get(proveedor="Ollama")
+        self.assertEqual(ollama.pk, existente.pk)
+        self.assertEqual(ollama.modelo, "qwen2.5:3b")
+
+    def test_ollama_existente_sin_modelo_se_actualiza(self):
+        ModeloIA.objects.filter(proveedor="Ollama").delete()
+        existente = ModeloIA.objects.create(proveedor="Ollama", modelo="", formato_salida="")
+        cmd = self._cmd()
+        self._seed(cmd)
+        ollama = ModeloIA.objects.get(proveedor="Ollama")
+        self.assertEqual(ollama.pk, existente.pk)
+        self.assertEqual(ollama.modelo, "gemma2:2b")
+        self.assertEqual(ollama.formato_salida, "NATIVO")
+
+    def test_resto_de_proveedores_actualiza_igual(self):
+        ModeloIA.objects.filter(proveedor="Groq").delete()
+        existente = ModeloIA.objects.create(proveedor="Groq", modelo="modelo-viejo", formato_salida="NINGUNO")
+        cmd = self._cmd()
+        self._seed(cmd)
+        groq = ModeloIA.objects.get(proveedor="Groq")
+        self.assertEqual(groq.pk, existente.pk)
+        self.assertEqual(groq.modelo, "qwen/qwen3.8-27b")
+        self.assertEqual(groq.formato_salida, "RESPONSE_FORMAT")
 
