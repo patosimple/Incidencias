@@ -157,26 +157,25 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # IMPORTANTE: al definir STORAGES manualmente hay que incluir SIEMPRE la clave
 # 'default' (storage de archivos subidos/FileField). Sin ella, Django lanza
 # InvalidStorageError 'Could not find config for default' al guardar adjuntos.
-# En DEBUG los adjuntos van al FileSystemStorage local (media/); en produccion
-# a Supabase Storage (S3-compatible) para que sobrevivan a los redeploys.
-if DEBUG:
-    STORAGES = {
-        "default": {
-            "BACKEND": "django.core.files.storage.FileSystemStorage",
-        },
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-        },
-    }
-else:
+#
+# Decisión de storage por PRESENCIA de credenciales S3, no solo por DEBUG:
+# - Desarrollo local (DEBUG=True) → siempre FileSystemStorage (disco media/).
+# - Producción sin credenciales → FileSystemStorage (fallback, adjuntos efímeros
+#   pero el sitio NO revienta durante el build de un deploy nuevo).
+# - Producción con credenciales → Supabase Storage S3 (permanente, sobrevive
+#   redeploys).
+_SUPABASE_ACCESS_KEY = env('SUPABASE_ACCESS_KEY', default='')
+_SUPABASE_SECRET_KEY = env('SUPABASE_SECRET_KEY', default='')
+
+if _SUPABASE_ACCESS_KEY and _SUPABASE_SECRET_KEY and not DEBUG:
     STORAGES = {
         "default": {
             "BACKEND": "storages.backends.s3.S3Storage",
             "OPTIONS": {
-                "access_key": env('SUPABASE_ACCESS_KEY'),
-                "secret_key": env('SUPABASE_SECRET_KEY'),
-                "bucket_name": env('SUPABASE_BUCKET'),
-                "endpoint_url": env('SUPABASE_ENDPOINT'),
+                "access_key": _SUPABASE_ACCESS_KEY,
+                "secret_key": _SUPABASE_SECRET_KEY,
+                "bucket_name": env('SUPABASE_BUCKET', default='incidencias_adjuntos'),
+                "endpoint_url": env('SUPABASE_ENDPOINT', default=''),
                 "default_acl": "private",
                 "querystring_auth": True,
                 "querystring_expire": 300,
@@ -185,6 +184,15 @@ else:
                 "region_name": env('SUPABASE_REGION', default='us-east-1'),
                 "addressing_style": "path",
             },
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+else:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
         },
         "staticfiles": {
             "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
