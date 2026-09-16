@@ -120,6 +120,14 @@ class ConfiguracionIAAdmin(admin.ModelAdmin):
     # Solo debería existir una fila; esto lo refuerza en la UI del admin.
     list_display = ("modelo_activo", "actualizado_en")
 
+    def changelist_view(self, request, extra_context=None):
+        extra_context = {"title": "Selecciona el modelo de IA activo"}
+        return super().changelist_view(request, extra_context=extra_context)
+
+    def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
+        context["title"] = "Selecciona el modelo de IA activo"
+        return super().render_change_form(request, context, add=add, change=change, form_url=form_url, obj=obj)
+
     def has_add_permission(self, request):
         return not ConfiguracionIA.objects.exists()
 
@@ -131,3 +139,8 @@ class ConfiguracionIAAdmin(admin.ModelAdmin):
 class AnalisisIAAdmin(admin.ModelAdmin):
     list_display = ("ticket", "tipo", "modelo_ia", "estado_aprobacion", "generado_en")
     list_filter = ("tipo", "estado_aprobacion", "modelo_ia")
+
+
+admin.site.site_header = "Sistema de Incidencias - Administracion"
+admin.site.site_title = "Sistema de Incidencias - Administracion"
+admin.site.index_title = "Panel de administracion"

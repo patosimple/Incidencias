@@ -17,4 +17,5 @@ urlpatterns = [
     path("comentarios/<int:pk>/eliminar/", views.eliminar_comentario, name="comentario_eliminar"),
     path("adjuntos/<int:pk>/descargar/", views.descargar_adjunto, name="adjunto_descargar"),
     path("cambiar-password/", views.CambiarPasswordView.as_view(), name="cambiar_password"),
+    path("manual/", views.ManualView.as_view(), name="manual"),
 ]

@@ -15,7 +15,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy, reverse
 from django.utils import timezone
-from django.views.generic import CreateView, DetailView, ListView
+from django.views.generic import CreateView, DetailView, ListView, TemplateView
 
 from .forms import CambioPasswordForm, ComentarioForm, TicketEditarForm, TicketForm
 from ai.tasks import _ejecutar_analisis
@@ -201,6 +201,38 @@ class CambiarPasswordView(LoginRequiredMixin, PasswordChangeView):
         respuesta = super().form_valid(form)
         messages.success(self.request, "Contraseña actualizada correctamente.")
         return respuesta
+
+
+class ManualView(LoginRequiredMixin, TemplateView):
+    template_name = "core/manual.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["toc_general"] = [
+            (1, "seccion-roles", "Roles y permisos"),
+            (2, "seccion-primeros-pasos", "Primeros pasos"),
+            (3, "seccion-ciclo-vida", "Ciclo de vida del ticket"),
+            (4, "seccion-listado", "Listado de tickets"),
+            (5, "seccion-crear-ticket", "Crear un ticket"),
+            (6, "seccion-detalle", "Detalle del ticket"),
+            (7, "seccion-comentarios", "Comentarios"),
+            (8, "seccion-editar-ticket", "Editar o eliminar el propio ticket"),
+            (9, "seccion-adjuntos", "Adjuntos"),
+            (10, "seccion-faq", "Preguntas frecuentes"),
+        ]
+        ctx["toc_desarrollo"] = [
+            (11, "seccion-tomar-ticket", "Tomar y liberar tickets"),
+            (12, "seccion-cerrar-reabrir", "Cerrar y reabrir tickets"),
+            (13, "seccion-filtro-colaborador", "Filtro de colaborador"),
+            (14, "seccion-analisis-ia", "Análisis IA"),
+            (15, "seccion-colores-tomado", "Colores del badge"),
+        ]
+        ctx["toc_admin"] = [
+            (16, "seccion-admin-usuarios", "Usuarios y accesos"),
+            (17, "seccion-admin-ia", "Configuración IA"),
+            (18, "seccion-admin-nota", "Nota técnica"),
+        ]
+        return ctx
 
 
 class TicketListView(LoginRequiredMixin, ListView):

@@ -340,6 +340,9 @@ class ConfiguracionIA(models.Model):
         verbose_name = "Configuración de IA"
         verbose_name_plural = "Configuración de IA"
 
+    def __str__(self):
+        return str(self.modelo_activo) if self.modelo_activo else "Sin modelo activo"
+
     def save(self, *args, **kwargs):
         self.pk = 1  # fuerza singleton
         super().save(*args, **kwargs)

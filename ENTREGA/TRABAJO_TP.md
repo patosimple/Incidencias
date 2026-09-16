@@ -49,9 +49,9 @@ obligatorios (repo, app en producción, video).
 | `Entrega_Final_TP.docx` | Informe del TP en Word (Parte 1 + Parte 2) | ✅ esqueleto completo con `[COMPLETAR]` |
 | `generar_entrega.py` | Script que construye el `.docx` con `python-docx` (reproducible) | ✅ |
 | `diagramas/*.mmd` | 5 diagramas Mermaid por separado (arquitectura, clases, casos de uso, secuencia IA, estados del ticket) | ✅ (ver §4) |
-| `capturas/` | PNG de pantallas (réplicas o reales según §6) | ⏳ pendiente |
+| `capturas/` | PNG de pantallas (réplicas o reales según §6) | ✅ 22 capturas (hard links a `core/static/core/img/manual/`) |
 | `presentacion_ppt.pptx` | Walkthrough/deck de pantallas | ⏳ pendiente (no hacer todavía) |
-| `manual_uso.html` / `manual.html` (app) | Manual de uso consultable | ⏳ pendiente (no hacer todavía) |
+| `manual.html` (app) | Manual de uso consultable (`/manual/`) | ✅ 18 secciones (ver estado en AGENTS.md) |
 
 ### Cómo regenerar el Word
 ```bash
@@ -169,10 +169,14 @@ templates reales + Edge headless para exportar a PNG). Hay dos enfoques:
 | Manual de uso | **A** (réplicas estáticas) |
 | Sección 4 "Evidencia de funcionamiento" | **B** (capturas reales) |
 
-### Todavía NO hacer (pendientes explícitos del usuario)
-- ❌ NO construir aún el **Manual de uso**.
-- ❌ NO construir aún el **PPTX**.
-- Solo documentamos la decisión aquí para que no se pierda.
+### ✅ Manual de uso Y PPTX: decisión de implementación
+- **Manual de uso en la app: IMPLEMENTADO (15-16/09/2026)** — ruta `/manual/`,
+  vista `ManualView`, 18 secciones colapsables, TOC de anclas dinámico
+  (`toc_general`/`toc_desarrollo`/`toc_admin`), visibilidad por rol (solicitante:
+  1-10; dev/coordinador: 1-15; staff: 1-18), réplicas Tailwind + 22 capturas en
+  `core/static/core/img/manual/`. Detalle completo de contenido/ajustes en
+  `AGENTS.md` (bullet "Manual de usuario HTML").
+- ❌ NO construir aún el **PPTX** (sigue pendiente explícito).
 
 ---
 
