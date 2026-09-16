@@ -16,6 +16,9 @@
 - **Fase 2 parcial**: análisis IA vía LLM (manual, botón Analizar/Reanalizar).
   Providers Groq/Gemini/OpenRouter/NVIDIA/Ollama con llamada HTTP real.
   Pendiente: admin de versiones de prompt.
+- **Adjuntos**: almacenamiento **permanente en la nube** (Supabase Storage S3,
+  configurado 16/09/2026) para el deploy de producción (Render). En DEBUG local
+  siguen en disco (`media/`).
 - Detalle completo del estado en **`AGENTS.md`**.
 
 ---
@@ -203,7 +206,7 @@ colapsables, réplicas estáticas (las clases Tailwind reales). Estructura:
 6. Detalle del ticket (metadatos, autor, colaboradores, adjuntos)
 7. Comentarios (crear, responder/citar, editar/eliminar, adjuntos)
 8. Editar/eliminar el propio ticket (solo dueño, mientras no esté CERRADO)
-9. Adjuntos (subir/descargar, tipos permitidos, límite 10 MB, storage efímero demo)
+9. Adjuntos (subir/descargar, tipos permitidos, límite 10 MB, almacenamiento en Supabase)
 10. Preguntas frecuentes (5-6 FAQs)
 
 **Solo desarrollo (oculto a solicitantes)**

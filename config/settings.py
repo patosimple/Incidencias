@@ -157,14 +157,39 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # IMPORTANTE: al definir STORAGES manualmente hay que incluir SIEMPRE la clave
 # 'default' (storage de archivos subidos/FileField). Sin ella, Django lanza
 # InvalidStorageError 'Could not find config for default' al guardar adjuntos.
-STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-    },
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
+# En DEBUG los adjuntos van al FileSystemStorage local (media/); en produccion
+# a Supabase Storage (S3-compatible) para que sobrevivan a los redeploys.
+if DEBUG:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+else:
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3.S3Storage",
+            "OPTIONS": {
+                "access_key": env('SUPABASE_ACCESS_KEY'),
+                "secret_key": env('SUPABASE_SECRET_KEY'),
+                "bucket_name": env('SUPABASE_BUCKET'),
+                "endpoint_url": env('SUPABASE_ENDPOINT'),
+                "default_acl": "private",
+                "querystring_auth": True,
+                "querystring_expire": 300,
+                "file_overwrite": False,
+                "signature_version": "s3v4",
+                "region_name": env('SUPABASE_REGION', default='us-east-1'),
+                "addressing_style": "path",
+            },
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
