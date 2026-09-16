@@ -47,16 +47,16 @@ SOLICITANTES = [
 
 # Usuario desarrollador de demo. Se crea igual que los solicitantes (get_or_create),
 # con acceso a todos los sistemas, pero NO recibe tickets (la demo de tickets es
-# exclusiva de los solicitantes). Password: desa
+# exclusiva de los solicitantes). Password: Desarrollador1!
 # Además es staff con permisos de admin para gestionar usuarios y sus accesos,
 # sistemas, catálogo de modelos IA y configuración de IA activa.
 DEV_DEMO = {
     "username": "dev.demo",
-    "first_name": "Dev",
+    "first_name": "Desarrollador",
     "last_name": "Demo",
     "email": "dev.demo@incidencias.local",
     "rol": "DESARROLLADOR",
-    "password": "desa",
+    "password": "Desarrollador1!",
     "is_staff": True,
     "permisos_admin": ["Usuario", "UsuarioSistema", "Sistema", "ModeloIA", "ConfiguracionIA"],
 }
@@ -223,7 +223,7 @@ class Command(BaseCommand):
                 },
             )
             if creado:
-                user.set_password("soli")
+                user.set_password("Solicitante1!")
                 user.save()
             # acceso random a 1 o 2 sistemas
             elegidos = random.sample(sistemas, random.randint(1, len(sistemas)))

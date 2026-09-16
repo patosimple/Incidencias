@@ -48,10 +48,32 @@
         </form>
     </div>
     <p class="mt-4 text-center text-xs text-gray-400 dark:text-gray-500">
-        Usuarios demo:<br>
-        Usuario (Solicitante): <code class="font-mono text-brand-600 dark:text-brand-400">maria.lopez</code> / <code class="font-mono text-brand-600 dark:text-brand-400">soli</code><br>
-        Desarrollador: <code class="font-mono text-brand-600 dark:text-brand-400">dev.demo</code> / <code class="font-mono text-brand-600 dark:text-brand-400">desa</code>
+        Usuarios demo:
     </p>
+    <div class="mt-2 text-center text-xs text-gray-400 dark:text-gray-500 space-y-1">
+        <div class="flex items-center justify-center gap-2">
+            <span>Usuario (Solicitante): <span class="text-brand-600 dark:text-brand-400">maria.lopez</span> / <span class="text-brand-600 dark:text-brand-400">Solicitante1!</span></span>
+            <button type="button" data-login-usuario="maria.lopez" data-login-password="Solicitante1!"
+                        aria-label="Copiar credenciales mas cargar en los campos"
+                        title="Copiar y cargar en los campos"
+                        class="shrink-0 text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-800 rounded p-1 hover:bg-brand-50 dark:hover:bg-brand-950/40 transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V5a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2h-2M6 9h8a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2v-8a2 2 0 012-2z"/>
+                    </svg>
+                </button>
+        </div>
+        <div class="flex items-center justify-center gap-2">
+            <span>Desarrollador: <span class="text-brand-600 dark:text-brand-400">dev.demo</span> / <span class="text-brand-600 dark:text-brand-400">Desarrollador1!</span></span>
+            <button type="button" data-login-usuario="dev.demo" data-login-password="Desarrollador1!"
+                        aria-label="Copiar credenciales mas cargar en los campos"
+                        title="Copiar y cargar en los campos"
+                        class="shrink-0 text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-800 rounded p-1 hover:bg-brand-50 dark:hover:bg-brand-950/40 transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V5a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2h-2M6 9h8a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2v-8a2 2 0 012-2z"/>
+                    </svg>
+                </button>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -69,6 +91,24 @@ document.addEventListener('DOMContentLoaded', function () {
         abierto.classList.toggle('hidden', mostrar);
         cerrado.classList.toggle('hidden', !mostrar);
         input.focus();
+    });
+
+    var uInput = document.getElementById('id_username');
+    document.querySelectorAll('[data-login-usuario]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            var usuario = b.getAttribute('data-login-usuario');
+            var clave = b.getAttribute('data-login-password');
+            if (uInput) { uInput.value = usuario; }
+            input.value = clave;
+            input.focus();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(usuario + '\n' + clave).then(function () {
+                    if (typeof mostrarToast === 'function') {
+                        mostrarToast('Credenciales copiadas', 'success');
+                    }
+                });
+            }
+        });
     });
 });
 </script>

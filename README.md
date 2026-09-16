@@ -116,18 +116,18 @@ La app queda en `http://localhost:8000` y el admin en `http://localhost:8000/adm
 ```
 
 **Qué hace `seed_tickets`**: crea **5 usuarios solicitantes** de prueba (todos
-con acceso a BALANCES + FINANCIAMIENTO, password `soli`) y **5 tickets reales
+con acceso a BALANCES + FINANCIAMIENTO, password `Solicitante1!`) y **5 tickets reales
 del dominio** (incidencias de Balances/Financiamiento, una por solicitante,
 preservando el sistema original). Además crea el **desarrollador demo
-`dev.demo`** (password `desa`), que es `is_staff` con acceso al admin para
+`dev.demo`** (password `Desarrollador1!`), que es `is_staff` con acceso al admin para
 gestionar usuarios/sistemas/modelos IA. El flag `--tickets N` controla la
 cantidad de tickets (`--tickets 20` crea 20; **default: 5**, recorre en ciclo
 los 5 reales reasignando solicitantes sin repetir).
 
 | Usuario demo | |
 |---|---|
-| `maria.lopez`, `carlos.gonzalez`, `lucia.fernandez`, `joaquin.rodriguez`, `valentina.martinez` (Solicitantes) | password: `soli` |
-| `dev.demo` (Desarrollador) | password: `desa` |
+| `maria.lopez`, `carlos.gonzalez`, `lucia.fernandez`, `joaquin.rodriguez`, `valentina.martinez` (Solicitantes) | password: `Solicitante1!` |
+| `dev.demo` (Desarrollador) | password: `Desarrollador1!` |
 
 `--reset` borra exclusivamente esos 5 usuarios, `dev.demo` y sus tickets (no
 toca otros users). `--reset_all` hace una **limpieza total**: borra todos los

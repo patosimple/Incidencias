@@ -117,12 +117,14 @@ trabajó en dos esquemas combinados:
   etc.).
 - Cubrió el resto del desarrollo.
 
-### Pendientes del usuario
-- [ ] Listar qué partes/features se hicieron con cada esquema (Antigravity/Gemini
-      multi-agente vs opencode manual).
-- [ ] **Pasar con qué modelos se trabajó** en el multi-agente (el usuario dijo
-      que los va a detallar; hoy el diagrama lo deja como
-      `[COMPLETAR: modelos]`).
+### Pendientes del usuario (resueltos 16/09/2026)
+- [x] **Features por esquema / modelos del multi-agente**: el usuario decidió que
+      NO hace falta detallar qué features se hicieron con cada esquema ni con qué
+      modelos: el informe solo deja **constancia de las 2 modalidades** (esquema
+      1 = Antigravity/Gemini multi-agente; esquema 2 = opencode manual). Se edita
+      la sección correspondiente del Word (sección 7 / `generar_entrega.py`) sin
+      listar features ni modelos (`[COMPLETAR]` se reemplaza por la descripción
+      genérica de ambas modalidades).
 - [x] Diagrama de flujo de agentes del desarrollo agregado (sección 2 del Word) —
       `agentes_desarrollo.mmd`.
 
@@ -335,7 +337,8 @@ info sensible):
   `partials/*.html`.
 - Datos demo (para las réplicas): seed en `core/management/commands/seed_init.py`
   y `seed_tickets.py` (solicitantes `maria.lopez`/`carlos.gonzalez`/... password
-  `soli`).
+  `Solicitante1!`; desarrollador demo `dev.demo` password `Desarrollador1!`, con
+  acceso al admin de usuarios/sistemas/modelos IA).
 - Paleta brand: ver `core/templates/core/base.html` (tailwind.config inline).
 - Entorno de implementación final: servidor propio de la organización (recursos
   superiores a los equipos de desarrollo); los tiempos locales son referenciales.

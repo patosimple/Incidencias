@@ -1767,3 +1767,266 @@ class SeedModelosIATest(TestCase):
         self.assertEqual(groq.modelo, "qwen/qwen3.8-27b")
         self.assertEqual(groq.formato_salida, "RESPONSE_FORMAT")
 
+
+class TicketListadoBase:
+    """Fixture compartida entre los modos cliente y server: 2 sistemas, 2
+    solicitantes con 1 ticket cada uno y un desarrollador con acceso a un solo
+    sistema. NO es un TestCase: los tests concreto viven en las subclases."""
+
+    def setUp(self):
+        Usuario = get_user_model()
+        self.balances = Sistema.objects.create(codigo="BALANCES", nombre="Balances")
+        self.financiamiento = Sistema.objects.create(
+            codigo="FINANCIAMIENTO", nombre="Financiamiento",
+        )
+        self.sol1 = Usuario.objects.create_user(
+            username="sol.listado", password="clave123", rol="SOLICITANTE",
+            first_name="Sol", last_name="Listado1",
+        )
+        UsuarioSistema.objects.create(usuario=self.sol1, sistema=self.balances)
+        self.sol2 = Usuario.objects.create_user(
+            username="sol.listado2", password="clave123", rol="SOLICITANTE",
+            first_name="Sol", last_name="Listado2",
+        )
+        UsuarioSistema.objects.create(usuario=self.sol2, sistema=self.financiamiento)
+        self.dev = Usuario.objects.create_user(
+            username="dev.listado", password="clave123", rol="DESARROLLADOR",
+            first_name="Dev", last_name="Listado",
+        )
+        UsuarioSistema.objects.create(usuario=self.dev, sistema=self.financiamiento)
+        self.superuser = Usuario.objects.create_superuser(
+            username="sup.listado", password="clave123", email="sup@incidencias.local",
+        )
+        self.t1 = Ticket.objects.create(
+            titulo="Ticket del solicitante 1", sistema=self.balances,
+            solicitante=self.sol1, descripcion_original="<p>d1</p>",
+            estado=EstadoTicket.PENDIENTE,
+        )
+        self.t2 = Ticket.objects.create(
+            titulo="Ticket del solicitante 2", sistema=self.financiamiento,
+            solicitante=self.sol2, descripcion_original="<p>d2</p>",
+            estado=EstadoTicket.PENDIENTE,
+        )
+        self.url = reverse("ticket_list")
+
+    def _login(self, usuario):
+        self.client.login(username=usuario.username, password="clave123")
+
+
+@override_settings(
+    STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    },
+    MODO_FILTRO_CLIENTE=True,
+)
+class TicketListadoTest(TicketListadoBase, TestCase):
+    """TicketListView en modo cliente: trae todo el dataset sin paginar, filtra
+    en el navegador; el server solo aplica la visibilidad por rol. Se testea la
+    visibilidad (solicitante/dev/superuser) y el dropdown de sistemas."""
+
+    def test_anonimo_redirige_al_login(self):
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/login/", resp["Location"])
+
+    def test_solicitante_ve_solo_sus_tickets(self):
+        self._login(self.sol1)
+        resp = self.client.get(self.url)
+        self.assertContains(resp, "Ticket del solicitante 1")
+        self.assertNotContains(resp, "Ticket del solicitante 2")
+
+    def test_solicitante2_ve_solo_los_suyos(self):
+        self._login(self.sol2)
+        resp = self.client.get(self.url)
+        self.assertNotContains(resp, "Ticket del solicitante 1")
+        self.assertContains(resp, "Ticket del solicitante 2")
+
+    def test_desarrollador_ve_tickets_de_sus_sistemas(self):
+        self._login(self.dev)
+        resp = self.client.get(self.url)
+        self.assertNotContains(resp, "Ticket del solicitante 1")
+        self.assertContains(resp, "Ticket del solicitante 2")
+
+    def test_superuser_ve_todos_los_tickets(self):
+        self._login(self.superuser)
+        resp = self.client.get(self.url)
+        self.assertContains(resp, "Ticket del solicitante 1")
+        self.assertContains(resp, "Ticket del solicitante 2")
+
+    def test_dev_solo_sus_sistemas_en_el_filtro(self):
+        self._login(self.dev)
+        resp = self.client.get(self.url)
+        sistemas = resp.context["sistemas_disponibles"]
+        self.assertEqual(list(sistemas), [self.financiamiento])
+
+    def test_superuser_todos_los_sistemas_en_el_filtro(self):
+        self._login(self.superuser)
+        resp = self.client.get(self.url)
+        self.assertEqual(
+            set(resp.context["sistemas_disponibles"]),
+            {self.balances, self.financiamiento},
+        )
+
+    def test_modo_cliente_trae_todo_sin_paginador_server(self):
+        self._login(self.sol1)
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(resp.context["is_paginated"])
+        self.assertIsNone(resp.context.get("paginator"))
+        # Trae los que el usuario puede ver (solicitante: solo los suyos).
+        self.assertEqual(resp.context["tickets"].count(), 1)
+
+    def test_hx_request_devuelve_partial(self):
+        self._login(self.sol1)
+        resp = self.client.get(self.url, HTTP_HX_REQUEST="true")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'id="tabla-tickets"')
+        self.assertFalse(resp.context["is_paginated"])
+
+
+@override_settings(
+    STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    },
+    MODO_FILTRO_CLIENTE=False,
+)
+class TicketListadoServerTest(TicketListadoBase, TestCase):
+    """Mismo listado pero en modo server: los filtros (estado/sistema/q/tomado)
+    se aplican en el queryset y la paginación es de a 20."""
+
+    def test_filtra_por_estado(self):
+        Ticket.objects.create(
+            titulo="Cerrado", sistema=self.financiamiento,
+            solicitante=self.sol2, descripcion_original="<p>c</p>",
+            estado=EstadoTicket.CERRADO,
+        )
+        self._login(self.sol2)
+        resp = self.client.get(self.url, {"estado": "CERRADO"})
+        self.assertContains(resp, "Cerrado")
+        self.assertNotContains(resp, "Ticket del solicitante 2")
+
+    def test_filtra_por_sistema(self):
+        self._login(self.superuser)
+        resp = self.client.get(self.url, {"sistema": self.balances.pk})
+        self.assertContains(resp, "Ticket del solicitante 1")
+        self.assertNotContains(resp, "Ticket del solicitante 2")
+
+    def test_busca_por_titulo(self):
+        self._login(self.superuser)
+        resp = self.client.get(self.url, {"q": "solicitante 1"})
+        self.assertContains(resp, "Ticket del solicitante 1")
+        self.assertNotContains(resp, "Ticket del solicitante 2")
+
+    def test_pagina_de_a_20(self):
+        self._login(self.sol1)
+        for i in range(25):
+            Ticket.objects.create(
+                titulo=f"Bulk {i}", sistema=self.balances,
+                solicitante=self.sol1, descripcion_original="<p>b</p>",
+                estado=EstadoTicket.PENDIENTE,
+            )
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.context["is_paginated"])
+        self.assertEqual(resp.context["paginator"].num_pages, 2)
+        self.assertEqual(len(resp.context["tickets"]), 20)
+
+    def test_hx_request_devuelve_partial_server(self):
+        self._login(self.sol1)
+        resp = self.client.get(self.url, HTTP_HX_REQUEST="true")
+        self.assertContains(resp, 'id="tabla-tickets"')
+
+    def test_filtro_tomado_por_mi(self):
+        self._login(self.dev)
+        # El dev toma el ticket de su sistema (FINANCIAMIENTO).
+        self.client.post(reverse("ticket_tomar", args=[self.t2.pk]))
+        resp = self.client.get(self.url, {"tomado": "por_mi"})
+        self.assertContains(resp, "Ticket del solicitante 2")
+        self.assertNotContains(resp, "Ticket del solicitante 1")
+
+    def test_filtro_tomado_sin_tomar(self):
+        self._login(self.dev)
+        resp = self.client.get(self.url, {"tomado": "sin_tomar"})
+        self.assertContains(resp, "Ticket del solicitante 2")
+
+
+@override_settings(
+    STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    },
+    MODO_FILTRO_CLIENTE=True,
+)
+class TicketCreateTest(TestCase):
+    """TicketCreateView: alta correcta, validación de sistemas según acceso y
+    dropdown del form filtrado por rol (superuser ve todos)."""
+
+    def setUp(self):
+        Usuario = get_user_model()
+        self.balances = Sistema.objects.create(codigo="BALANCES", nombre="Balances")
+        self.financiamiento = Sistema.objects.create(
+            codigo="FINANCIAMIENTO", nombre="Financiamiento",
+        )
+        self.sol = Usuario.objects.create_user(
+            username="sol.crea", password="clave123", rol="SOLICITANTE",
+            first_name="Sol", last_name="Crea",
+        )
+        UsuarioSistema.objects.create(usuario=self.sol, sistema=self.balances)
+        self.superuser = Usuario.objects.create_superuser(
+            username="sup.crea", password="clave123", email="sup@incidencias.local",
+        )
+        self.url = reverse("ticket_create")
+
+    def _login(self, usuario):
+        self.client.login(username=usuario.username, password="clave123")
+
+    def test_solicitante_solo_elige_sus_sistemas(self):
+        self._login(self.sol)
+        resp = self.client.get(self.url)
+        form = resp.context["form"]
+        self.assertEqual(list(form.fields["sistema"].queryset), [self.balances])
+
+    def test_superuser_ve_todos_los_sistemas_en_crear(self):
+        self._login(self.superuser)
+        resp = self.client.get(self.url)
+        form = resp.context["form"]
+        self.assertEqual(
+            set(form.fields["sistema"].queryset),
+            {self.balances, self.financiamiento},
+        )
+
+    def test_solicitante_crea_ticket(self):
+        self._login(self.sol)
+        resp = self.client.post(
+            self.url,
+            {
+                "sistema": self.balances.pk,
+                "titulo": "Nuevo ticket creado",
+                "descripcion_original": "<p>Descripción</p>",
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        ticket = Ticket.objects.get(titulo="Nuevo ticket creado")
+        self.assertEqual(ticket.solicitante, self.sol)
+        self.assertEqual(ticket.sistema, self.balances)
+        self.assertEqual(ticket.estado, EstadoTicket.PENDIENTE)
+        self.assertEqual(resp["Location"], f"/tickets/{ticket.pk}/")
+
+    def test_solicitante_no_crea_en_sistema_sin_acceso(self):
+        self._login(self.sol)
+        antes = Ticket.objects.count()
+        resp = self.client.post(
+            self.url,
+            {
+                "sistema": self.financiamiento.pk,
+                "titulo": "Ticket invalido",
+                "descripcion_original": "<p>x</p>",
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        form = resp.context["form"]
+        self.assertIn("sistema", form.errors)
+        self.assertEqual(Ticket.objects.count(), antes)
+
