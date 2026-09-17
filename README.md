@@ -178,6 +178,10 @@ coordinadores suman las de gestión (11-15), y el staff ve además las de admin
 | `OLLAMA_HOST` | Host de Ollama (opcional, default `http://localhost:11434`). Puede venir como bind del daemon (`0.0.0.0`); el provider lo normaliza a URL de cliente (`http://127.0.0.1:11434`) vía `_normalizar_host_ollama()`. |
 | `MODO_FILTRO_CLIENTE` | `True` = filtrado/paginación en el navegador; `False` = server-side con HTMX. |
 | `AI_IMMEDIATE` | `True` = Huey síncrono (sin worker); `False` = cola real, levantar el worker con `manage.py run_huey`. |
+| `SUPABASE_ACCESS_KEY`, `SUPABASE_SECRET_KEY` | Credenciales **S3** de Supabase (dashboard → Storage → S3 access keys, NO son las API keys). Activan el storage S3 solo con `DJANGO_DEBUG=False`; sin ellas cae a `media/` (fallback). |
+| `SUPABASE_REGION` | Región del proyecto Supabase (Settings → General → Region). |
+| `SUPABASE_BUCKET` | Nombre del bucket de almacenamiento (`incidencias_adjuntos` en la demo). |
+| `SUPABASE_ENDPOINT` | Hostname directo de Storage: `https://<ref>.storage.supabase.co/storage/v1/s3` (el `<ref>` es el ID corto del proyecto). |
 
 ## IA — análisis de tickets
 

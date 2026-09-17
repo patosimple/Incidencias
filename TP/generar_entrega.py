@@ -20,6 +20,14 @@ OUT = r"TP\Entrega_Final_TP.docx"
 BRAND = RGBColor(0, 0x7A, 0xC3)
 GRAY = RGBColor(0x66, 0x66, 0x66)
 
+# Integrantes del grupo (nombre, rol en el desarrollo)
+INTEGRANTES = [
+    ("Patricio Ureta", "Análisis / Diseño / Desarrollo"),
+    ("Daniel Ravi", "Analista funcional / Referente de negocio"),
+    ("Juan Pablo Seoane", "QA / Pruebas de aceptación con usuarios"),
+    ("Ariel Alonso Shannon", "Despliegue / Infraestructura + Documentación"),
+]
+
 
 def _tabla(doc, headers, rows):
     t = doc.add_table(rows=1, cols=len(headers))
@@ -126,18 +134,22 @@ def main():
     _p(doc, "Trabajo de Fin de Ciclo — ENTREGA FINAL DE PROYECTO", bold=True)
     _p(doc, "UTN FRBA — Curso de Inteligencia Artificial para Programadores")
     doc.add_paragraph()
-    _p(doc, "Grupo: [COMPLETAR nombre/rol de cada integrante]", color=GRAY)
+    _p(doc, "Grupo: " + ", ".join(n for n, _ in INTEGRANTES), color=GRAY)
     _p(doc, "Repositorio: https://github.com/patosimple/Incidencias")
     doc.add_paragraph()
 
     # ---------------------------------------------------- links obligatorios
-    _titulo(doc, "Links de acceso directo (validos al momento de la correccion)")
+    _titulo(doc, "Links de acceso directo")
     _tabla(doc, ["Recurso", "URL"], [
         ["Repositorio GitHub", "https://github.com/patosimple/Incidencias"],
         ["Aplicacion en produccion", "https://incidencias.onrender.com"],
-        ["Video demo", "[COMPLETAR enlace — max 3 min]"],
+        ["Video demo", "https://youtu.be/7AgJvyjOLZw"],
         ["Otros recursos publicados", "[COMPLETAR si aplica — p.ej. el manual de uso /admin de la app]"],
     ])
+    _p(doc, "Nota: el servicio esta alojado en el plan gratuito de Render, que "
+            "puede redeployar de forma automatica y, al estar inactivo, la "
+            "primera carga puede demorar unos segundos en levantar la "
+            "aplicacion.", italic=True, color=GRAY)
 
     doc.add_page_break()
 
@@ -147,7 +159,10 @@ def main():
     # ------------------------------------------------------------ seccion 1
     _titulo(doc, "1. Presentacion del equipo y del proyecto", 2)
     _p(doc, "Integrantes del grupo (nombre, rol en el desarrollo):", bold=True)
-    _p(doc, "[COMPLETAR por integrante]")
+    for n, r in INTEGRANTES:
+        _p(doc, f"{n} — {r}")
+    _p(doc, "Todos los integrantes realizamos el trabajo en co-work con IA.",
+       italic=True, color=GRAY)
     _titulo(doc, "Nombre del proyecto", 3)
     _p(doc, "Sistema de Gestion de Incidencias de TI (tickets) con analisis IA asistido.")
     _titulo(doc, "Problema que resuelve", 3)
@@ -259,7 +274,7 @@ def main():
              "Detalle del ticket con la seccion Analisis IA expandida "
              "(cards de resultado generado por el LLM).")
     _titulo(doc, "Video de demostracion (opcional)", 3)
-    _p(doc, "[COMPLETAR enlace si aplica — max 3 min]")
+    _p(doc, "https://youtu.be/7AgJvyjOLZw (max 3 min)")
     _titulo(doc, "Log de una sesion real", 3)
     _p(doc, "Se incluye en anexo: linea de tiempo de una ejecucion completa "
             "extraida de la base de datos real (tickets + comentarios + "
@@ -487,12 +502,15 @@ def main():
             "globales largas.")
 
     _titulo(doc, "Entregable opcional — captura de Ollama local", 2)
-    _p(doc, "[COMPLETAR captura tras ejecutar, p.ej.:]")
     _p(doc, "Comando: ollama run qwen2.5:3b", bold=False)
     _p(doc, "Pregunta: \"En una organizacion que gestiona incidencias de "
             "Financiamiento politico, que ventajas y riesgos tiene analizar "
-            "esas incidencias con un LLM local versus una API en la nube?\"")
-    _p(doc, "Respuesta (1 linea): [COMPLETAR lo que respondio el modelo]")
+            "esas incidencias con un LLM local versus una API en la nube? "
+            "Respuesta no muy larga, un parrafo corto para cada situacion de "
+            "riesgo/ventaja\"")
+    _captura(doc, "query_ollama.png",
+             "Ollama en local: ollama list + ollama run qwen2.5:3b con la "
+             "pregunta del dominio y la respuesta completa del modelo.")
 
     doc.save(OUT)
     print("Documento generado:", OUT)

@@ -22,6 +22,14 @@ OUT = os.path.join(BASE_DIR, "Entrega_Final_TP.html")
 CAPTURAS = "capturas"
 DIAGRAMAS = "diagramas"
 
+# Integrantes del grupo (nombre, rol en el desarrollo)
+INTEGRANTES = [
+    ("Patricio Ureta", "Análisis / Diseño / Desarrollo"),
+    ("Daniel Ravi", "Analista funcional / Referente de negocio"),
+    ("Juan Pablo Seoane", "QA / Pruebas de aceptación con usuarios"),
+    ("Ariel Alonso Shannon", "Despliegue / Infraestructura + Documentación"),
+]
+
 TEMPLATE = """<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -85,12 +93,12 @@ TEMPLATE = """<!DOCTYPE html>
 
   <!-- ========================= LINKS OBLIGATORIOS ========================= -->
   <div class="rounded-xl border border-gray-200 bg-white p-6">
-    <h2 class="text-lg font-bold text-brand-700">Links de acceso directo (válidos al momento de la corrección)</h2>
+    <h2 class="text-lg font-bold text-brand-700">Links de acceso directo</h2>
     {LINKS_TABLA}
   </div>
 
   <!-- ============================ PARTE 1 ============================ -->
-  <div class="rounded-xl bg-brand-800 px-6 py-4">
+  <div class="page-break rounded-xl bg-brand-800 px-6 py-4">
     <h2 class="text-xl font-bold text-white">PARTE 1 — El proyecto como aplicación real</h2>
   </div>
 
@@ -228,7 +236,11 @@ def _parte1():
     # ------------------------------------------------------------ seccion 1
     out.append(_h2("1. Presentación del equipo y del proyecto"))
     out.append(_p("<strong>Integrantes del grupo (nombre, rol en el desarrollo):</strong>"))
-    out.append(_card(_p("[COMPLETAR por integrante]")))
+    out.append(_card("<ul class='text-sm text-gray-700 leading-relaxed space-y-1'>"
+                     + "".join(f"<li><strong>{n}</strong> — {r}</li>" for n, r in INTEGRANTES)
+                     + "</ul>"
+                     + "<p class='mt-2 text-xs italic text-gray-500'>Todos los integrantes "
+                       "realizamos el trabajo en co-work con IA.</p>"))
     out.append(_junta(
         _h3("Nombre del proyecto"),
         _p("Sistema de Gestión de Incidencias de TI (tickets) con análisis IA asistido."),
@@ -348,7 +360,8 @@ def _parte1():
     ))
     out.append(_junta(
         _h3("Video de demostración (opcional)"),
-        _p("[COMPLETAR enlace si aplica — max 3 min]"),
+        _p("<a class='text-brand-700 underline' href='https://youtu.be/7AgJvyjOLZw'>"
+           "https://youtu.be/7AgJvyjOLZw</a> (max 3 min)"),
     ))
     out.append(_junta(
         _h3("Log de una sesión real"),
@@ -553,12 +566,13 @@ def _parte2():
                   "globales largas."))
 
     out.append(_h2("Entregable opcional — captura de Ollama local"))
-    out.append(_p("[COMPLETAR captura tras ejecutar, p.ej.:]"))
-    out.append(_card(_p("Comando: <code class='text-brand-700'>ollama run qwen2.5:3b</code>", bold=True)
-                       + _p("Pregunta: \"En una organización que gestiona incidencias de Financiamiento "
-                            "político, qué ventajas y riesgos tiene analizar esas incidencias con un LLM "
-                            "local versus una API en la nube?\"", italic=True)
-                       + _p("Respuesta (1 línea): [COMPLETAR lo que respondió el modelo]")))
+    out.append(_p("Comando: <code class='text-brand-700'>ollama run qwen2.5:3b</code>"))
+    out.append(_card(_p("Pregunta: \"En una organización que gestiona incidencias de Financiamiento "
+                        "político, qué ventajas y riesgos tiene analizar esas incidencias con un LLM "
+                        "local versus una API en la nube? Respuesta no muy larga, un párrafo corto "
+                        "para cada situación de riesgo/ventaja\"", italic=True)))
+    out.append(_captura("query_ollama.png", "Ollama en local: `ollama list` + `ollama run qwen2.5:3b` "
+                        "con la pregunta del dominio y la respuesta completa del modelo."))
     return "\n".join(out)
 
 
@@ -567,16 +581,18 @@ def _parte2():
 # ---------------------------------------------------------------------------
 
 def main():
-    html = TEMPLATE.replace("{GRUPO}", "[COMPLETAR nombre/rol de cada integrante]")
+    html = TEMPLATE.replace("{GRUPO}", ", ".join(n for n, _ in INTEGRANTES))
     html = html.replace("{LINKS_TABLA}", _tabla(
         ["Recurso", "URL"],
         [
             ["Repositorio GitHub", "<a class='text-brand-700 underline' href='https://github.com/patosimple/Incidencias'>https://github.com/patosimple/Incidencias</a>"],
             ["Aplicación en producción", "<a class='text-brand-700 underline' href='https://incidencias.onrender.com'>https://incidencias.onrender.com</a>"],
-            ["Video demo", "[COMPLETAR enlace — max 3 min]"],
+            ["Video demo", "<a class='text-brand-700 underline' href='https://youtu.be/7AgJvyjOLZw'>https://youtu.be/7AgJvyjOLZw</a>"],
             ["Otros recursos publicados", "[COMPLETAR si aplica — p.ej. el manual de uso /admin de la app]"],
         ],
-    ))
+    ) + "<p class='mt-3 text-xs text-gray-500'>Nota: el servicio está alojado en el plan gratuito de "
+        "Render, que puede redeployar de forma automática y, al estar inactivo, la primera carga puede "
+        "demorar unos segundos en levantar la aplicación.</p>")
     html = html.replace("{PARTE1}", _parte1())
     html = html.replace("{PARTE2}", _parte2())
 
