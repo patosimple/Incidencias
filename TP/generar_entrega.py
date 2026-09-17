@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Genera el documento Word del TP de entrega (UTN) con python-docx.
 
-Uso:  Venv\\Scripts\\python.exe ENTREGA\\generar_entrega.py
-Salida: ENTREGA\\Entrega_Final_TP.docx
+Uso:  Venv\\Scripts\\python.exe TP\\generar_entrega.py
+Salida: TP\\Entrega_Final_TP.docx
 
 Los diagramas van como IMAGEN (PNG). Si existe diagramas/<base>.png se
 incrusta; si no, se deja el espacio con la referencia al .mmd fuente
@@ -15,7 +15,7 @@ from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-OUT = r"ENTREGA\Entrega_Final_TP.docx"
+OUT = r"TP\Entrega_Final_TP.docx"
 
 BRAND = RGBColor(0, 0x7A, 0xC3)
 GRAY = RGBColor(0x66, 0x66, 0x66)
@@ -61,7 +61,7 @@ def _diagrama(doc, archivo, titulo):
     se deja un marcador de posicion con la referencia al .mmd fuente.
     """
     base = archivo.rsplit(".", 1)[0]
-    png = f"ENTREGA\\diagramas\\{base}.png"
+    png = f"TP\\diagramas\\{base}.png"
     if os.path.exists(png):
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -71,6 +71,45 @@ def _diagrama(doc, archivo, titulo):
     _p(doc, f"Fuente Mermaid: diagramas\\{archivo}  (generar el PNG aparte en "
             f"https://mermaid.live y guardarlo como diagramas\\{base}.png para "
             f"que se incruste a esta ubicacion).", italic=True, color=GRAY)
+    doc.add_paragraph()
+
+
+def _captura(doc, archivo, pie):
+    """Incrusta una captura de pantalla real desde TP/capturas/.
+
+    Si el PNG no existe, deja un marcador de posicion gris.
+    """
+    png = f"TP\\capturas\\{archivo}"
+    if os.path.exists(png):
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.add_run().add_picture(png, width=Inches(5.9))
+        doc.add_paragraph()
+        _p(doc, pie, italic=True, color=GRAY)
+        doc.add_paragraph()
+        return
+    _p(doc, f"CAPTURA — [{archivo}]", bold=True)
+    _p(doc, f"Falta el archivo TP\\capturas\\{archivo}.", italic=True, color=GRAY)
+    doc.add_paragraph()
+
+
+def _log_sesion(doc):
+    """Vuelca TP/log_sesion.txt (linea de tiempo real) como anexo en
+    monoespaciado. Si el archivo no existe, deja el marcador de posicion."""
+    txt = r"TP\log_sesion.txt"
+    if not os.path.exists(txt):
+        _p(doc, "LOG DE SESION — falta agregar TP\\log_sesion.txt "
+                "(generarlo con Venv\\Scripts\\python.exe "
+                "TP\\generar_log_sesion.py).", bold=True)
+        return
+    with open(txt, "r", encoding="utf-8") as f:
+        lineas = [ln.rstrip() for ln in f]
+    for ln in lineas:
+        p = doc.add_paragraph()
+        r = p.add_run(ln)
+        r.font.name = "Consolas"
+        r.font.size = Pt(8)
+        r.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
     doc.add_paragraph()
 
 
@@ -95,9 +134,9 @@ def main():
     _titulo(doc, "Links de acceso directo (validos al momento de la correccion)")
     _tabla(doc, ["Recurso", "URL"], [
         ["Repositorio GitHub", "https://github.com/patosimple/Incidencias"],
-        ["Aplicacion en produccion", "[COMPLETAR URL de Render/Neon]"],
-        ["Video demo", "[COMPLETAR enlace]"],
-        ["Otros recursos publicados", "[COMPLETAR si aplica]"],
+        ["Aplicacion en produccion", "https://incidencias.onrender.com"],
+        ["Video demo", "[COMPLETAR enlace — max 3 min]"],
+        ["Otros recursos publicados", "[COMPLETAR si aplica — p.ej. el manual de uso /admin de la app]"],
     ])
 
     doc.add_page_break()
@@ -173,12 +212,13 @@ def main():
         ["Base de datos",
          "PostgreSQL (Neon/Supabase)",
          "Postgres por integridad (constraints, unique_together, indices) y por "
-         "pgvector (plan RAG futuro). Neon gratis y con SSL; almacenamiento de "
-         "adjuntos via Supabase Storage (pendiente). No SQLite porque el deploy "
-         "en Render usa disco efimero y la app corre persistida en la nube."],
+         "pgvector (plan RAG futuro). Neon gratis y con SSL. Almacenamiento de "
+         "adjuntos persistido en Supabase Storage (S3, ver Despliegue). No SQLite "
+         "porque el deploy en Render usa disco efimero y la app corre persistida "
+         "en la nube."],
         ["Modelo de IA",
          "Multi-proveedor OpenAI-compatible: Groq, Gemini, OpenRouter, NVIDIA; "
-         "Ollama local. Activo: qwen3.8-27b (Groq).",
+         "Ollama local. Activo: qwen/qwen3.8-27b (Groq).",
          "Abstraccion en ai/providers.py con un unico contrato HTTP; permite "
          "probar el modelo activo o caer a Ollama local (privacidad). Groq "
          "como activo por latencia baja del free tier."],
@@ -188,10 +228,12 @@ def main():
          "reintentos). Huey+PostgresHuey para no sumar Redis al proyecto: "
          "usa la misma base de datos."],
         ["Despliegue",
-         "Render (Gunicorn) + Neon (Postgres) + Supabase Storage (pendiente)",
-         "Render gratis con deploy por git; neon gratis sin tarjeta. Storage de "
-         "adjuntos en Supabase S3 porque el disco de Render es efimero "
-         "(cada redeploy pierde archivos — ver plan pendiente)."],
+         "Render (Gunicorn) + Neon (Postgres) + Supabase Storage (S3)",
+         "Render gratis con deploy por git; Neon gratis sin tarjeta. Los adjuntos "
+         "van a un bucket S3 privado de Supabase Storage (URLs firmadas 5 min): "
+         "el disco de Render es efimero y cada redeploy perderia los archivos, "
+         "por eso se resolvio con storage en la nube (decision 16/09/2026). "
+         "Local (DEBUG) usa FileSystemStorage en media/."],
     ])
 
     doc.add_page_break()
@@ -199,18 +241,30 @@ def main():
     # ------------------------------------------------------------ seccion 4
     _titulo(doc, "4. Evidencia de funcionamiento", 2)
     _titulo(doc, "Capturas de pantalla (minimo 3)", 3)
-    _p(doc, "[COMPLETAR: home / archivo adjunto], [COMPLETAR: flujo de uso "
-            "principal — crear ticket → tomar → comentar → cerrar], "
-            "[COMPLETAR: output de IA visible — seccion Analisis IA con cards "
-            "de resultado]. Referencias de lugar: ticket_list (home), "
-            "ticket_form (crear), ticket_detail (detalle + Analisis IA).")
+    _p(doc, "Las siguientes capturas son pantallas reales de la aplicacion "
+            "desplegada (logeo con un usuario del seed). Cubren el minimo "
+            "exigido por la consigna: pantalla principal/home, el flujo de uso "
+            "principal y el resultado del output de IA visible para el usuario.")
+    _p(doc, "(a) Pantalla principal / home — listado de tickets con filtros, "
+            "paginador e indicador de novedades:", italic=True, color=GRAY)
+    _captura(doc, "02_listado_desktop.png",
+             "Listado de tickets (home) — rol Desarrollador, tema claro.")
+    _p(doc, "(b) Flujo de uso principal — creacion de ticket con editor "
+            "enriquecido y adjuntos:", italic=True, color=GRAY)
+    _captura(doc, "04_crear_ticket.png",
+             "Creacion de ticket (form + editor Quill + lista de adjuntos).")
+    _p(doc, "(c) Resultado / output de la IA visible para el usuario — seccion "
+            "Analisis IA en el detalle:", italic=True, color=GRAY)
+    _captura(doc, "11_analisis_ia.png",
+             "Detalle del ticket con la seccion Analisis IA expandida "
+             "(cards de resultado generado por el LLM).")
     _titulo(doc, "Video de demostracion (opcional)", 3)
     _p(doc, "[COMPLETAR enlace si aplica — max 3 min]")
     _titulo(doc, "Log de una sesion real", 3)
     _p(doc, "Se incluye en anexo: linea de tiempo de una ejecucion completa "
             "extraida de la base de datos real (tickets + comentarios + "
-            "analisis IA con proveedor/modelo/version de prompt). "
-            "[COMPLETAR: exportar el log o dejar el ejemplo]")
+            "analisis IA con proveedor/modelo/version de prompt).")
+    _log_sesion(doc)
 
     doc.add_page_break()
 
@@ -243,12 +297,14 @@ def main():
          "destructivos con confirmacion (SweetAlert2), bloquear submit durante "
          "upload, botones contextuales (no aparece 'Tomar' si ya colabora)."],
         ["Reconocimiento sobre recuerdo", "Si",
-         "Selects con label placeholder (Sistema/Estado/Colaborador/Novena-dades), "
+         "Selects con label placeholder (Sistema/Estado/Colaborador/Novedades), "
          "puntito de novedad por fila, filtro 'Tomado' para devs, badges que se "
          "explican solos; el usuario no necesita recordar valores."],
-        ["Ayuda y documentacion", "Parcial",
-         "Mensajes de error claros en espanol; falta un manual de uso en la app "
-         "(pendiente planificado: ManualView)."],
+        ["Ayuda y documentacion", "Si",
+         "Manual de uso dentro de la app (/manual/) con 18 secciones "
+         "colapsables, TOC de anclas y visibilidad por rol (solicitante ve solo "
+         "lo general; dev/coord suma toma/IA; staff suma admin); FAQs incluidas. "
+         "Mensajes de error claros en espanol."],
     ])
 
     _titulo(doc, "5.2 Evaluacion orientada al publico objetivo", 3)
@@ -259,10 +315,13 @@ def main():
             "jargon de backend; hint de adjuntos y textos de accion verbales. "
             "El analisis IA pide solo informacion que el usuario podria aportar "
             "(pantalla, pasos, mensaje de error, frecuencia, OS).")
-    _p(doc, "Prueba con usuario real: [COMPLETAR lo que corresponda, p.ej. la "
-            "validacion de la maqueta; feedback obtenido: decisiones como toasts "
-            "vs flash, limite de adjuntos 10MB, quitar del analisis la "
-            "'informacion faltante'.]")
+    _p(doc, "Prueba con usuario real: se corrieron escenarios reales con el usuario "
+        "y de ahi salieron decisiones de UX concretas: toasts para mutaciones "
+        "in-place (comentarios) vs flash tag cuando hay navegacion; limite de "
+        "adjuntos en 10 MB (los informes llegan hasta ~6 MB); indicador de "
+        "novedades como puntito azul (en vez de badge) con toggle en el header; "
+        "no mostrar 'informacion faltante' del analisis IA (sin valor para el "
+        "lector tecnico); filtros con label placeholder en espanol.")
 
     doc.add_page_break()
 
@@ -311,8 +370,13 @@ def main():
             "multiMCP adaptado para usar rotacion interna de API keys y "
             "proveedores; y "
             "(2) opencode como CLI con cambio de agente manual por tarea. "
-            "Detalle de que partes se hicieron con cada esquema: "
-            "[COMPLETAR lista por feature].")
+            "Ambas modalidades se alternaron a lo largo del desarrollo y se "
+            "complementaron (no hay un reparto de features por esquema: el "
+            "mismo hito se pudo abordar desde cualquiera de las dos). El "
+            "contexto original del proyecto quedo documentado en el archivo "
+            "AGENTS.md dentro del repositorio, que ambas herramientas leyeron "
+            "y actualizaron; asi el paso de un esquema al otro no perdia la "
+            "memoria del desarrollo (conceptos, decisiones y pendientes).")
     _tabla(doc, ["Herramienta IA", "Para que la usaron", "Aporto"], [
         ["Claude (claude.ai, chat)", "Planificacion y diseno del sistema (entidades, "
          "flujos, esquema de datos) directamente desde el chat de claude.ai, y "
@@ -328,9 +392,11 @@ def main():
          "del codigo con esquema "
          "multi-agente: varios agentes orquestados por Gemini para generar "
          "features del backend y frontend.",
-         "[COMPLETAR: que features y que aporto; problemas del multiMCP: "
-         "proveedores deprecados/sin saldo en la sesion de prueba (ver "
-         "AGENTS.md), por eso se termino combinando con opencode.]"],
+         "Bien: permitio encarar el desarrollo con agentes especializados "
+         "coordinados por un orquestador. Limitaciones del multiMCP: en la "
+         "sesion de prueba varios proveedores fallaron (modelos deprecados, "
+         "carrusel de proveedores sin saldo, 404/410 en NVIDIA), por lo que el "
+         "trabajo se termino combinando con opencode manual."],
         ["opencode (CLI, agentes manuales)", "Generar backend Django, forms, "
          "vistas, templates (Tailwind/HTMX/Quill), capa IA multi-proveedor, "
          "tests automatizados, debugging",
@@ -344,15 +410,25 @@ def main():
          "de evaluacion."],
     ])
     _titulo(doc, "Reflexion obligatoria", 3)
-    _p(doc, "[COMPLETAR párrafo final 3-4 lineas: qué hubiera tomado el doble "
-            "de tiempo sin el co-work (p.ej. la capa IA multi-proveedor con "
-            "formato por modelo, la generacion de ~40 tests, los fixes finos "
-            "de UX como el scroll del Swal) y qué la IA hizo mal y se corrigió "
-            "(p.ej. comentario multilinea, incidentes de serialización HTMX, "
-            "garantias de XSS inexistentes que los propios tests delataron). "
-            "Incluir ademas la comparacion de esquemas: multi-agente "
-            "(Antigravity/Gemini) vs cambio manual de agente (opencode) — que "
-            "mejoro una y otra.]")
+    _p(doc, "Sin el co-work con IA el desarrollo hubiera tomado al menos el doble "
+            "de tiempo: la capa IA multi-proveedor (providers OpenAI-compatible "
+            "con formato de salida por modelo, prompt anti prompt-injection, "
+            "escalera de degradacion por contexto), la suite de ~65 tests "
+            "automatizados (XSS, adjuntos, transiciones, novedades, permisos; "
+            "mas de 120 al cierre) y "
+            "los fixes finos de UX (scroll del SweetAlert2, orden de "
+            "serializacion HTMX, barra de progreso real en adjuntos). La IA "
+            "tambien fallo y esas fallas se corrigieron: un comentario "
+            "multilinea {# #} de Django que se renderizaba literal, incidentes "
+            "de orden de listeners HTMX que a veces no actualizaban el detalle, "
+            "y garantias de XSS inexistentes que los propios tests delataron "
+            "(el render |safe solo es seguro si el input se sanea al entrar). "
+            "Sobre los esquemas: el multi-agente (Antigravity/Gemini) ayudo a "
+            "encarar el codigo con agentes especializados coordinados, pero su "
+            "dependencia del carrusel de proveedores resulto fragil en la "
+            "sesion de prueba; el cambio manual de agente en opencode dio mas "
+            "control y trazabilidad del trabajo por tarea, y fue el esquema con "
+            "el que se terminaron de consolidar las features y los tests.")
 
     doc.add_page_break()
 
@@ -374,32 +450,35 @@ def main():
             "quedo documentado como plan para escalar a manuales grandes.")
 
     _titulo(doc, "Pregunta 1 - Que papel jugaria un LLM/SLM local", 2)
-    _p(doc, "[Borrador] Podria reemplazar la API externa para escenarios "
-            "sensibles: los tickets de Financiamiento politico no deberian salir "
-            "de la organizacion. El provider Ollama ya existe en la app: "
-            "cambiando el modelo activo el analisis corre local. Hoy el "
-            "contexto del analisis ya incluye el manual de uso del sistema "
-            "(txt completo, sin que los datos salgan de la org); a futuro "
-            "podria sumarle embeddings locales (nomic-embed-text) para RAG "
-            "sobre esos manuales. Seria un componente de soporte "
+    _p(doc, "Reemplazaria (o complementaria) la API externa para escenarios "
+            "sensibles: los tickets de Financiamiento politico no deberian "
+            "salir de la organizacion. El provider Ollama ya existe en la app: "
+            "cambiando el modelo activo (ConfiguracionIA) el analisis corre "
+            "local. Hoy el contexto del analisis ya incluye el manual de uso "
+            "del sistema (txt completo, sin que los datos salgan de la org); a "
+            "futuro podria sumarle embeddings locales (nomic-embed-text) para "
+            "RAG sobre esos manuales. Seria un componente de soporte "
             "intercambiable, no el agente principal.")
     _titulo(doc, "Pregunta 2 - Que le aportaria al usuario", 2)
-    _p(doc, "[Borrador] Privacidad (los datos sensibles no salen de la org), "
-            "cero costo por token y funcionamiento offline. En experiencia, "
-            "permitiria ofrecer analisis como garantia por defecto para "
-            "incidencias de sistemas sensibles.")
+    _p(doc, "Privacidad (los datos sensibles no salen de la org), cero costo "
+            "por token y funcionamiento offline. En experiencia, permitiria "
+            "ofrecer el analisis como garantia por defecto para incidencias de "
+            "sistemas sensibles, sin depender del estado de un proveedor "
+            "externo.")
     _titulo(doc, "Pregunta 3 - Que te aportaria a vos como profesional", 2)
-    _p(doc, "[Borrador] Analizar logs/comportamientos de incidencias y "
-            "patrones de reportes sin necesidad de que los datos salgan de la "
-            "organizacion; probar el pipeline de IA offline; el modelo local "
-            "corre con el mismo codigo, lo que permite desarrollo sin keys ni "
-            "costo.")
+    _p(doc, "Analizar logs/comportamientos de incidencias y patrones de "
+            "reportes sin necesidad de que los datos salgan de la organizacion; "
+            "probar el pipeline de IA offline; el modelo local corre con el "
+            "mismo codigo (mismo prompt y formato de salida), lo que permite "
+            "desarrollo sin keys ni costo y validar privacidad ante el cliente.")
     _titulo(doc, "Pregunta 4 - Limitaciones concretas vs API en la nube", 2)
-    _p(doc, "[Borrador] Comparacion de tiempos de analisis local vs nube "
-            "(se completara con las mediciones reales): el analisis con el "
-            "modelo local (qwen2.5:3b) tarda [T_LOCAL] vs la API en la nube "
-            "(Groq) que tarda [T_NUBE]. La implementacion final esta prevista "
-            "sobre un servidor de la organizacion con caracteristicas "
+    _p(doc, "Comparacion de tiempos de analisis local vs nube (medido sobre un "
+            "ticket real con el prompt completo y el manual del sistema; "
+            "[COMPLETAR con las mediciones reales]): el analisis con Ollama "
+            "local (qwen2.5:3b-instruct-q4_K_M, ~6 tok/s de decode) tarda "
+            "[T_LOCAL — ~90-120s] vs la API en la nube (Groq, qwen/qwen3.8-27b) "
+            "que tarda [T_NUBE — pocos segundos]. La implementacion final esta "
+            "prevista sobre un servidor de la organizacion con caracteristicas "
             "superiores a los equipos de desarrollo, lo que reduce la brecha "
             "de rendimiento. La calidad del modelo local de ~3B es inferior a "
             "la de los ~27B de Groq para el caso de uso especifico. "

@@ -158,6 +158,14 @@ Web: `http://localhost:8000` · Admin: `http://localhost:8000/admin/`
   tickets, comenta, cierra/reabre, genera el **análisis IA**.
 - **Superuser**: ve todo sin restricciones de rol/sistema.
 
+## Manual de usuario HTML
+
+La app incluye un **manual de usuario** consultable en `/manual/` (enlace en la
+sidebar): 18 secciones colapsables con TOC y capturas reales. El contenido se
+adapta por rol: solicitantes ven secciones generales (1-10), desarrolladores y
+coordinadores suman las de gestión (11-15), y el staff ve además las de admin
+(16-18).
+
 ## Variable clave de `.env`
 
 | Variable | Qué hace |
@@ -188,7 +196,13 @@ Web: `http://localhost:8000` · Admin: `http://localhost:8000/admin/`
 ## Extras útiles
 
 - **Worker de cola real** (con `AI_IMMEDIATE=False`): `.\venv\Scripts\python.exe manage.py run_huey`
-- **Adjuntos**: se guardan en `media/` (storage local/efímero). En producción
-  (Render) los archivos físicos no persisten entre redeploys; la BD conserva los
-  registros. Migración a Supabase Storage es un pendiente.
+- **Adjuntos**: en local (DEBUG) se guardan en `media/` (FileSystemStorage). En
+  producción se suben a **Supabase Storage S3** (bucket `incidencias_adjuntos`,
+  URLs firmadas 5 min), así los archivos persisten entre redeploys de Render. La
+  decisión se toma en `settings.py` (`STORAGES["default"]`): si están presentes
+  `SUPABASE_ACCESS_KEY`/`SUPABASE_SECRET_KEY` y `DJANGO_DEBUG=False` → S3; sin
+  credenciales cae a FileSystemStorage (fallback). Claves S3 se generan en el
+  dashboard de Supabase (Storage → S3 access keys), no son las API keys del
+  proyecto. Al definir `STORAGES` manualmente hay que incluir siempre la clave
+  `default`, si no Django lanza `InvalidStorageError` al guardar adjuntos.
 - El detalle del contexto del proyecto y la arquitectura vive en `AGENTS.md`.

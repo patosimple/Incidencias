@@ -1,0 +1,19 @@
+========================================================================================
+LOG DE SESION REAL — Sistema de Gestion de Incidencias de TI
+Exportado el 16/09/2026 13:29 desde la base de datos de la aplicacion.
+Linea de tiempo cronologica: sesion de prueba con datos reales (desde las 13:00 hs).
+Incluye: creacion de ticket, comentarios con adjuntos, toma/liberacion, analisis IA, cierre.
+========================================================================================
+16/09/2026 13:11  [11] CREADO ticket #11 "ERROR DE SUMA ALGEBRAICA POR CIFRA NEGATIVA" por María López (sistema Balances). Estado: Cerrado. Descripcion: Esta incidencia es complicada, principalmente porque no tenemos una sospecha certera del problema. Involucra varios rubros que no suman bien en pantalla después de determinada operación con los saldos, pero difiere en los reportes.La principal sospecha, aunque no es concluyente, podría vincularse con cargar un importe con una cifra negativa. Esto no es la forma habitual de operar, ya que si quiero bajar un saldo, lo haría por la columna contraria (una cuenta del haber si se trata de un saldo recomendado del debe y viceversa).Creemos que los usuarios ingresan, en alguna celda o detalle, una suma con un signo negativo adelante y por eso se rompe la suma lógica, mostrándose mal los totales en las cuentas madres respecto de las cuentas hijas.Otra posibilidad es el forzado de estos saldos negativos a través de un modal de carga (AREA, por ejemplo, asume un signo negativo si es un ajuste por gastos, por lo que su signo negativo está implícito y es inevitable)
+16/09/2026 13:11  [11] ADJUNTO a ticket #11: María López subio "CIFRA_NEGATIVA_1.jpg".
+16/09/2026 13:11  [11] TOMO ticket #11 Desarrollador Demo (colaborador activo).
+16/09/2026 13:11  [11] COMENTARIO Desarrollador Demo en ticket #11: "hola, estoy viendo tu caso, me subis alguna captura mas?"
+16/09/2026 13:12  [11] EDITADO ticket #11 (titulo/descripcion) por María López.
+16/09/2026 13:12  [11] ADJUNTO a ticket #11: María López subio "CIFRA_NEGATIVA_2.jpg".
+16/09/2026 13:12  [11] COMENTARIO María López en ticket #11: "Respondiendo a Desarrollador Demo:hola, estoy viendo tu caso, me subis alguna captura mas?listo te agregue la captura que necesitas"
+16/09/2026 13:14  [11] ANALISIS IA ticket #11 (tipo TECNICO): modelo Groq/qwen/qwen3.8-27b, version_prompt v6. Problema: Discrepancia en el cálculo de sumas algebricas en la vista de saldos cuando se ingresan importes con signo negativo, afectando la consistencia entre cuentas madre e hijas.
+16/09/2026 13:14  [11] COMENTARIO Desarrollador Demo en ticket #11: "perfecto, ya esta solucionado, cierro el ticket"
+16/09/2026 13:15  [11] COMENTARIO María López en ticket #11: "vuelvo a reabrir porque quedó funcionando mal, lo podes revisar?"
+16/09/2026 13:16  [11] COMENTARIO Desarrollador Demo en ticket #11: "Respondiendo a María López:vuelvo a reabrir porque quedó funcionando mal, lo podes revisar?te pido mil disculpas! revisado y corregido nuevamente. si te parece que esta ok, podes cerrarlo."
+16/09/2026 13:17  [11] COMENTARIO María López en ticket #11: "Respondiendo a Desarrollador Demo:te pido mil disculpas! revisado y corregido nuevamente. si te parece que esta ok, podes cerrarlo.ahora si! muchas gracias! cierro el ticket."
+16/09/2026 13:17  [11] CERRADO ticket #11 (estado actual Cerrado).

@@ -1,7 +1,7 @@
 # TP de entrega — Trabajo y decisiones (UTN)
 
 > Documento de trabajo del TP de fin de ciclo. La **consigna oficial** está en
-> [`ENTREGA_CONSIGNA.md`](ENTREGA_CONSIGNA.md) (dentro de esta carpeta `ENTREGA/`).
+> [`ENTREGA_CONSIGNA.md`](ENTREGA_CONSIGNA.md) (dentro de esta carpeta `TP/`).
 > Este MD registra el estado real del trabajo, las decisiones tomadas y lo que
 > queda por hacer. Si el usuario pide trabajar en la entrega, **leer primero la
 > consigna** y después este documento.
@@ -45,42 +45,67 @@ obligatorios (repo, app en producción, video).
 
 ---
 
-## 3. Artifactos generados (carpeta `ENTREGA/`)
+## 3. Artifactos generados (carpeta `TP/`)
 | Archivo | Qué es | Estado |
 |---|---|---|
 | `ENTREGA_CONSIGNA.md` | Consigna oficial completa (no tocar) | ✅ guardada |
-| `Entrega_Final_TP.docx` | Informe del TP en Word (Parte 1 + Parte 2) | ✅ esqueleto completo con `[COMPLETAR]` |
+| `Entrega_Final_TP.html` + `.pdf` | **Informe principal del TP** (Parte 1 + Parte 2) en HTML/PDF, estilo manual (Tailwind + paleta brand) | ✅ **20 páginas, sin páginas en blanco, log completo, diagramas con su título** |
+| `generar_entrega_html.py` | Script que genera el `.html` (y de ahí el `.pdf` con Edge headless) | ✅ |
+| `Entrega_Final_TP.docx` | Informe del TP en Word (mismo contenido; **anexo/backup**) | ✅ esqueleto completo con `[COMPLETAR]` |
 | `generar_entrega.py` | Script que construye el `.docx` con `python-docx` (reproducible) | ✅ |
-| `diagramas/*.mmd` | 5 diagramas Mermaid por separado (arquitectura, clases, casos de uso, secuencia IA, estados del ticket) | ✅ (ver §4) |
+| `log_sesion.txt` + `generar_log_sesion.py` | Log real de la sesión (línea de tiempo) extraído de la DB | ✅ |
+| `diagramas/*.mmd` **+ `*.png`** | 6 diagramas Mermaid (arquitectura, agentes_desarrollo, estados_ticket, clases, casos de uso, secuencia IA). PNG rasterizados de los A4 a 200 dpi | ✅ (ver §4) |
+| `diagramas render/` | PDFs A4 renderizados por el usuario (fuente de los PNG) | ✅ (¿commitear? decisión pendiente) |
 | `capturas/` | PNG de pantallas (réplicas o reales según §6) | ✅ 22 capturas (hard links a `core/static/core/img/manual/`) |
 | `presentacion_ppt.pptx` | Walkthrough/deck de pantallas | ⏳ pendiente (no hacer todavía) |
 | `manual.html` (app) | Manual de uso consultable (`/manual/`) | ✅ 18 secciones (ver estado en AGENTS.md) |
 
-### Cómo regenerar el Word
+### Cómo regenerar el informe
 ```bash
-venv\Scripts\python.exe ENTREGA\generar_entrega.py
+venv\Scripts\python.exe TP\generar_entrega_html.py         # genera el .html
+# luego convertir a PDF con Edge headless (ver docstring del script)
+venv\Scripts\python.exe TP\generar_entrega.py              # genera el .docx (anexo)
 ```
-- Requiere `python-docx` instalado en el venv (ya instalado: 1.2.0).
-- Los textos editables van en el script (no editar el `.docx` a mano, se pisa al
-  regenerar).
+- Requiere `python-docx` (ya instalado: 1.2.0) y Edge headless para el PDF.
+- Los textos editables van en los scripts (no editar `.html`/`.docx` a mano, se
+  pisan al regenerar).
+- **Fix de PDF aplicados en `generar_entrega_html.py`**: título de diagrama +
+  diagrama en la misma página (`.caja-junta` + `max-height` de imagen), sin
+  páginas en blanco entre secciones (salto sobre el `h2` con `page-before`, no
+  div vacío), log completo fluyendo entre páginas (`pre-wrap`), tamaño de fuente
+  normal (el `overflow-auto` del log ensanchaba la página y Edge escalaba todo a
+  2/3).
+
+### `[COMPLETAR]` pendientes del informe (los prepara el usuario)
+1. **Integrantes del grupo** — portada + sección 1 (`{GRUPO}` y "[COMPLETAR por integrante]")
+2. **Links obligatorios** — URL del video demo (sección 4 + tabla de links)
+3. **Mediciones IA local vs nube** — Pregunta 4, Parte 2 (`[T_LOCAL]`/`[T_NUBE]` reales)
+4. **Captura + respuesta de Ollama** — entregable opcional, Pregunta 5
+5. **Otros recursos publicados** — (p.ej. manual `/manual/` en la app)
 
 ---
 
-## 4. Diagramas (Mermaid, separados a propósito)
-Los diagramas **van como IMAGEN (PNG)** en el Word. `generar_entrega.py` incrusta
-automáticamente `diagramas/<base>.png` si existe; si no, deja un **espacio
-reservado** etiquetado "DIAGRAMA IMAGEN" con la referencia al `.mmd` fuente
-(la imagen se genera aparte, p.ej. pegando el `.mmd` en <https://mermaid.live>
-y exportando PNG con el mismo nombre base).
+## 4. Diagramas (Mermaid, PNG incrustados)
+Los diagramas **van como IMAGEN (PNG)** en el informe. Ambos generadores
+(`generar_entrega.py` docx y `generar_entrega_html.py` html/pdf) incrustan
+`diagramas/<base>.png` si existe. Los PNG actuales se rasterizaron desde los
+PDFs A4 renderizados por el usuario (`diagramas render/*_A4.pdf`) con
+**pymupdf** a **200 dpi** (el 17/09/2026).
 
-| Diagrama | Archivo `.mmd` | PNG esperado |
+| Diagrama | Archivo `.mmd` | PNG |
 |---|---|---|
-| Arquitectura general | `diagramas/arquitectura.mmd` | `diagramas/arquitectura.png` |
-| Flujo de agentes (metodología de desarrollo) | `diagramas/agentes_desarrollo.mmd` | `diagramas/agentes_desarrollo.png` |
-| Flujo de estados del ticket | `diagramas/estados_ticket.mmd` | `diagramas/estados_ticket.png` |
-| UML Clases | `diagramas/clases.mmd` | `diagramas/clases.png` |
-| UML Casos de uso | `diagramas/casos_de_uso.mmd` | `diagramas/casos_de_uso.png` |
-| UML Secuencia del análisis IA | `diagramas/secuencia_analisis_ia.mmd` | `diagramas/secuencia_analisis_ia.png` |
+| Arquitectura general | `diagramas/arquitectura.mmd` | ✅ `arquitectura.png` |
+| Flujo de agentes (metodología de desarrollo) | `diagramas/agentes_desarrollo.mmd` | ✅ `agentes_desarrollo.png` |
+| Flujo de estados del ticket | `diagramas/estados_ticket.mmd` | ✅ `estados_ticket.png` |
+| UML Clases **(único clases+tablas)** | `diagramas/clases.mmd` | ✅ `clases.png` |
+| UML Casos de uso | `diagramas/casos_de_uso.mmd` | ✅ `casos_de_uso.png` |
+| UML Secuencia del análisis IA | `diagramas/secuencia_analisis_ia.mmd` | ✅ `secuencia_analisis_ia.png` |
+
+> **Decisión 17/09/2026 — DER vs clases**: se consultó por un DER "basado en
+> estructura DB" separado. Resultado: **no hace falta** — los modelos Django
+> acarrean toda la metadata de BD (unique_together, on_delete, nullables, CHECK),
+> así que `clases.mmd` (ya corregido contra el código real) cubre **clases y
+> tablas a la vez**. El `der.mmd` que se había creado se eliminó (redundante).
 
 **Sobre el "diagrama de flujo de agentes"**: la app en sí no usa orquestación
 multi-agente (el análisis IA es un paso manual), pero el desarrollo sí se
@@ -117,6 +142,12 @@ trabajó en dos esquemas combinados:
   etc.).
 - Cubrió el resto del desarrollo.
 
+### Contexto compartido entre esquemas
+- El **contexto del proyecto se comparte entre ambos esquemas vía `AGENTS.md`**
+  (archivo del repositorio): tanto Antigravity como opencode lo leen y lo
+  actualizan, de modo que alternar entre modalidades no pierde la memoria del
+  desarrollo (conceptos, decisiones de diseño, pendientes).
+
 ### Pendientes del usuario (resueltos 16/09/2026)
 - [x] **Features por esquema / modelos del multi-agente**: el usuario decidió que
       NO hace falta detallar qué features se hicieron con cada esquema ni con qué
@@ -130,15 +161,15 @@ trabajó en dos esquemas combinados:
 
 ---
 
-## 6. Contenido del Word: qué está y qué falta completar
-El `.docx` tiene **todo el esqueleto** de Parte 1 y Parte 2. Los placeholders
-`[COMPLETAR ...]` están en:
-- Portada: integrantes.
+## 6. Contenido del informe (PDF principal, docx anexo): qué está y qué falta
+El **PDF (`Entrega_Final_TP.pdf`, 20 páginas)** es el informe principal (Parte 1
+y Parte 2 completas, con capturas reales, diagramas, log y tablas). El `.docx`
+replica el mismo contenido como anexo editable. Los placeholders `[COMPLETAR ...]`
+están en (ver lista completa en §3):
+- Portada: integrantes (`{GRUPO}`).
 - Links obligatorios: URL de la app en producción y video.
-- Sección 4: capturas reales, video, log de sesión real (exportar de la DB).
-- Sección 5: prueba con usuario real (feedback de decisiones de UX).
-- Sección 7: reflexión final.
-- Parte 2: respuesta de las 4 preguntas (hay borradores) y captura de Ollama.
+- Sección 4: video demo (opcional) y log de sesión real (ya incluido).
+- Parte 2: mediciones de tiempos reales y captura de Ollama.
 
 ---
 

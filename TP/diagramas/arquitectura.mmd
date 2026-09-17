@@ -19,7 +19,7 @@ flowchart LR
 
     subgraph Persistencia["Memoria persistente"]
         G[("PostgreSQL<br/>(Neon en produccion / local en dev)")]
-        S["Adjuntos: FileSystemStorage<br/>(Supabase Storage: pendiente)"]
+        S["Adjuntos: Supabase Storage (S3, URLs firmadas 5 min)<br/>en produccion; FileSystemStorage en DEBUG local"]
     end
 
     A -- "HTMX (hx-get/hx-post JSON)" --> C

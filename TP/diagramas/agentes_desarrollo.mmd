@@ -1,0 +1,25 @@
+flowchart TB
+    subgraph Esq1["ESQUEMA 1 — Antigravity (IDE) + Gemini"]
+        GM["Gemini (LLM en el IDE)<br/>trabaja directo, sin division de agentes"]
+        MCP["multiMCP adaptado<br/>(carrusel: rota proveedores / API keys<br/>segun stock de tokens)"]
+        GM --> MCP
+    end
+
+    subgraph Esq2["ESQUEMA 2 — opencode (CLI)"]
+        OC["Agente opencode<br/>(cambio de agente manual segun tarea)"]
+    end
+
+    subgraph Servicios["Herramientas / servicios"]
+        LLM["Modelos LLM (proveedores externos)"]
+        GIT["Git / GitHub (commits)"]
+        REPO["Repositorio Incidencias (codigo)"]
+    end
+
+    MCP --> LLM
+    OC --> LLM
+    GM --> GIT
+    OC --> GIT
+    GIT --> REPO
+
+    nota["el multiMCP es un carrusel que rota proveedores segun stock de tokens.<br/>Se alterno entre los dos esquemas.<br/>La app NO usa multi-agente en runtime: el analisis IA es un paso manual<br/>con un solo proveedor activo."]
+    nota -.-> REPO

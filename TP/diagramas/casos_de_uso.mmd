@@ -1,0 +1,56 @@
+flowchart LR
+    subgraph Actores
+        SOL["Solicitante<br/>(usuario de negocio)"]
+        DEV["Desarrollador<br/>(gestión de tickets + admin)"]
+        SOL <|-- DEV
+    end
+
+    subgraph CU1["Gestión de tickets (solicitante; el desarrollador también lo hace)"]
+        T_CREAR["Crear ticket (Quill + adjuntos)"]
+        T_VER["Ver listado y detalle de tickets<br/>(solicitante: solo los suyos;<br/>desarrollador: todos los de sus sistemas)"]
+        T_EDITAR["Editar / eliminar el propio<br/>(solo dueño, si no está CERRADO)"]
+        T_COMENTAR["Comentar, citar,<br/>editar/eliminar comentario propio"]
+        T_CERRAR["Cerrar / reabrir el propio"]
+    end
+
+    subgraph CU2["Toma colaborativa (solo desarrollador)"]
+        T_CERRAR_ANY["Cerrar / reabrir cualquier ticket<br/>de sus sistemas"]
+        T_TOMAR["Tomar ticket"]
+        T_LIBERAR["Liberar ticket"]
+        T_COLAB["Ver colaboradores activos"]
+    end
+
+    subgraph CU3["IA (solo desarrollador)"]
+        IA_ANALIZAR["Analizar / Reanalizar<br/>(no en tickets CERRADOS)"]
+        IA_VER["Ver análisis IA"]
+    end
+
+    subgraph CU4["Administración (desarrollador con is_staff)"]
+        AD_USR["Administrar usuarios y accesos<br/>(Usuario + UsuarioSistema, inline)"]
+        AD_SIST["Administrar sistemas"]
+        AD_IA["Configurar modelo IA activo<br/>(ModeloIA + ConfiguracionIA)"]
+    end
+
+    SOL --> T_CREAR
+    SOL --> T_VER
+    SOL --> T_EDITAR
+    SOL --> T_COMENTAR
+    SOL --> T_CERRAR
+
+    DEV --> T_CREAR
+    DEV --> T_VER
+    DEV --> T_EDITAR
+    DEV --> T_COMENTAR
+    DEV --> T_CERRAR
+    DEV --> T_TOMAR
+    DEV --> T_LIBERAR
+    DEV --> T_COLAB
+    DEV --> T_CERRAR_ANY
+    DEV --> IA_ANALIZAR
+    DEV --> IA_VER
+    DEV --> AD_USR
+    DEV --> AD_SIST
+    DEV --> AD_IA
+
+    nota["Nota: no existe un rol 'admin' separado: el admin lo opera un DESARROLLADOR<br/>con is_staff (p.ej. dev.demo), con permisos CRUD sobre Usuario, UsuarioSistema,<br/>Sistema, ModeloIA y ConfiguracionIA. El superuser es solo un perfil técnico<br/>con acceso total (la sección standalone 'Acceso a sistemas' es solo superuser).<br/>Rol de negocio y acceso a /admin/ están desacoplados."]
+    nota -.-> DEV

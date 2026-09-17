@@ -16,6 +16,7 @@ sequenceDiagram
     T->>T: lee manual de uso (manuales_rag/<codigo>, txt completo) + Sistema.prompt
     T->>T: construye mensajes (system/user, anti prompt-injection, manual + prompt)
     T->>T: pasa HTML de la descripcion a texto plano
+    T->>T: escalera de degradacion por contexto (413/400):<br/>manual completo -> manual resumido -> sin manual
     T->>P: instantiate provider segun ConfiguracionIA.modelo_activo
     P->>L: POST /v1/chat/completions (HTTP real)
     L-->>P: respuesta texto (segun formato_salida: RESPONSE_FORMAT / NATIVO / NINGUNO)
@@ -26,3 +27,4 @@ sequenceDiagram
     T-->>V: resultado dict
     V-->>B: JSON {json: "...", cuerpo: "<html del partial>"}
     B->>B: reemplaza #cuerpo-analizar + boton "Reanalizar"
+    Note over T, L: Ollama local: SIEMPRE sin manual (solo Sistema.prompt)<br/>y timeout propio (TIMEOUT_OLLAMA=240s), sin proxy

@@ -1,0 +1,128 @@
+%% Diagrama de clases + tablas (único): representa los modelos Django y su
+%% estructura en PostgreSQL (migraciones 0001..0010). unique_together, on_delete,
+%% nullables y CHECK derivan de la DB real.
+%% Notación: "1" --> "0..*" = 1 a muchos; FK con on_delete y nullabilidad anotadas.
+%% Nota: las tablas autenticación del framework (auth_group, auth_permission,
+%% core_usuario_groups, core_usuario_user_permissions, django_content_type,
+%% django_migrations) existen en la DB pero no pertenecen al dominio y no se muestran.
+
+classDiagram
+    direction TB
+
+    class Usuario {
+        +username: str (UNIQUE)
+        +email: str
+        +rol: SOLICITANTE / DESARROLLADOR / COORDINADOR
+        +is_staff: bool
+        +is_superuser: bool
+        +is_active: bool
+        +date_joined: datetime
+        ~~clases auth_group y user_permissions (M2M, tablas en DB)~~
+    }
+
+    class Sistema {
+        +codigo: str (UNIQUE)
+        +nombre: str
+        +prompt: TextField (opcional, para IA)
+    }
+
+    class UsuarioSistema {
+        +usuario: FK (CASCADE, NOT NULL)
+        +sistema: FK (CASCADE, NOT NULL)
+        +unique_together(usuario, sistema)
+    }
+
+    class Ticket {
+        +titulo: str
+        +descripcion_original: HTML (Quill)
+        +estado: PENDIENTE / EN_PROCESO / REABIERTO / CERRADO
+        +estado_previo: nullable
+        +creado_en: datetime
+        +cerrado_en: datetime
+        +reabierto_en: datetime (null, para novedades)
+        +modificado_en: datetime (null hasta 1ra edicion)
+        +eliminado_en: datetime (soft delete)
+        +sistema: FK (PROTECT, NOT NULL)
+        +solicitante: FK (PROTECT, NOT NULL)
+    }
+
+    class TicketDesarrollador {
+        +ticket: FK (CASCADE, NOT NULL)
+        +usuario: FK (CASCADE, NOT NULL)
+        +tomado_en: datetime
+        +activo: bool (colaborador activo/liberado)
+        +unique_together(ticket, usuario)
+    }
+
+    class Comentario {
+        +ticket: FK (CASCADE, NOT NULL)
+        +usuario: FK (PROTECT, NOT NULL)
+        +cuerpo: HTML (Quill, sanetizado nh3)
+        +creado_en: datetime
+        +modificado_en: datetime (null)
+        +eliminado_en: datetime (soft delete)
+    }
+
+    class LecturaTicket {
+        +usuario: FK (CASCADE, NOT NULL)
+        +ticket: FK (CASCADE, NOT NULL)
+        +ultima_lectura_en: datetime
+        +unique_together(usuario, ticket)
+    }
+
+    class Adjunto {
+        +ticket: FK (CASCADE, null; XOR comentario)
+        +comentario: FK (CASCADE, null; XOR ticket)
+        +subido_por: FK (PROTECT, NOT NULL)
+        +nombre_archivo: str
+        +tipo_archivo: IMAGEN / DOCUMENTO
+        +archivo: FileField (UUID, sin extension)
+        +subido_en: datetime
+        +CHECK chk_pertenece_a_uno (ticket XOR comentario)
+    }
+
+    class ModeloIA {
+        +proveedor: GROQ / GEMINI / OPENROUTER / NVIDIA / OLLAMA
+        +modelo: str
+        +formato_salida: RESPONSE_FORMAT / NATIVO / NINGUNO
+        +actualizado_en: datetime
+    }
+
+    class ConfiguracionIA {
+        +modelo_activo: FK ModeloIA (PROTECT, NOT NULL)
+        +actualizado_en: datetime
+        +singleton pk=1 (enforced en ORM, no en BD)
+    }
+
+    class AnalisisIA {
+        +ticket: FK (CASCADE, NOT NULL)
+        +modelo_ia: FK (PROTECT, NOT NULL)
+        +tipo: TECNICO (unico hoy)
+        +problema: TextField
+        +comportamiento_esperado: TextField
+        +comportamiento_observado: TextField
+        +pasos_reproducir: TextField
+        +datos_relevantes: TextField
+        +informacion_faltante: TextField (no se muestra)
+        +estado_aprobacion
+        +observacion_solicitante: TextField
+        +version_prompt: str
+        +generado_en: datetime
+    }
+
+    Usuario "1" --> "0..*" UsuarioSistema : accede a (CASCADE)
+    Sistema "1" --> "0..*" UsuarioSistema : tiene (CASCADE)
+    Usuario "1" --> "0..*" Ticket : solicita (PROTECT)
+    Sistema "1" --> "0..*" Ticket : pertenece a (PROTECT)
+    Ticket "1" --> "0..*" Comentario : tiene (CASCADE)
+    Usuario "1" --> "0..*" Comentario : escribe (PROTECT)
+    Ticket "1" --> "0..*" TicketDesarrollador : tomado por (CASCADE)
+    Usuario "1" --> "0..*" TicketDesarrollador : colabora (CASCADE)
+    Usuario "1" --> "0..*" LecturaTicket : lee (CASCADE)
+    Ticket "1" --> "0..*" LecturaTicket : novedad por (CASCADE)
+    Usuario "1" --> "0..*" Adjunto : sube (PROTECT)
+    Ticket "0..1" --> "0..*" Adjunto : posee (CASCADE, XOR comentario)
+    Comentario "0..1" --> "0..*" Adjunto : posee (CASCADE, XOR ticket)
+    Ticket "1" --> "0..*" AnalisisIA : analizado por (CASCADE)
+    ModeloIA "1" --> "0..*" AnalisisIA : genera (PROTECT)
+    ModeloIA "1" --> "0..1" ConfiguracionIA : es el activo (PROTECT)
