@@ -235,30 +235,34 @@ def _parte1():
 
     # ------------------------------------------------------------ seccion 1
     out.append(_h2("1. Presentación del equipo y del proyecto"))
-    out.append(_p("<strong>Integrantes del grupo (nombre, rol en el desarrollo):</strong>"))
+    out.append(_p("<strong>Integrantes del grupo:</strong>"))
     out.append(_card("<ul class='text-sm text-gray-700 leading-relaxed space-y-1'>"
-                     + "".join(f"<li><strong>{n}</strong> — {r}</li>" for n, r in INTEGRANTES)
+                     + "".join(f"<li><strong>{n}</strong></li>" for n, _ in INTEGRANTES)
                      + "</ul>"
-                     + "<p class='mt-2 text-xs italic text-gray-500'>Todos los integrantes "
-                       "realizamos el trabajo en co-work con IA.</p>"))
+                     + _p("El trabajo lo hicimos de manera conjunta, sin roles especificos por "
+                          "integrante. Fuimos avanzando entre todos en lo que respecta a diseño, "
+                          "analisis, testing, despliegue e infraestructura, sobre las bases del diseño "
+                          "inicial, todo siempre en co-work con agentes IA.")))
     out.append(_junta(
         _h3("Nombre del proyecto"),
-        _p("Sistema de Gestión de Incidencias de TI (tickets) con análisis IA asistido."),
+        _p("Sistema de Gestión de Incidencias (con análisis IA asistido)."),
     ))
     out.append(_junta(
         _h3("Problema que resuelve"),
-        _p("Gestión interna de bugs y requerimientos sobre dos aplicaciones de negocio "
-           "(Balances y Financiamiento político). Centraliza el reporte, el seguimiento, "
+        _p("Gestión interna de bugs y requerimientos sobre dos aplicaciones reales de negocio "
+           "(Balances y Financiamiento de partidos políticos). Centraliza el reporte, el seguimiento, "
            "la toma colaborativa, el cambio de estado y el cierre de incidentes, e incorpora "
-           "una capa de análisis IA que asiste a desarrolladores y coordinadores a entender "
+           "una capa de análisis IA que asiste a los desarrolladores a entender "
            "el problema reportado."),
     ))
     out.append(_junta(
         _h3("Público objetivo"),
-        _p("Usuarios internos de la organización: (a) solicitantes (usuarios de negocio que "
-           "reportan incidencias sin acceso a detalles técnicos), (b) desarrolladores que "
-           "atienden los tickets de sus sistemas, y (c) coordinadores que supervisan el flujo. "
-           "El admin/superuser gestiona usuarios, accesos y configuración de IA."),
+        _p("Usuarios internos de la organización: (a) solicitantes, usuarios de negocio que "
+           "reportan las incidencias y las siguen sin necesidad de detalles técnicos; y (b) "
+           "desarrolladores, que atienden los tickets de sus sistemas, gestionan el flujo (toma, "
+           "liberación, cierre y reapertura), corren el análisis IA y además tienen acceso a la "
+           "administración de usuarios, accesos y configuración de IA. El superusuario conserva "
+           "esas capacidades de gestión sin restricciones de visibilidad."),
     ))
 
     # ------------------------------------------------------------ seccion 2
@@ -273,12 +277,12 @@ def _parte1():
     out.append(_junta(
         _h3("Diagrama de flujo de agentes"),
         _p("El proyecto como aplicación NO incluye orquestación multi-agente en producción: el "
-           "análisis IA es un paso puntual y manual. El trabajo de desarrollo sí se apoyó en "
-           "esquemas de IA, alternando dos modalidades: opencode (CLI) con cambio de agente "
-           "manual por tarea, y Antigravity (IDE) con Gemini como orquestador sobre un multiMCP "
-           "adaptado para usar rotación interna de API keys y proveedores. El diagrama siguiente "
-           "representa esta metodología (las partes de la app están cubiertas en los diagramas "
-           "funcionales)."),
+           "análisis IA es un paso puntual y manual."),
+        _p("La fase de desarrollo sí se apoyó en esquemas de IA, alternando dos modalidades: opencode "
+           "con cambio de agente manual por tarea, y Antigravity con Gemini como orquestador sobre un "
+           "multiMCP adaptado para usar rotación interna de API keys y proveedores. El diagrama "
+           "siguiente representa esta metodología (las partes de la app están cubiertas en los "
+           "diagramas funcionales)."),
         _diagrama("agentes_desarrollo.mmd", "Flujo de agentes (metodología de desarrollo)"),
     ))
     out.append(_junta(
@@ -329,8 +333,8 @@ def _parte1():
              "Huey+PostgresHuey para no sumar Redis al proyecto: usa la misma base de datos."],
             ["Despliegue",
              "Render (Gunicorn) + Neon (Postgres) + Supabase Storage (S3)",
-             "Render gratis con deploy por git; Neon gratis sin tarjeta. Los adjuntos van a un bucket S3 "
-             "privado de Supabase Storage (URLs firmadas 5 min): el disco de Render es efímero y cada "
+             "Render gratis con deploy por git; Neon gratis. Los adjuntos van a un bucket S3 "
+             "privado de Supabase Storage: el disco de Render es efímero y cada "
              "redeploy perdería los archivos, por eso se resolvió con storage en la nube (decisión "
              "16/09/2026). Local (DEBUG) usa FileSystemStorage en media/."],
         ],
@@ -338,10 +342,10 @@ def _parte1():
 
     # ------------------------------------------------------------ seccion 4
     out.append(_h2("4. Evidencia de funcionamiento", page_before=True))
-    out.append(_h3("Capturas de pantalla (mínimo 3)"))
-    out.append(_p("Las siguientes capturas son pantallas reales de la aplicación desplegada (logeo con un "
-                  "usuario del seed). Cubren el mínimo exigido por la consigna: pantalla principal/home, "
-                  "el flujo de uso principal y el resultado del output de IA visible para el usuario."))
+    out.append(_h3("Capturas de pantalla"))
+    out.append(_p("Las siguientes capturas son pantallas reales de la aplicación desplegada: pantalla "
+                  "principal/home, el flujo de uso principal y el resultado del output de IA visible "
+                  "para el usuario."))
     out.append(_junta(
         _p("(a) Pantalla principal / home — listado de tickets con filtros, paginador e indicador "
           "de novedades:", italic=True),
@@ -402,22 +406,21 @@ def _parte1():
              "recordar valores."],
             ["Ayuda y documentación", "Sí",
              "Manual de uso dentro de la app (/manual/) con 18 secciones colapsables, TOC de anclas y "
-             "visibilidad por rol (solicitante ve solo lo general; dev/coord suma toma/IA; staff suma "
+             "visibilidad por rol (solicitante ve solo lo general; dev suma toma/IA; staff suma "
              "admin); FAQs incluidas. Mensajes de error claros en español."],
         ],
     )))
     out.append(_h3("5.2 Evaluación orientada al público objetivo"))
     out.append(_p("Diseño apropiado para el nivel técnico: el solicitante no ve internals (ni análisis IA "
-                  "ni toma colaborativa); devs/coord ven las herramientas de gestión sin fricción."))
-    out.append(_p("Lenguaje visual/textual comprensible: español de negocio, no jerga de backend; hint de "
+                  "ni toma colaborativa); los desarrolladores ven las herramientas de gestión."))
+    out.append(_p("Lenguaje visual/textual comprensible: español de negocio, hint de "
                   "adjuntos y textos de acción verbales. El análisis IA pide solo información que el "
-                  "usuario podría aportar (pantalla, pasos, mensaje de error, frecuencia, OS)."))
+                  "usuario podría aportar (pantalla, pasos, mensaje de error)."))
     out.append(_p("Prueba con usuario real: se corrieron escenarios reales con el usuario y de ahí salieron "
-                  "decisiones de UX concretas: toasts para mutaciones in-place (comentarios) vs flash tag "
-                  "cuando hay navegación; límite de adjuntos en 10 MB (los informes llegan hasta ~6 MB); "
-                  "indicador de novedades como puntito azul (en vez de badge) con toggle en el header; no "
-                  "mostrar 'información faltante' del análisis IA (sin valor para el lector técnico); "
-                  "filtros con label placeholder en español."))
+                  "decisiones de UX concretas: toasts in-place para edición/borrado de comentarios en "
+                  "lugar de flash tag, límite de adjuntos en 10 MB (los informes pueden llegar a pesar "
+                  "hasta 6 MB), indicador de novedades como puntito azul (en vez de badge) con toggle en "
+                  "el header, filtros con label placeholder en español."))
 
     # ------------------------------------------------------------ seccion 6
     out.append(_h2("6. Evaluación de Ciberseguridad", page_before=True))
@@ -425,9 +428,9 @@ def _parte1():
         ["Riesgo identificado", "Tipo (OWASP/privacidad/acceso)", "Medida implementada"],
         [
             ["Inyección de prompt en el modelo IA", "Prompt injection",
-             "Prompt separado system/user; el user declara que la descripción del ticket es SOLO dato "
-             "(puede contener órdenes) que se ignoran; bloque delimitado con \"\"\" y defensa explícita "
-             "en system; el título también se protege. Ninguna instrucción dentro de la descripción "
+             "Prompt separado system/user; el user declara que la descripción del ticket es SOLO dato, "
+             "podría contener órdenes, que se ignoran, bloque delimitado con \"\"\" y defensa explícita "
+             "en system, el título también se protege. Ninguna instrucción dentro de la descripción "
              "modifica la tarea/reglas/formato."],
             ["Exposición de API keys", "Secretos en código",
              "Keys en .env (ignorado en git) propagadas a os.environ en settings; nunca hardcodeadas; "
@@ -457,7 +460,7 @@ def _parte1():
     out.append(_h2("7. IAs usadas en el co-work de desarrollo", page_before=True))
     out.append(_p("El desarrollo se hizo en dos esquemas combinados: (1) esquema multi-agente con "
                   "Antigravity + Gemini como orquestador + un multiMCP adaptado para usar rotación interna "
-                  "de API keys y proveedores; y (2) opencode como CLI con cambio de agente manual por "
+                  "de API keys y proveedores y (2) opencode con cambio de agente manual por "
                   "tarea. Ambas modalidades se alternaron a lo largo del desarrollo y se complementaron "
                   "(no hay un reparto de features por esquema: el mismo hito se pudo abordar desde "
                   "cualquiera de las dos). El contexto original del proyecto quedó documentado en el "
@@ -472,7 +475,7 @@ def _parte1():
              "el chat de claude.ai, y allí mismo generó el proyecto Django inicial listo para trabajar: "
              "estructura del proyecto, modelos, urls y views iniciales, archivos docker y requirements.txt, "
              "entregados como .zip.",
-             "Bien: el andamiaje completo del proyecto quedó definido y descargable desde el arranque y "
+             "Sorprendió: el andamiaje completo del proyecto quedó definido y descargable desde el arranque y "
              "consistente con el diseño planificado; sobre esa base luego se trabajó con Antigravity "
              "(multi-agente) y opencode (agentes manuales)."],
             ["Antigravity + Gemini (orquestador multi-agente) + multiMCP adaptado con rotación interna de "
@@ -486,16 +489,16 @@ def _parte1():
             ["opencode (CLI, agentes manuales)",
              "Generar backend Django, forms, vistas, templates (Tailwind/HTMX/Quill), capa IA "
              "multi-proveedor, tests automatizados, debugging",
-             "Bien: velocidad de generación de estructura completa y consistente; revisión de bugs con "
-             "repro (p.ej. scroll de SweetAlert2, orden de serialización HTMX). Mal: a veces generaba "
-             "código con errores sutiles (p.ej. {# #} multilínea renderizado literal, orden de listeners "
-             "HTMX) que hubo que corregir con tests."],
+             "Sorprendió: velocidad de generación de estructura completa y consistente; revisión de bugs con "
+             "repro (p.ej. scroll de SweetAlert2, orden de serialización HTMX).<br/>Mal: a veces "
+             "generaba código con errores sutiles (p.ej. {# #} multilínea renderizado literal, Orden de "
+             "listeners HTMX) que hubo que corregir con tests."],
             ["GitHub/Git (historial de commits)",
              "Evidencia del proceso real de trabajo incremental",
              "Bien: historia de commits real es requisito de evaluación."],
         ],
     )))
-    out.append(_h3("Reflexión obligatoria"))
+    out.append(_h3("Reflexión."))
     out.append(_p("Sin el co-work con IA el desarrollo hubiera tomado al menos el doble de tiempo: la capa "
                   "IA multi-proveedor (providers OpenAI-compatible con formato de salida por modelo, prompt "
                   "anti prompt-injection, escalera de degradación por contexto), la suite de ~65 tests "
@@ -522,8 +525,9 @@ def _parte2():
     out = []
     out.append(_p("Nota: la aplicación ya incorpora Ollama como proveedor local (formato NATIVO, sin "
                   "key). Como contexto del análisis, el prompt se arma con la descripción del ticket, la "
-                  "descripción oficial del sistema (Sistema.prompt) y el manual de uso del sistema en "
-                  "texto plano (manuales_rag/&lt;codigo&gt;, leído al momento de analizar). Se evaluaron "
+                  "descripción oficial del sistema (Sistema.prompt) y el manual de uso del Sistema sobre "
+                  "el que se está reportando la incidencia, en texto plano "
+                  "(manuales_rag/&lt;codigo&gt;, leído al momento de analizar). Se evaluaron "
                   "dos variantes para incorporar los manuales: RAG vectorial (embeddings locales con "
                   "nomic-embed-text + pgvector) y enviar el manual completo en el prompt. Se eligió esta "
                   "última porque los manuales son acotados (BALANCES ~24 KB, FINANCIAMIENTO ~16 KB, "
@@ -536,19 +540,23 @@ def _parte2():
     out.append(_p("Reemplazaría (o complementaría) la API externa para escenarios sensibles: los tickets "
                   "de Financiamiento político no deberían salir de la organización. El provider Ollama ya "
                   "existe en la app: cambiando el modelo activo (ConfiguracionIA) el análisis corre local. "
-                  "Hoy el contexto del análisis ya incluye el manual de uso del sistema (txt completo, sin "
+                  "Hoy el contexto del análisis ya incluye el manual de uso de los sistemas sobre los cuales "
+                   "se reportan las incidencias (txt completo, sin "
                   "que los datos salgan de la org); a futuro podría sumarle embeddings locales "
                   "(nomic-embed-text) para RAG sobre esos manuales. Sería un componente de soporte "
                   "intercambiable, no el agente principal."))
 
     out.append(_h2("Pregunta 2 — Qué le aportaría al usuario"))
     out.append(_p("Privacidad (los datos sensibles no salen de la org), cero costo por token y "
-                  "funcionamiento offline. En experiencia, permitiría ofrecer el análisis como garantía "
-                  "por defecto para incidencias de sistemas sensibles, sin depender del estado de un "
-                  "proveedor externo."))
+                  "funcionamiento offline o en red privada. En experiencia, permitiría ofrecer el análisis "
+                  "como garantía por defecto para incidencias de sistemas sensibles, sin depender del "
+                  "estado de un proveedor externo."))
+    out.append(_p("Por supuesto que, dependiendo de la infraestructura del servidor y del modelo local "
+                  "elegido, podría haber cierto déficit de velocidad/precisión en la interacción con una "
+                  "IA local frente a modelos cloud más grandes y rápidos."))
 
     out.append(_h2("Pregunta 3 — Qué te aportaría a vos como profesional"))
-    out.append(_p("Analizar logs/comportamientos de incidencias y patrones de reportes sin necesidad de "
+    out.append(_p("Analizar logs de incidencias y patrones de reportes sin necesidad de "
                   "que los datos salgan de la organización; probar el pipeline de IA offline; el modelo "
                   "local corre con el mismo código (mismo prompt y formato de salida), lo que permite "
                   "desarrollo sin keys ni costo y validar privacidad ante el cliente."))
@@ -588,11 +596,10 @@ def main():
             ["Repositorio GitHub", "<a class='text-brand-700 underline' href='https://github.com/patosimple/Incidencias'>https://github.com/patosimple/Incidencias</a>"],
             ["Aplicación en producción", "<a class='text-brand-700 underline' href='https://incidencias.onrender.com'>https://incidencias.onrender.com</a>"],
             ["Video demo", "<a class='text-brand-700 underline' href='https://youtu.be/7AgJvyjOLZw'>https://youtu.be/7AgJvyjOLZw</a>"],
-            ["Otros recursos publicados", "[COMPLETAR si aplica — p.ej. el manual de uso /admin de la app]"],
         ],
     ) + "<p class='mt-3 text-xs text-gray-500'>Nota: el servicio está alojado en el plan gratuito de "
-        "Render, que puede redeployar de forma automática y, al estar inactivo, la primera carga puede "
-        "demorar unos segundos en levantar la aplicación.</p>")
+            "Render, que puede redeployar de forma automática, a veces la primera carga puede "
+            "demorar unos segundos en levantar la aplicación.</p>")
     html = html.replace("{PARTE1}", _parte1())
     html = html.replace("{PARTE2}", _parte2())
 

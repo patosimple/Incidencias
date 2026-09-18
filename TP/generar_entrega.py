@@ -41,7 +41,14 @@ def _tabla(doc, headers, rows):
     for row in rows:
         cells = t.add_row().cells
         for i, val in enumerate(row):
-            cells[i].text = str(val)
+            if isinstance(val, (list, tuple)):
+                cell = cells[i]
+                cell.text = ""
+                for k, frag in enumerate(val):
+                    p = cell.paragraphs[0] if k == 0 else cell.add_paragraph()
+                    p.add_run(str(frag))
+            else:
+                cells[i].text = str(val)
     return t
 
 
@@ -147,8 +154,8 @@ def main():
         ["Otros recursos publicados", "[COMPLETAR si aplica — p.ej. el manual de uso /admin de la app]"],
     ])
     _p(doc, "Nota: el servicio esta alojado en el plan gratuito de Render, que "
-            "puede redeployar de forma automatica y, al estar inactivo, la "
-            "primera carga puede demorar unos segundos en levantar la "
+            "puede redeployar de forma automatica, a veces la primera carga "
+            "puede demorar unos segundos en levantar la "
             "aplicacion.", italic=True, color=GRAY)
 
     doc.add_page_break()
@@ -164,10 +171,11 @@ def main():
     _p(doc, "Todos los integrantes realizamos el trabajo en co-work con IA.",
        italic=True, color=GRAY)
     _titulo(doc, "Nombre del proyecto", 3)
-    _p(doc, "Sistema de Gestion de Incidencias de TI (tickets) con analisis IA asistido.")
+    _p(doc, "Sistema de Gestion de Incidencias (con analisis IA asistido).")
     _titulo(doc, "Problema que resuelve", 3)
-    _p(doc, "Gestion interna de bugs y requerimientos sobre dos aplicaciones de "
-            "negocio (Balances y Financiamiento politico). Centraliza el reporte, "
+    _p(doc, "Gestion interna de bugs y requerimientos sobre dos aplicaciones reales de "
+            "negocio (Balances y Financiamiento de partidos politicos). Centraliza el "
+            "reporte, "
             "el seguimiento, la toma colaborativa, el cambio de estado y el cierre "
             "de incidentes, e incorpora una capa de analisis IA que asiste a "
             "desarrolladores y coordinadores a entender el problema reportado.")
@@ -190,10 +198,10 @@ def main():
 
     _titulo(doc, "Diagrama de flujo de agentes", 3)
     _p(doc, "El proyecto como aplicacion NO incluye orquestacion multi-agente "
-            "en produccion: el analisis IA es un paso puntual y manual. El "
-            "trabajo de desarrollo si se apoyo en esquemas de IA, alternando "
-            "dos modalidades: opencode (CLI) con cambio de agente manual por "
-            "tarea, y Antigravity (IDE) con Gemini como orquestador sobre un "
+            "en produccion: el analisis IA es un paso puntual y manual.")
+    _p(doc, "La fase de desarrollo si se apoyo en esquemas de IA, alternando "
+            "dos modalidades: opencode con cambio de agente manual por tarea, "
+            "y Antigravity con Gemini como orquestador sobre un "
             "multiMCP adaptado para usar rotacion interna de API keys y "
             "proveedores. El diagrama siguiente representa esta metodologia "
             "(las partes de la app estan cubiertas en los diagramas "
@@ -244,8 +252,8 @@ def main():
          "usa la misma base de datos."],
         ["Despliegue",
          "Render (Gunicorn) + Neon (Postgres) + Supabase Storage (S3)",
-         "Render gratis con deploy por git; Neon gratis sin tarjeta. Los adjuntos "
-         "van a un bucket S3 privado de Supabase Storage (URLs firmadas 5 min): "
+"Render gratis con deploy por git; Neon gratis. Los adjuntos "
+             "van a un bucket S3 privado de Supabase Storage: "
          "el disco de Render es efimero y cada redeploy perderia los archivos, "
          "por eso se resolvio con storage en la nube (decision 16/09/2026). "
          "Local (DEBUG) usa FileSystemStorage en media/."],
@@ -255,10 +263,9 @@ def main():
 
     # ------------------------------------------------------------ seccion 4
     _titulo(doc, "4. Evidencia de funcionamiento", 2)
-    _titulo(doc, "Capturas de pantalla (minimo 3)", 3)
+    _titulo(doc, "Capturas de pantalla", 3)
     _p(doc, "Las siguientes capturas son pantallas reales de la aplicacion "
-            "desplegada (logeo con un usuario del seed). Cubren el minimo "
-            "exigido por la consigna: pantalla principal/home, el flujo de uso "
+            "desplegada: pantalla principal/home, el flujo de uso "
             "principal y el resultado del output de IA visible para el usuario.")
     _p(doc, "(a) Pantalla principal / home — listado de tickets con filtros, "
             "paginador e indicador de novedades:", italic=True, color=GRAY)
@@ -318,25 +325,24 @@ def main():
         ["Ayuda y documentacion", "Si",
          "Manual de uso dentro de la app (/manual/) con 18 secciones "
          "colapsables, TOC de anclas y visibilidad por rol (solicitante ve solo "
-         "lo general; dev/coord suma toma/IA; staff suma admin); FAQs incluidas. "
+         "lo general; dev suma toma/IA; staff suma admin); FAQs incluidas. "
          "Mensajes de error claros en espanol."],
     ])
 
     _titulo(doc, "5.2 Evaluacion orientada al publico objetivo", 3)
     _p(doc, "Diseño apropiado para el nivel tecnico: el solicitante no ve "
-            "internals (ni analisis IA ni toma colaborativa); devs/coord ven "
-            "las herramientas de gestion sin friccion.", bold=False)
-    _p(doc, "Lenguaje visual/textual comprensible: espanol de negocio, no "
-            "jargon de backend; hint de adjuntos y textos de accion verbales. "
-            "El analisis IA pide solo informacion que el usuario podria aportar "
-            "(pantalla, pasos, mensaje de error, frecuencia, OS).")
+            "internals (ni analisis IA ni toma colaborativa); los desarrolladores "
+            "ven las herramientas de gestion.", bold=False)
+    _p(doc, "Lenguaje visual/textual comprensible: espanol de negocio, "
+             "hint de adjuntos y textos de accion verbales. El analisis IA pide "
+             "solo informacion que el usuario podria aportar (pantalla, pasos, "
+             "mensaje de error).")
     _p(doc, "Prueba con usuario real: se corrieron escenarios reales con el usuario "
-        "y de ahi salieron decisiones de UX concretas: toasts para mutaciones "
-        "in-place (comentarios) vs flash tag cuando hay navegacion; limite de "
-        "adjuntos en 10 MB (los informes llegan hasta ~6 MB); indicador de "
-        "novedades como puntito azul (en vez de badge) con toggle en el header; "
-        "no mostrar 'informacion faltante' del analisis IA (sin valor para el "
-        "lector tecnico); filtros con label placeholder en espanol.")
+"y de ahi salieron decisiones de UX concretas: toasts in-place para "
+         "edicion/borrado de comentarios en lugar de flash tag, limite de "
+         "adjuntos en 10 MB (los informes pueden llegar a pesar hasta 6 MB), "
+         "indicador de novedades como puntito azul (en vez de badge) con toggle "
+         "en el header, filtros con label placeholder en espanol.")
 
     doc.add_page_break()
 
@@ -345,8 +351,8 @@ def main():
     _tabla(doc, ["Riesgo identificado", "Tipo (OWASP/privacidad/acceso)", "Medida implementada"], [
         ["Inyeccion de prompt en el modelo IA", "Prompt injection",
          "Prompt separado system/user; el user declara que la descripcion del "
-         "ticket es SOLO dato (puede contener ordenes) que se ignoran; bloque "
-         "delimitado con \"\"\" y defensa explicita en system; el titulo tambien "
+         "ticket es SOLO dato, podria contener ordenes, que se ignoran, bloque "
+         "delimitado con \"\"\" y defensa explicita en system, el titulo tambien "
          "se protege. Ninguna instruccion dentro de la descripcion modifica la "
          "tarea/reglas/formato."],
         ["Exposicion de API keys", "Secretos en codigo",
@@ -382,9 +388,9 @@ def main():
     _titulo(doc, "7. IAs usadas en el co-work de desarrollo", 2)
     _p(doc, "El desarrollo se hizo en dos esquemas combinados: (1) esquema "
             "multi-agente con Antigravity + Gemini como orquestador + un "
-            "multiMCP adaptado para usar rotacion interna de API keys y "
-            "proveedores; y "
-            "(2) opencode como CLI con cambio de agente manual por tarea. "
+"multiMCP adaptado para usar rotacion interna de API keys y "
+             "proveedores y "
+             "(2) opencode con cambio de agente manual por tarea. "
             "Ambas modalidades se alternaron a lo largo del desarrollo y se "
             "complementaron (no hay un reparto de features por esquema: el "
             "mismo hito se pudo abordar desde cualquiera de las dos). El "
@@ -398,7 +404,7 @@ def main():
          "allí mismo genero el proyecto Django inicial listo para trabajar: "
          "estructura del proyecto, modelos, urls y views iniciales, archivos "
          "docker y requirements.txt, entregados como .zip.",
-         "Bien: el andamiaje completo del proyecto quedo definido y descargable "
+         "Sorprendio: el andamiaje completo del proyecto quedo definido y descargable "
          "desde el arranque y consistente con el diseno planificado; sobre esa "
          "base luego se trabajó con Antigravity (multi-agente) y opencode "
          "(agentes manuales)."],
@@ -415,16 +421,17 @@ def main():
         ["opencode (CLI, agentes manuales)", "Generar backend Django, forms, "
          "vistas, templates (Tailwind/HTMX/Quill), capa IA multi-proveedor, "
          "tests automatizados, debugging",
-         "Bien: velocidad de generacion de estructura completa y consistente; "
-         "revision de bugs con repro (p.ej. scroll de SweetAlert2, orden de "
-         "serializacion HTMX). Mal: a veces generaba codigo con errores sutiles "
-         "(p.ej. {# #} multilinea renderizado literal, Orden de listeners "
-         "HTMX) que hubo que corregir con tests."],
+         ["Sorprendio: velocidad de generacion de estructura completa y consistente; "
+          "revision de bugs con repro (p.ej. scroll de SweetAlert2, orden de "
+          "serializacion HTMX).",
+          "Mal: a veces generaba codigo con errores sutiles (p.ej. {# #} multilinea "
+          "renderizado literal, Orden de listeners HTMX) que hubo que corregir "
+          "con tests."]],
         ["GitHub/Git (historial de commits)", "Evidencia del proceso real de "
          "trabajo incremental", "Bien: historia de commits real es requisito "
          "de evaluacion."],
     ])
-    _titulo(doc, "Reflexion obligatoria", 3)
+    _titulo(doc, "Reflexion.", 3)
     _p(doc, "Sin el co-work con IA el desarrollo hubiera tomado al menos el doble "
             "de tiempo: la capa IA multi-proveedor (providers OpenAI-compatible "
             "con formato de salida por modelo, prompt anti prompt-injection, "
@@ -452,7 +459,8 @@ def main():
     _p(doc, "Nota: la aplicacion ya incorpora Ollama como proveedor local "
             "(formato NATIVO, sin key). Como contexto del analisis, el prompt "
             "se arma con la descripcion del ticket, la descripcion oficial del "
-            "sistema (Sistema.prompt) y el manual de uso del sistema en texto "
+            "sistema (Sistema.prompt) y el manual de uso del Sistema sobre "
+            "el que se esta reportando la incidencia, en texto "
             "plano (manuales_rag/<codigo>, leido al momento de analizar). Se "
             "evaluaron dos variantes para incorporar los manuales: RAG "
             "vectorial (embeddings locales con nomic-embed-text + pgvector) y "
@@ -469,19 +477,24 @@ def main():
             "sensibles: los tickets de Financiamiento politico no deberian "
             "salir de la organizacion. El provider Ollama ya existe en la app: "
             "cambiando el modelo activo (ConfiguracionIA) el analisis corre "
-            "local. Hoy el contexto del analisis ya incluye el manual de uso "
-            "del sistema (txt completo, sin que los datos salgan de la org); a "
+            "local. Hoy el contexto del analisis ya incluye el manual de uso de los "
+            "sistemas sobre los cuales se reportan las incidencias (txt "
+            "completo, sin que los datos salgan de la org); a "
             "futuro podria sumarle embeddings locales (nomic-embed-text) para "
             "RAG sobre esos manuales. Seria un componente de soporte "
             "intercambiable, no el agente principal.")
     _titulo(doc, "Pregunta 2 - Que le aportaria al usuario", 2)
     _p(doc, "Privacidad (los datos sensibles no salen de la org), cero costo "
-            "por token y funcionamiento offline. En experiencia, permitiria "
-            "ofrecer el analisis como garantia por defecto para incidencias de "
-            "sistemas sensibles, sin depender del estado de un proveedor "
-            "externo.")
+            "por token y funcionamiento offline o en red privada. En "
+            "experiencia, permitiria ofrecer el analisis como garantia por "
+            "defecto para incidencias de sistemas sensibles, sin depender del "
+            "estado de un proveedor externo.")
+    _p(doc, "Por supuesto que, dependiendo de la infraestructura del servidor y "
+            "del modelo local elegido, podria haber cierto deficit de velocidad "
+            "o precision en la interaccion con una IA local frente a modelos "
+            "cloud mas grandes y rapidos.")
     _titulo(doc, "Pregunta 3 - Que te aportaria a vos como profesional", 2)
-    _p(doc, "Analizar logs/comportamientos de incidencias y patrones de "
+    _p(doc, "Analizar logs de incidencias y patrones de "
             "reportes sin necesidad de que los datos salgan de la organizacion; "
             "probar el pipeline de IA offline; el modelo local corre con el "
             "mismo codigo (mismo prompt y formato de salida), lo que permite "

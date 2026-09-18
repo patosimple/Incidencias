@@ -49,7 +49,7 @@ obligatorios (repo, app en producción, video).
 | Archivo | Qué es | Estado |
 |---|---|---|
 | `ENTREGA_CONSIGNA.md` | Consigna oficial completa (no tocar) | ✅ guardada |
-| `Entrega_Final_TP.html` + `.pdf` | **Informe principal del TP** (Parte 1 + Parte 2) en HTML/PDF, estilo manual (Tailwind + paleta brand) | ✅ **20 páginas, sin páginas en blanco, log completo, diagramas con su título** |
+| `Entrega_Final_TP.html` + `.pdf` | **Informe principal del TP** (Parte 1 + Parte 2) en HTML/PDF, estilo manual (Tailwind + paleta brand) | ✅ **21 páginas, sin páginas en blanco, log completo, diagramas con su título** |
 | `generar_entrega_html.py` | Script que genera el `.html` (y de ahí el `.pdf` con Edge headless) | ✅ |
 | `Entrega_Final_TP.docx` | Informe del TP en Word (mismo contenido; **anexo/backup**) | ✅ esqueleto completo con `[COMPLETAR]` |
 | `generar_entrega.py` | Script que construye el `.docx` con `python-docx` (reproducible) | ✅ |
@@ -77,11 +77,12 @@ venv\Scripts\python.exe TP\generar_entrega.py              # genera el .docx (an
   2/3).
 
 ### `[COMPLETAR]` pendientes del informe (los prepara el usuario)
-1. **Integrantes del grupo** — portada + sección 1 (`{GRUPO}` y "[COMPLETAR por integrante]")
-2. **Links obligatorios** — URL del video demo (sección 4 + tabla de links)
-3. **Mediciones IA local vs nube** — Pregunta 4, Parte 2 (`[T_LOCAL]`/`[T_NUBE]` reales)
-4. **Captura + respuesta de Ollama** — entregable opcional, Pregunta 5
-5. **Otros recursos publicados** — (p.ej. manual `/manual/` en la app)
+1. **Mediciones IA local vs nube** — Pregunta 4, Parte 2 (`[T_LOCAL]`/`[T_NUBE]` reales)
+2. **Captura + respuesta de Ollama** — entregable opcional, Pregunta 5
+
+> Nota 18/09/2026: integrantes en portada y sección 1 ya están **sin roles** (trabajo
+> conjunto); rol Coordinador no se nombra en el informe (la app lo conserva "a futuro");
+> la fila "Otros recursos publicados" de los links se eliminó. El `.docx` quedó congelado.
 
 ---
 
