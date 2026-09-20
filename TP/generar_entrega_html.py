@@ -94,7 +94,6 @@ TEMPLATE = """<!DOCTYPE html>
     <p class="mt-3 text-sm text-gray-600">UTN FRBA — Curso de Inteligencia Artificial para Programadores</p>
     <div class="mt-6 space-y-1 text-sm text-gray-700">
       <p><span class="text-gray-400">Grupo:</span> {GRUPO}</p>
-      <p><span class="text-gray-400">Repositorio:</span> <a class="text-brand-700 underline" href="https://github.com/patosimple/Incidencias">https://github.com/patosimple/Incidencias</a></p>
     </div>
   </div>
 
@@ -180,14 +179,24 @@ def _junta(*fragmentos):
     return "<div class='caja-junta'>" + "\n".join(fragmentos) + "</div>"
 
 
-def _diagrama(archivo, titulo):
-    """Si existe diagramas/<base>.png se incrusta; si no, marcador gris (vuelca el .mmd)."""
+def _diagrama(archivo, titulo, max_height=None):
+    """Si existe diagramas/<base>.png se incrusta; si no, marcador gris (vuelca el .mmd).
+    max_height: si se pasa, el diagrama puede crecer hasta ese alto (para diagramas que
+    van solos en la página, aprovechando el espacio; p.ej. 600pt)."""
     base = archivo.rsplit(".", 1)[0]
     png = os.path.join(BASE_DIR, DIAGRAMAS, f"{base}.png")
     if os.path.exists(png):
         rel = f"{DIAGRAMAS}/{base}.png"
+        if max_height:
+            # centrado + control de tamaño: h-auto y max-height en pt
+            img = (f"<img src='{rel}' alt='{titulo}' "
+                   f"class='mx-auto block h-auto w-auto rounded-lg border border-gray-200' "
+                   f"style='max-height: {max_height}pt; max-width: 100%'>")
+        else:
+            img = (f"<img src='{rel}' alt='{titulo}' "
+                   f"class='w-full h-auto rounded-lg border border-gray-200'>")
         return (f"<figure class='fig-diagrama mt-4'>"
-                f"<img src='{rel}' alt='{titulo}' class='w-full h-auto rounded-lg border border-gray-200'>"
+                f"{img}"
                 f"<figcaption class='mt-1 text-xs text-gray-500 italic'>{titulo}</figcaption>"
                 f"</figure>")
     # Marca de agua si el PNG no está generado
@@ -293,20 +302,20 @@ def _parte1():
         _diagrama("agentes_desarrollo.mmd", "Flujo de agentes (metodología de desarrollo)"),
     ))
     out.append(_junta(
-        _h3("Flujo de estados del ticket"),
-        _diagrama("estados_ticket.mmd", "Flujo de estados del ticket"),
+        _h3("UML — Secuencia del análisis IA"),
+        _diagrama("secuencia_analisis_ia.mmd", "Secuencia del análisis IA", max_height=640),
     ))
     out.append(_junta(
         _h3("UML — Diagrama de clases"),
-        _diagrama("clases.mmd", "Diagrama de clases (modelo de datos)"),
+        _diagrama("clases.mmd", "Diagrama de clases (modelo de datos)", max_height=640),
     ))
     out.append(_junta(
         _h3("UML — Casos de uso"),
-        _diagrama("casos_de_uso.mmd", "Casos de uso por rol"),
+        _diagrama("casos_de_uso.mmd", "Casos de uso por rol", max_height=640),
     ))
     out.append(_junta(
-        _h3("UML — Secuencia del análisis IA"),
-        _diagrama("secuencia_analisis_ia.mmd", "Secuencia del análisis IA"),
+        _h3("Flujo de estados del ticket"),
+        _diagrama("estados_ticket.mmd", "Flujo de estados del ticket", max_height=640),
     ))
 
     # ------------------------------------------------------------ seccion 3
@@ -637,10 +646,10 @@ def main():
         ["Recurso", "URL"],
         [
             ["Repositorio GitHub", "<a class='text-brand-700 underline' href='https://github.com/patosimple/Incidencias'>https://github.com/patosimple/Incidencias</a>"],
-            ["Aplicación en producción", "<a class='text-brand-700 underline' href='https://incidencias.onrender.com'>https://incidencias.onrender.com</a>"],
+            ["Aplicación en producción *", "<a class='text-brand-700 underline' href='https://incidencias.onrender.com'>https://incidencias.onrender.com</a>"],
             ["Video demo", "<a class='text-brand-700 underline' href='https://youtu.be/7AgJvyjOLZw'>https://youtu.be/7AgJvyjOLZw</a>"],
         ],
-    ) + "<p class='mt-3 text-xs text-gray-500'>Nota: el servicio está alojado en el plan gratuito de "
+    ) + "<p class='mt-3 text-xs text-gray-500'>*Nota: el servicio está alojado en el plan gratuito de "
             "Render, que puede redeployar de forma automática, a veces la primera carga puede "
             "demorar unos segundos en levantar la aplicación.</p>")
     html = html.replace("{PARTE1}", _parte1())

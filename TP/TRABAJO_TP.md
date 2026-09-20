@@ -49,7 +49,7 @@ obligatorios (repo, app en producción, video).
 | Archivo | Qué es | Estado |
 |---|---|---|
 | `ENTREGA_CONSIGNA.md` | Consigna oficial completa (no tocar) | ✅ guardada |
-| `Entrega_Final_TP.html` + `.pdf` | **Informe principal del TP** (Parte 1 + Parte 2) en HTML/PDF, estilo manual (Tailwind + paleta brand) | ✅ **21 páginas, sin páginas en blanco, log completo, diagramas con su título** |
+| `Entrega_Final_TP.html` + `.pdf` | **Informe principal del TP** (Parte 1 + Parte 2) en HTML/PDF, estilo manual (Tailwind + paleta brand) | ✅ **21 páginas, sin páginas en blanco, log completo, diagramas con su título (y los fullpage más grandes desde 20/09)** |
 | `generar_entrega_html.py` | Script que genera el `.html` (y de ahí el `.pdf` con Edge headless) | ✅ |
 | `Entrega_Final_TP.docx` | Informe del TP en Word (mismo contenido; **anexo/backup**) | ✅ esqueleto completo con `[COMPLETAR]` |
 | `generar_entrega.py` | Script que construye el `.docx` con `python-docx` (reproducible) | ✅ |
@@ -75,6 +75,11 @@ venv\Scripts\python.exe TP\generar_entrega.py              # genera el .docx (an
   div vacío), log completo fluyendo entre páginas (`pre-wrap`), tamaño de fuente
   normal (el `overflow-auto` del log ensanchaba la página y Edge escalaba todo a
   2/3).
+- **Diagramas fullpage más grandes (20/09/2026)**: los 4 diagramas que van solos
+  en su página (estados del ticket, UML clases, casos de uso, secuencia IA)
+  pasaron de ~77% a ~93% de la hoja solo vía render: parámetro `max_height=640`
+  en `_diagrama(...)` (inline style que gana al `520pt` del CSS). Los PNG ya
+  estaban a 200 dpi (sin cambios de bytes). Ver detalle en AGENTS.md.
 
 ### `[COMPLETAR]` pendientes del informe (los prepara el usuario)
 - ~~Mediciones IA local vs nube~~ — **RESUELTO 19/09/2026**: la Pregunta 4 ya NO usa tiempos
@@ -102,9 +107,12 @@ venv\Scripts\python.exe TP\generar_entrega.py              # genera el .docx (an
 ## 4. Diagramas (Mermaid, PNG incrustados)
 Los diagramas **van como IMAGEN (PNG)** en el informe. Ambos generadores
 (`generar_entrega.py` docx y `generar_entrega_html.py` html/pdf) incrustan
-`diagramas/<base>.png` si existe. Los PNG actuales se rasterizaron desde los
+`diagramas/<base>.png` si existe. Los PNG se rasterizaron desde los
 PDFs A4 renderizados por el usuario (`diagramas render/*_A4.pdf`) con
-**pymupdf** a **200 dpi** (el 17/09/2026).
+**pymupdf** a **200 dpi** (el 17/09/2026). Los 6 siguen a 200 dpi hoy (los
+4 "fullpage" se re-probaron el 20/09/2026 y dieron bytes idénticos — el único
+cambio que los agrandó en el PDF fue el `max_height=640` del generador, no el
+PNG).
 
 | Diagrama | Archivo `.mmd` | PNG |
 |---|---|---|
