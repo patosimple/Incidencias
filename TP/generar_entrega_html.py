@@ -54,7 +54,14 @@ TEMPLATE = """<!DOCTYPE html>
 </script>
 <style>
   @media print {
+    /* El cuadro gris queda DENTRO de la página (margen de @page por defecto =
+       marco blanco alrededor). El aire arriba del contenido se logra con
+       padding-top clonado en main: box-decoration-break: clone repite ese
+       padding al inicio de CADA página (el fondo gris cubre esa zona → aire
+       gris dentro del cuadro, sin despegar el cuadro del marco). */
     body { background: #f3f4f6 !important; }
+    html, body { margin: 0 !important; }
+    main { padding-top: 20pt !important; box-decoration-break: clone; }
     .page-break { page-break-before: always; }
     /* salto antes de una sección principal: se aplica al h2, no a un div vacío
        (los divs vacíos con page-break-before generan páginas en blanco en Chromium
@@ -83,11 +90,10 @@ TEMPLATE = """<!DOCTYPE html>
   <div class="rounded-xl border border-gray-200 bg-white p-8 sm:p-10">
     <p class="text-sm font-semibold tracking-wide text-gray-500 uppercase">Inteligencia Artificial aplicada a organizaciones</p>
     <h1 class="mt-2 text-3xl font-bold text-brand-700">Trabajo de Fin de Ciclo</h1>
-    <p class="mt-1 text-lg font-semibold text-gray-700">Entrega final de proyecto — Sistema de Gestión de Incidencias con análisis IA</p>
+    <p class="mt-1 text-lg font-semibold text-gray-700">Entrega final de proyecto<br>Sistema de Gestión de Incidencias con análisis IA</p>
     <p class="mt-3 text-sm text-gray-600">UTN FRBA — Curso de Inteligencia Artificial para Programadores</p>
     <div class="mt-6 space-y-1 text-sm text-gray-700">
       <p><span class="text-gray-400">Grupo:</span> {GRUPO}</p>
-      <p><span class="text-gray-400">Repositorio:</span> <a class="text-brand-700 underline" href="https://github.com/patosimple/Incidencias">https://github.com/patosimple/Incidencias</a></p>
     </div>
   </div>
 
@@ -173,14 +179,24 @@ def _junta(*fragmentos):
     return "<div class='caja-junta'>" + "\n".join(fragmentos) + "</div>"
 
 
-def _diagrama(archivo, titulo):
-    """Si existe diagramas/<base>.png se incrusta; si no, marcador gris (vuelca el .mmd)."""
+def _diagrama(archivo, titulo, max_height=None):
+    """Si existe diagramas/<base>.png se incrusta; si no, marcador gris (vuelca el .mmd).
+    max_height: si se pasa, el diagrama puede crecer hasta ese alto (para diagramas que
+    van solos en la página, aprovechando el espacio; p.ej. 600pt)."""
     base = archivo.rsplit(".", 1)[0]
     png = os.path.join(BASE_DIR, DIAGRAMAS, f"{base}.png")
     if os.path.exists(png):
         rel = f"{DIAGRAMAS}/{base}.png"
+        if max_height:
+            # centrado + control de tamaño: h-auto y max-height en pt
+            img = (f"<img src='{rel}' alt='{titulo}' "
+                   f"class='mx-auto block h-auto w-auto rounded-lg border border-gray-200' "
+                   f"style='max-height: {max_height}pt; max-width: 100%'>")
+        else:
+            img = (f"<img src='{rel}' alt='{titulo}' "
+                   f"class='w-full h-auto rounded-lg border border-gray-200'>")
         return (f"<figure class='fig-diagrama mt-4'>"
-                f"<img src='{rel}' alt='{titulo}' class='w-full h-auto rounded-lg border border-gray-200'>"
+                f"{img}"
                 f"<figcaption class='mt-1 text-xs text-gray-500 italic'>{titulo}</figcaption>"
                 f"</figure>")
     # Marca de agua si el PNG no está generado
@@ -286,20 +302,20 @@ def _parte1():
         _diagrama("agentes_desarrollo.mmd", "Flujo de agentes (metodología de desarrollo)"),
     ))
     out.append(_junta(
-        _h3("Flujo de estados del ticket"),
-        _diagrama("estados_ticket.mmd", "Flujo de estados del ticket"),
+        _h3("UML — Secuencia del análisis IA"),
+        _diagrama("secuencia_analisis_ia.mmd", "Secuencia del análisis IA", max_height=640),
     ))
     out.append(_junta(
         _h3("UML — Diagrama de clases"),
-        _diagrama("clases.mmd", "Diagrama de clases (modelo de datos)"),
+        _diagrama("clases.mmd", "Diagrama de clases (modelo de datos)", max_height=640),
     ))
     out.append(_junta(
         _h3("UML — Casos de uso"),
-        _diagrama("casos_de_uso.mmd", "Casos de uso por rol"),
+        _diagrama("casos_de_uso.mmd", "Casos de uso por rol", max_height=640),
     ))
     out.append(_junta(
-        _h3("UML — Secuencia del análisis IA"),
-        _diagrama("secuencia_analisis_ia.mmd", "Secuencia del análisis IA"),
+        _h3("Flujo de estados del ticket"),
+        _diagrama("estados_ticket.mmd", "Flujo de estados del ticket", max_height=640),
     ))
 
     # ------------------------------------------------------------ seccion 3
@@ -310,12 +326,13 @@ def _parte1():
             ["Frontend",
              "Templates Django + HTMX + Tailwind (CDN), dark mode",
              "HTMX permite interacciones parciales sin SPA ni JS pesado; Tailwind da consistencia "
-             "rápida con paleta de marca y responsive; CDN evita build complejo. Se eligió sobre "
-             "React/Vue por simplicidad de mantenimiento server-rendered en un equipo chico."],
+"rápida con paleta de marca y responsive; CDN evita build complejo. Elegimos esta "
+              "combinación por sobre React/Vue por simplicidad de mantenimiento server-rendered en un equipo chico."],
             ["Backend",
              "Python Django 5.2 + Gunicorn + Whitenoise",
-             "Django trae ORM, admin, auth y seguridad (CSRF, login) maduros; Python es el stack del "
-             "curso y el idóneo para integrar APIs de IA. Whitenoise sirve estáticos sin servidor aparte."],
+"Django trae ORM, admin, auth y seguridad (CSRF, login) maduros; elegimos Python porque "
+              "es un lenguaje con el que nos manejamos bien y es idóneo para integrar APIs de IA. "
+              "Whitenoise sirve estáticos sin servidor aparte."],
             ["Base de datos",
              "PostgreSQL (Neon/Supabase)",
              "Postgres por integridad (constraints, unique_together, índices) y por pgvector (plan RAG "
@@ -329,14 +346,14 @@ def _parte1():
              "o caer a Ollama local (privacidad). Groq como activo por latencia baja del free tier."],
             ["Orquestación",
              "Código propio + Huey (cola de tareas; hoy síncrono con immediate=True)",
-             "Sin LangChain: la fachada IA es simple y completa (mensajes, formato, reintentos). "
-             "Huey+PostgresHuey para no sumar Redis al proyecto: usa la misma base de datos."],
+"Sin LangChain: la fachada IA es simple y completa (mensajes, formato, reintentos). "
+              "Huey+PostgresHuey (misma DB, sin Redis) para correr análisis IA en segundo "
+              "plano en implementación futura en servidor propio."],
             ["Despliegue",
              "Render (Gunicorn) + Neon (Postgres) + Supabase Storage (S3)",
              "Render gratis con deploy por git; Neon gratis. Los adjuntos van a un bucket S3 "
-             "privado de Supabase Storage: el disco de Render es efímero y cada "
-             "redeploy perdería los archivos, por eso se resolvió con storage en la nube (decisión "
-             "16/09/2026). Local (DEBUG) usa FileSystemStorage en media/."],
+"privado de Supabase Storage: el disco de Render es efímero y cada "
+              "redeploy perdería los archivos. Local (DEBUG) usa FileSystemStorage en media/."],
         ],
     )))
 
@@ -363,9 +380,9 @@ def _parte1():
                  "(cards de resultado generado por el LLM)."),
     ))
     out.append(_junta(
-        _h3("Video de demostración (opcional)"),
+        _h3("Video de demostración"),
         _p("<a class='text-brand-700 underline' href='https://youtu.be/7AgJvyjOLZw'>"
-           "https://youtu.be/7AgJvyjOLZw</a> (max 3 min)"),
+           "https://youtu.be/7AgJvyjOLZw</a>"),
     ))
     out.append(_junta(
         _h3("Log de una sesión real"),
@@ -416,7 +433,7 @@ def _parte1():
     out.append(_p("Lenguaje visual/textual comprensible: español de negocio, hint de "
                   "adjuntos y textos de acción verbales. El análisis IA pide solo información que el "
                   "usuario podría aportar (pantalla, pasos, mensaje de error)."))
-    out.append(_p("Prueba con usuario real: se corrieron escenarios reales con el usuario y de ahí salieron "
+    out.append(_p("Prueba con usuario real: corrimos escenarios reales con el usuario y de ahí salieron "
                   "decisiones de UX concretas: toasts in-place para edición/borrado de comentarios en "
                   "lugar de flash tag, límite de adjuntos en 10 MB (los informes pueden llegar a pesar "
                   "hasta 6 MB), indicador de novedades como puntito azul (en vez de badge) con toggle en "
@@ -442,8 +459,8 @@ def _parte1():
             ["Acceso no autorizado (autenticación/autorización)", "Acceso",
              "Login obligatorio (LOGIN_URL), permisos por rol (solicitante ve solo sus tickets; dev ve sus "
              "sistemas), verificación server-side (403/404) en tomar/cerrar/reabrir/comentar/analizar; "
-             "superuser con bypass controlado; soft-delete conserva auditoría. Se implementó "
-             "integralmente."],
+"superuser con bypass controlado; soft-delete conserva auditoría. Lo implementamos "
+              "integralmente."],
             ["XSS en contenido del ticket/comentarios", "OWASP A3",
              "Sanitización nh3 al guardar (whitelist de tags/atributos Quill) en crear/editar ticket y "
              "comentarios; render con |safe es seguro porque el input llega ya saneado; tests E2E de XSS "
@@ -458,7 +475,7 @@ def _parte1():
 
     # ------------------------------------------------------------ seccion 7
     out.append(_h2("7. IAs usadas en el co-work de desarrollo", page_before=True))
-    out.append(_p("El desarrollo se hizo en dos esquemas combinados: (1) esquema multi-agente con "
+    out.append(_p("Hicimos el desarrollo en dos esquemas combinados: (1) esquema multi-agente con "
                   "Antigravity + Gemini como orquestador + un multiMCP adaptado para usar rotación interna "
                   "de API keys y proveedores y (2) opencode con cambio de agente manual por "
                   "tarea. Ambas modalidades se alternaron a lo largo del desarrollo y se complementaron "
@@ -468,51 +485,54 @@ def _parte1():
                   "así el paso de un esquema al otro no perdía la memoria del desarrollo (conceptos, "
                   "decisiones y pendientes)."))
     out.append(_card(_tabla(
-        ["Herramienta IA", "Para qué la usaron", "Aportó"],
+        ["Herramienta IA", "Para qué la usamos", "Qué nos aportó"],
         [
             ["Claude (claude.ai, chat)",
              "Planificación y diseño del sistema (entidades, flujos, esquema de datos) directamente desde "
              "el chat de claude.ai, y allí mismo generó el proyecto Django inicial listo para trabajar: "
              "estructura del proyecto, modelos, urls y views iniciales, archivos docker y requirements.txt, "
              "entregados como .zip.",
-             "Sorprendió: el andamiaje completo del proyecto quedó definido y descargable desde el arranque y "
-             "consistente con el diseño planificado; sobre esa base luego se trabajó con Antigravity "
-             "(multi-agente) y opencode (agentes manuales)."],
+"Sorprendió: el andamiaje completo del proyecto quedó definido y descargable desde el arranque y "
+              "consistente con el diseño planificado; sobre esa base luego trabajamos con Antigravity "
+              "(multi-agente) y opencode (agentes manuales)."],
             ["Antigravity + Gemini (orquestador multi-agente) + multiMCP adaptado con rotación interna de "
              "API keys y proveedores",
              "Desarrollo de parte del código con esquema multi-agente: varios agentes orquestados por "
              "Gemini para generar features del backend y frontend.",
-             "Bien: permitió encarar el desarrollo con agentes especializados coordinados por un "
-             "orquestador. Limitaciones del multiMCP: en la sesión de prueba varios proveedores fallaron "
-             "(modelos deprecados, carrusel de proveedores sin saldo, 404/410 en NVIDIA), por lo que el "
-             "trabajo se terminó combinando con opencode manual."],
-            ["opencode (CLI, agentes manuales)",
+"Bien: permitió encarar el desarrollo con agentes especializados coordinados por un "
+              "orquestador.<br/>Mal: Limitaciones del multiMCP, en la sesión de prueba varios proveedores "
+              "fallaron (modelos deprecados, carrusel de proveedores sin saldo, errores 404/410). A pesar "
+              "de disponer de varias cuentas de mail, ante tareas grandes el orquestador se queda sin "
+              "tokens."],
+            ["opencode (con cambio de agentes manual)",
              "Generar backend Django, forms, vistas, templates (Tailwind/HTMX/Quill), capa IA "
              "multi-proveedor, tests automatizados, debugging",
-             "Sorprendió: velocidad de generación de estructura completa y consistente; revisión de bugs con "
-             "repro (p.ej. scroll de SweetAlert2, orden de serialización HTMX).<br/>Mal: a veces "
-             "generaba código con errores sutiles (p.ej. {# #} multilínea renderizado literal, Orden de "
-             "listeners HTMX) que hubo que corregir con tests."],
-            ["GitHub/Git (historial de commits)",
-             "Evidencia del proceso real de trabajo incremental",
-             "Bien: historia de commits real es requisito de evaluación."],
-        ],
+"Sorprendió: velocidad de generación de estructura completa y consistente; la suite completa de "
+              "tests automatizados en Django con la que verificamos cada etapa y la integridad hacia atrás; "
+              "revisión de bugs con repro (p.ej. scroll de SweetAlert2, orden de serialización HTMX). "
+              "Los modelos gratuitos funcionan muy bien y rara vez presentan problemas de limitación de "
+              "tokens.<br/>Mal: a veces "
+              "generaba código con errores sutiles (p.ej. {# #} multilínea renderizado literal, Orden de "
+              "listeners HTMX) que hubo que corregir con tests."],
+            ],
     )))
     out.append(_h3("Reflexión."))
-    out.append(_p("Sin el co-work con IA el desarrollo hubiera tomado al menos el doble de tiempo: la capa "
-                  "IA multi-proveedor (providers OpenAI-compatible con formato de salida por modelo, prompt "
-                  "anti prompt-injection, escalera de degradación por contexto), la suite de ~65 tests "
-                  "automatizados (XSS, adjuntos, transiciones, novedades, permisos; más de 120 al cierre) y "
-                  "los fixes finos de UX (scroll del SweetAlert2, orden de serialización HTMX, barra de "
-                  "progreso real en adjuntos). La IA también falló y esas fallas se corrigieron: un "
-                  "comentario multilínea {# #} de Django que se renderizaba literal, incidentes de orden de "
-                  "listeners HTMX que a veces no actualizaban el detalle, y garantías de XSS inexistentes "
-                  "que los propios tests delataron (el render |safe solo es seguro si el input se sanea al "
-                  "entrar). Sobre los esquemas: el multi-agente (Antigravity/Gemini) ayudó a encarar el "
-                  "código con agentes especializados coordinados, pero su dependencia del carrusel de "
-                  "proveedores resultó frágil en la sesión de prueba; el cambio manual de agente en opencode "
-                  "dio más control y trazabilidad del trabajo por tarea, y fue el esquema con el que se "
-                  "terminaron de consolidar las features y los tests."))
+    out.append(_p("Si lo hubiéramos desarrollado de manera tradicional, la verdad es que todo nos habría "
+                  "tomado muchísimo más tiempo: por ejemplo, todo el armado inicial del proyecto, definición "
+                  "de rutas, modelos, seeds iniciales, suite de tests, templates y estilos — tareas "
+                  "habituales y rutinarias que un agente IA hace rapidísimo y con mucha precisión. Lo mismo "
+                  "para el co-work en diseño de BD, diagramas y análisis de casos de uso en la fase de "
+                  "diseño."))
+    out.append("<p class='text-sm text-gray-700 leading-relaxed' style='margin:0'>"
+               "Por otro lado, toda la parte de implementación de un análisis IA de tickets en la propia "
+               "aplicación no podríamos haberla hecho sin ayuda de agentes de IA: no teníamos experiencia "
+               "previa en la materia.</p>")
+    out.append("<p class='text-sm text-gray-700 leading-relaxed' style='margin:0'>"
+               "A su vez, los agentes IA muchas veces cometen errores, a veces por malinterpretar los "
+               "prompts, por presuponer situaciones que no aplicaban, o incluso por saturación de contexto "
+               "(muchas veces se quedaban en loop infinito sobre una misma tarea). Esto requirió constante "
+               "supervisión y control de nuestra parte, tanto sobre la ejecución de las tareas en código "
+               "como de los resultados deseados en la app.</p>")
 
     return "\n".join(out)
 
@@ -523,18 +543,30 @@ def _parte1():
 
 def _parte2():
     out = []
-    out.append(_p("Nota: la aplicación ya incorpora Ollama como proveedor local (formato NATIVO, sin "
-                  "key). Como contexto del análisis, el prompt se arma con la descripción del ticket, la "
-                  "descripción oficial del sistema (Sistema.prompt) y el manual de uso del Sistema sobre "
-                  "el que se está reportando la incidencia, en texto plano "
-                  "(manuales_rag/&lt;codigo&gt;, leído al momento de analizar). Se evaluaron "
-                  "dos variantes para incorporar los manuales: RAG vectorial (embeddings locales con "
-                  "nomic-embed-text + pgvector) y enviar el manual completo en el prompt. Se eligió esta "
-                  "última porque los manuales son acotados (BALANCES ~24 KB, FINANCIAMIENTO ~16 KB, "
-                  "~10-12K tokens) y entran enteros en el contexto: el modelo ve todo el contenido, sin "
-                  "riesgo de fragmentos mal seleccionados por similitud; además evita pgvector, el "
-                  "pipeline de indexado y la carga de un modelo de embeddings en Ollama por análisis. El "
-                  "RAG quedó documentado como plan para escalar a manuales grandes."))
+    out.append(_h2("Introducción"))
+    out.append(_p("La aplicación usa IA para analizar los tickets: un modelo interpreta la "
+              "descripción de la incidencia y devuelve un diagnóstico estructurado. El proveedor "
+              "activo por defecto es Groq (baja latencia y buena disponibilidad del free tier), "
+              "además de otros proveedores cloud; el sistema incluye Ollama local (formato NATIVO, "
+              "sin key) como opción adicional, y desde el panel de administración se pueden "
+              "configurar los proveedores cloud y agregar/editar modelos. Como contexto del análisis, "
+              "el prompt se arma con la descripción del ticket, la descripción oficial del sistema "
+              "(Sistema.prompt) y el manual de uso del sistema sobre el que se está reportando la "
+              "incidencia, en texto plano (manuales_rag/&lt;codigo&gt;, leído al momento de "
+              "analizar); cuando el proveedor es Ollama local el manual se omite para alivianar la "
+              "consulta (el modelo local corre con contexto acotado). Además incluye un system prompt con la "
+              "persona, las reglas, el formato de salida y defensa contra prompt injection. La llamada al modelo se gestiona "
+              "con código propio, y ante fallos transitorios el análisis se reintenta automáticamente. "
+              "Si el manual completo excede el contexto del modelo, la llamada degrada reutilizando el "
+              "intento con un manual resumido del sistema y, de persistir, sin manual: el análisis "
+              "nunca se cae por el tamaño del contexto. Evaluamos dos variantes para "
+              "incorporar los manuales: RAG vectorial (embeddings locales con nomic-embed-text + "
+              "pgvector) y enviar el manual completo en el prompt. Elegimos esta última porque los "
+              "manuales son acotados (BALANCES ~24 KB, FINANCIAMIENTO ~16 KB, ~10-12K tokens) y "
+              "entran enteros en el contexto: el modelo ve todo el contenido, sin riesgo de fragmentos "
+              "mal seleccionados por similitud; además evita pgvector, el pipeline de indexado y la "
+              "carga de un modelo de embeddings en Ollama por análisis. El RAG quedó documentado como "
+              "plan para escalar a manuales grandes."))
 
     out.append(_h2("Pregunta 1 — Qué papel jugaría un LLM/SLM local"))
     out.append(_p("Reemplazaría (o complementaría) la API externa para escenarios sensibles: los tickets "
@@ -551,36 +583,56 @@ def _parte2():
                   "funcionamiento offline o en red privada. En experiencia, permitiría ofrecer el análisis "
                   "como garantía por defecto para incidencias de sistemas sensibles, sin depender del "
                   "estado de un proveedor externo."))
-    out.append(_p("Por supuesto que, dependiendo de la infraestructura del servidor y del modelo local "
-                  "elegido, podría haber cierto déficit de velocidad/precisión en la interacción con una "
-                  "IA local frente a modelos cloud más grandes y rápidos."))
+    out.append("<p class='text-sm text-gray-700 leading-relaxed' style='margin:0'>"
+               "Por supuesto que, dependiendo de la infraestructura del servidor y del modelo local "
+               "elegido, podría haber cierto déficit de velocidad/precisión en la interacción con una "
+               "IA local frente a modelos cloud más grandes y rápidos.</p>")
 
     out.append(_h2("Pregunta 3 — Qué te aportaría a vos como profesional"))
-    out.append(_p("Analizar logs de incidencias y patrones de reportes sin necesidad de "
-                  "que los datos salgan de la organización; probar el pipeline de IA offline; el modelo "
-                  "local corre con el mismo código (mismo prompt y formato de salida), lo que permite "
-                  "desarrollo sin keys ni costo y validar privacidad ante el cliente."))
+    out.append(_p("Un modelo local nos aportaría información del negocio y del usuario sin que los datos "
+                  "salgan de la organización: patrones de incidencias por sistema y cómo reportan quienes "
+                  "lo usan sin exponer tickets sensibles en la red. En cuanto al desarrollo, además, nos "
+                  "serviría para coworkear con IAs sin límite de tokens ni gasto en cuentas de modelos "
+                  "pagos: podríamos iterar el prompt y probar el pipeline de análisis completo contra el "
+                  "modelo local, gratis y offline. A futuro, el sistema podría correr el análisis del "
+                  "ticket contra una versión vectorizada del código del sistema para el que se reporta la "
+                  "incidencia (RAG), para detectar y sugerir dónde ocurre el error y cómo resolverlo, sin "
+                  "exponer código ni la información de los tickets."))
 
     out.append(_h2("Pregunta 4 — Limitaciones concretas vs API en la nube"))
-    out.append(_p("Comparación de tiempos de análisis local vs nube (medido sobre un ticket real con el "
-                  "prompt completo y el manual del sistema; [COMPLETAR con las mediciones reales]): el "
-                  "análisis con Ollama local (qwen2.5:3b-instruct-q4_K_M, ~6 tok/s de decode) tarda "
-                  "[T_LOCAL — ~90-120s] vs la API en la nube (Groq, qwen/qwen3.8-27b) que tarda "
-                  "[T_NUBE — pocos segundos]. La implementación final está prevista sobre un servidor de "
-                  "la organización con características superiores a los equipos de desarrollo, lo que "
-                  "reduce la brecha de rendimiento. La calidad del modelo local de ~3B es inferior a la de "
-                  "los ~27B de Groq para el caso de uso específico. Mantenimiento (actualizar el modelo, "
-                  "ollama pull) recae en el equipo local. No conviene para volumen alto ni para tareas "
-                  "globales largas."))
+    out.append(_p("La principal limitación es la capacidad del hardware disponible: nuestros equipos de "
+                  "desarrollo no tienen los recursos para correr análisis representativos. En el mejor "
+                  "de los casos, la implementación sobre un servidor de la organización con "
+                  "características superiores permitiría correr el análisis contra un modelo local, pero "
+                  "aun así no compite con los LLMs grandes y potentes de la nube. Además, en las pruebas "
+                  "corridas en los equipos de desarrollo, la calidad del análisis con Ollama local "
+                  "resultó bastante más pobre en la manera de interpretar y analizar el ticket frente a "
+                  "cualquier modelo grande en la nube. A esto se suma el mantenimiento: los modelos "
+                  "locales habría que actualizarlos manualmente en nuestro servidor, a diferencia de las "
+                  "APIs, gestionadas por el proveedor."))
 
-    out.append(_h2("Entregable opcional — captura de Ollama local"))
-    out.append(_p("Comando: <code class='text-brand-700'>ollama run qwen2.5:3b</code>"))
-    out.append(_card(_p("Pregunta: \"En una organización que gestiona incidencias de Financiamiento "
-                        "político, qué ventajas y riesgos tiene analizar esas incidencias con un LLM "
+    out.append(_junta(
+        _h2("Captura de Ollama local", page_before=True),
+        _p("Comando: <code class='text-brand-700'>ollama run qwen2.5:3b</code>"),
+        _card("<p class='mt-3 italic text-sm text-gray-700 leading-relaxed'><strong>Pregunta:</strong> \"En una organización que gestiona incidencias de Financiamiento "
+                        "político, qué ventajas y riesgos tiene analizar estas incidencias con un LLM "
                         "local versus una API en la nube? Respuesta no muy larga, un párrafo corto "
-                        "para cada situación de riesgo/ventaja\"", italic=True)))
-    out.append(_captura("query_ollama.png", "Ollama en local: `ollama list` + `ollama run qwen2.5:3b` "
-                        "con la pregunta del dominio y la respuesta completa del modelo."))
+                        "para cada situación de riesgo/ventaja\"</p>"
+                     + "<p class='mt-2 italic text-sm text-gray-700 leading-relaxed'><strong>Respuesta del "
+                       "modelo:</strong> Ventajas del uso de un LLM local en una organización que "
+                       "gestiona incidencias de Financiamiento político incluyen la capacidad de "
+                       "manejar grandes volúmenes de datos de manera más eficiente sin exponerlos a "
+                       "Internet, lo que puede reducir riesgos de seguridad. Además, la implementación "
+                       "local puede mejorar la privacidad, permitiendo que la información sea procesada "
+                       "y analizada sin ser compartida con servidores remotos.</p>"
+                     + "<p class='mt-3 italic text-sm text-gray-700 leading-relaxed' style='margin:0'>Riesgos "
+                       "asociados con la utilización de una API en la nube incluyen la exposición a "
+                       "riesgos de seguridad y privacidad, ya que los datos pueden ser transferidos a "
+                       "Internet. También existe el riesgo de un corte de servicio o de rendimiento si "
+                       "la API en la nube está experimentando problemas, afectando la eficiencia del "
+                       "proceso de gestión de incidencias.</p>"),
+        _captura("query_ollama.png", "Ollama en local: `ollama list` + `ollama run qwen2.5:3b` "
+                        "con la pregunta del dominio y la respuesta completa del modelo.")))
     return "\n".join(out)
 
 
@@ -594,10 +646,10 @@ def main():
         ["Recurso", "URL"],
         [
             ["Repositorio GitHub", "<a class='text-brand-700 underline' href='https://github.com/patosimple/Incidencias'>https://github.com/patosimple/Incidencias</a>"],
-            ["Aplicación en producción", "<a class='text-brand-700 underline' href='https://incidencias.onrender.com'>https://incidencias.onrender.com</a>"],
+            ["Aplicación en producción *", "<a class='text-brand-700 underline' href='https://incidencias.onrender.com'>https://incidencias.onrender.com</a>"],
             ["Video demo", "<a class='text-brand-700 underline' href='https://youtu.be/7AgJvyjOLZw'>https://youtu.be/7AgJvyjOLZw</a>"],
         ],
-    ) + "<p class='mt-3 text-xs text-gray-500'>Nota: el servicio está alojado en el plan gratuito de "
+    ) + "<p class='mt-3 text-xs text-gray-500'>*Nota: el servicio está alojado en el plan gratuito de "
             "Render, que puede redeployar de forma automática, a veces la primera carga puede "
             "demorar unos segundos en levantar la aplicación.</p>")
     html = html.replace("{PARTE1}", _parte1())

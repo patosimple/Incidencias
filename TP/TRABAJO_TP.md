@@ -49,7 +49,7 @@ obligatorios (repo, app en producción, video).
 | Archivo | Qué es | Estado |
 |---|---|---|
 | `ENTREGA_CONSIGNA.md` | Consigna oficial completa (no tocar) | ✅ guardada |
-| `Entrega_Final_TP.html` + `.pdf` | **Informe principal del TP** (Parte 1 + Parte 2) en HTML/PDF, estilo manual (Tailwind + paleta brand) | ✅ **21 páginas, sin páginas en blanco, log completo, diagramas con su título** |
+| `Entrega_Final_TP.html` + `.pdf` | **Informe principal del TP** (Parte 1 + Parte 2) en HTML/PDF, estilo manual (Tailwind + paleta brand) | ✅ **21 páginas, sin páginas en blanco, log completo, diagramas con su título (y los fullpage más grandes desde 20/09)** |
 | `generar_entrega_html.py` | Script que genera el `.html` (y de ahí el `.pdf` con Edge headless) | ✅ |
 | `Entrega_Final_TP.docx` | Informe del TP en Word (mismo contenido; **anexo/backup**) | ✅ esqueleto completo con `[COMPLETAR]` |
 | `generar_entrega.py` | Script que construye el `.docx` con `python-docx` (reproducible) | ✅ |
@@ -75,23 +75,44 @@ venv\Scripts\python.exe TP\generar_entrega.py              # genera el .docx (an
   div vacío), log completo fluyendo entre páginas (`pre-wrap`), tamaño de fuente
   normal (el `overflow-auto` del log ensanchaba la página y Edge escalaba todo a
   2/3).
+- **Diagramas fullpage más grandes (20/09/2026)**: los 4 diagramas que van solos
+  en su página (estados del ticket, UML clases, casos de uso, secuencia IA)
+  pasaron de ~77% a ~93% de la hoja solo vía render: parámetro `max_height=640`
+  en `_diagrama(...)` (inline style que gana al `520pt` del CSS). Los PNG ya
+  estaban a 200 dpi (sin cambios de bytes). Ver detalle en AGENTS.md.
 
 ### `[COMPLETAR]` pendientes del informe (los prepara el usuario)
-1. **Mediciones IA local vs nube** — Pregunta 4, Parte 2 (`[T_LOCAL]`/`[T_NUBE]` reales)
-2. **Captura + respuesta de Ollama** — entregable opcional, Pregunta 5
+- ~~Mediciones IA local vs nube~~ — **RESUELTO 19/09/2026**: la Pregunta 4 ya NO usa tiempos
+  (`[T_LOCAL]`/`[T_NUBE]` fuera); quedó **cualitativa** (decisión del usuario: limitación de
+  hardware local, calidad local más pobre, mantenimiento manual de modelos).
+- ~~Captura + respuesta de Ollama~~ — **RESUELTO 19/09/2026**: la "Captura de Ollama local"
+  ya incorpora la **respuesta del modelo** transcrita en el informe (dejó de ser "entregable
+  opcional"); figura `query_ollama.png` (captura real del usuario).
 
 > Nota 18/09/2026: integrantes en portada y sección 1 ya están **sin roles** (trabajo
 > conjunto); rol Coordinador no se nombra en el informe (la app lo conserva "a futuro");
 > la fila "Otros recursos publicados" de los links se eliminó. El `.docx` quedó congelado.
+>
+> Nota 19/09/2026 (últimas correcciones del usuario): portada con subtítulo en 2 líneas;
+> "Por qué" del stack en 1ra persona ("Elegimos..." / "elegimos Python porque..."); "Video de
+> demostración" (sale "(opcional)" y "(max 3 min)"); tabla sección 7 con encabezados "Para qué
+> la usamos / Qué nos aportó", **fila GitHub/Git eliminada**, Antigravity con Bien/Mal (se
+> queda sin tokens en tareas grandes) y opencode con mención de la suite de tests; Reflexión
+> reescrita en 3 párrafos sin números de tests; Parte 2 con nueva "Introducción" y Pregunta 3
+> reescrita. **El informe quedó SIN `[COMPLETAR]` pendientes** (PDF sigue en 21 páginas). El
+> `.docx` (`generar_entrega.py`) sigue congelado/desactualizado.
 
 ---
 
 ## 4. Diagramas (Mermaid, PNG incrustados)
 Los diagramas **van como IMAGEN (PNG)** en el informe. Ambos generadores
 (`generar_entrega.py` docx y `generar_entrega_html.py` html/pdf) incrustan
-`diagramas/<base>.png` si existe. Los PNG actuales se rasterizaron desde los
+`diagramas/<base>.png` si existe. Los PNG se rasterizaron desde los
 PDFs A4 renderizados por el usuario (`diagramas render/*_A4.pdf`) con
-**pymupdf** a **200 dpi** (el 17/09/2026).
+**pymupdf** a **200 dpi** (el 17/09/2026). Los 6 siguen a 200 dpi hoy (los
+4 "fullpage" se re-probaron el 20/09/2026 y dieron bytes idénticos — el único
+cambio que los agrandó en el PDF fue el `max_height=640` del generador, no el
+PNG).
 
 | Diagrama | Archivo `.mmd` | PNG |
 |---|---|---|
@@ -163,14 +184,13 @@ trabajó en dos esquemas combinados:
 ---
 
 ## 6. Contenido del informe (PDF principal, docx anexo): qué está y qué falta
-El **PDF (`Entrega_Final_TP.pdf`, 20 páginas)** es el informe principal (Parte 1
+El **PDF (`Entrega_Final_TP.pdf`, 21 páginas)** es el informe principal (Parte 1
 y Parte 2 completas, con capturas reales, diagramas, log y tablas). El `.docx`
-replica el mismo contenido como anexo editable. Los placeholders `[COMPLETAR ...]`
-están en (ver lista completa en §3):
-- Portada: integrantes (`{GRUPO}`).
-- Links obligatorios: URL de la app en producción y video.
-- Sección 4: video demo (opcional) y log de sesión real (ya incluido).
-- Parte 2: mediciones de tiempos reales y captura de Ollama.
+replica el mismo contenido como anexo editable (congelado/desactualizado desde
+18/09). **Ya NO quedan placeholders `[COMPLETAR]`**: los últimos se resolvieron en
+las correcciones del 19/09 (integrantes sin roles, URLs de repo/app/video, video
+demo sin "(opcional)", Q4 cualitativa sin mediciones de tiempos, captura de Ollama
+con la respuesta del modelo). Ver el detalle en §3.
 
 ---
 
@@ -279,17 +299,15 @@ info sensible):
   modelo activo (Groq sigue activo).
 - para las mediciones se usa **`qwen2.5:3b-instruct-q4_K_M`** (ya pull, 1.9 GB).
   Medición de referencia local (11/09/2026): **~6 tok/s** de decode → un análisis
-  completo ≈ **1.5-2 min**. **El informe NO incluye detalle de equipos**: solo va
-  la comparación de tiempos local vs nube (la implementación final irá a un
+  completo ≈ **1.5-2 min** (equipo sin GPU; solo referencia, no va al informe).
+  **El informe NO incluye detalle de equipos** (la implementación final irá a un
   servidor propio de la organización con recursos superiores a los equipos de
   desarrollo).
-- ⏳ **Pendiente (plan 11/09/2026): medir tiempos local vs nube y volcarlos en
-  el Word, sección 4 (evidencia)**. **Flujo acordado**: el usuario pasa el texto
-  de un ticket → el agente devuelve el **prompt full** que se le mandaría a la
-  IA (armado con `_construir_mensajes` de `ai/providers.py`: system + user con
-  título/sistema/descripción) → el usuario lo corre con `ollama run
-  qwen2.5:3b-instruct-q4_K_M` y mide tiempo/tok/s → comparar contra Groq
-  (modelo activo) en el informe.
+- ✅ **Decisión 19/09/2026 — las mediciones ya NO van al informe**: la Pregunta 4
+  quedó **cualitativa** (limitación de hardware local, calidad local más pobre,
+  mantenimiento manual) sin `[T_LOCAL]`/`[T_NUBE]`; se descartó el plan de medir
+  tiempos para volcarlos al informe (plan 11/09/2026). La referencia local
+  (~6 tok/s, análisis ≈1.5-2 min) queda solo como dato contextual en `AGENTS.md`.
 - ✅ **Timeout por proveedor IMPLEMENTADO (13/09/2026)**: base 60s
   (`TIMEOUT`) en `ai/providers.py`; `OllamaProvider` pisa a `TIMEOUT_OLLAMA` =
   240s (decode local lento; el análisis completo va en un solo POST) y envuelve
@@ -359,8 +377,10 @@ info sensible):
   registro con el modelo del seed si no existe, y actualiza la fila Ollama solo
   si quedó sin modelo. El resto de los proveedores conserva el comportamiento
   (se actualiza SIEMPRE al catálogo).
-- Para el entregable opcional de captura: `ollama run qwen2.5:3b` + pregunta del
-  dominio (ej. ventajas/riesgos de LLM local vs nube en Financiamiento político).
+- ✅ **Captura de Ollama DONE (19/09/2026)**: `ollama run qwen2.5:3b` + pregunta del
+  dominio (ventajas/riesgos de LLM local vs nube en Financiamiento político); la
+  **respuesta del modelo ya está transcrita en el informe** (sección "Captura de
+  Ollama local", con `query_ollama.png`).
 
 ---
 

@@ -1,0 +1,1079 @@
+{% load static %}
+    {# ------------------------------------------------------------------ #}
+    {# Sección 1: Roles y permisos                                         #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-roles" class="manual-seccion abierta rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="true"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">1</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Roles y permisos</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-5">
+
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Cada usuario tiene <strong>un rol</strong> que define qué puede ver y qué acciones puede realizar
+                sobre los tickets. El rol aparece en el <strong>menú del usuario</strong> (arriba a la derecha):
+                la <strong>barra vertical de color</strong> y el texto debajo del nombre lo identifican de un vistazo.
+            </p>
+
+            <!-- Réplica dinámica: el bloque de identidad del menú de usuario (adaptable a dark) -->
+            <div>
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">En el menú de usuario, cada rol se distingue por el color de la barra</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="self-stretch w-1.5 shrink-0 rounded-full bg-brand-600"></div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">Ana García</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 truncate">ana.garcia</div>
+                                <div class="mt-1 text-[10px] uppercase tracking-wide text-brand-600 dark:text-brand-400">Solicitante</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="self-stretch w-1.5 shrink-0 rounded-full bg-emerald-600"></div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">Javier Pérez</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 truncate">javier.perez</div>
+                                <div class="mt-1 text-[10px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Desarrollador</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Qué puede hacer cada rol -->
+            <div>
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Qué puede hacer cada rol</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <article class="rounded-lg border border-brand-100 dark:border-brand-900 bg-brand-50 dark:bg-brand-950/40 p-4">
+                        {% include "core/partials/rol_badge.html" with rol='SOLICITANTE' %}
+                        <ul class="mt-3 space-y-1.5 text-xs text-gray-700 dark:text-gray-300">
+                            <li>• Crea y administra sus propios tickets</li>
+                            <li>• Comenta en sus tickets</li>
+                            <li>• Cierra / reabre los que creó</li>
+                            <li>• Adjunta archivos (capturas, informes)</li>
+                            <li>• Carga tickets y hace seguimiento hasta el cierre</li>
+                        </ul>
+                    </article>
+                    <article class="rounded-lg border border-emerald-100 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 p-4">
+                        {% include "core/partials/rol_badge.html" with rol='DESARROLLADOR' %}
+                        <ul class="mt-3 space-y-1.5 text-xs text-gray-700 dark:text-gray-300">
+                            <li>• Ve todos los tickets de sus sistemas</li>
+                            <li>• Toma, cierra, reabre y libera tickets</li>
+                            <li>• Analiza tickets con IA</li>
+                            <li>• Comenta en los tickets que participa</li>
+                            <li>• Ve el análisis IA de cada ticket</li>
+                        </ul>
+                    </article>
+                </div>
+            </div>
+
+            <!-- Nota sobre el acceso -->
+            <div class="rounded-lg bg-gray-100 dark:bg-slate-700/60 p-4 text-xs text-gray-700 dark:text-gray-300">
+                <strong>Acceso según rol:</strong> el solicitante solo ve y opera sobre sus propios tickets.
+                El desarrollador ve los tickets de los sistemas a los que tiene acceso
+                (ese acceso se asigna desde el panel de administración).
+            </div>
+
+            <!-- Capturas -->
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/12_menu_usuario_dev.png' %}" alt="Menú de usuario desarrollador" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Menú de usuario de un Desarrollador.
+                </figcaption>
+            </figure>
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/12b_menu_usuario_user.png' %}" alt="Menú de usuario solicitante" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Menú de usuario de un Solicitante, sin la opción "Administración".
+                </figcaption>
+            </figure>
+
+        </div>
+    </section>
+
+    {# ------------------------------------------------------------------ #}
+    {# Sección 2: Primeros pasos                                          #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-primeros-pasos" class="manual-seccion rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="false"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">2</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Primeros pasos</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-5">
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4 text-sm text-gray-700 dark:text-gray-300 space-y-2">
+                    <h3 class="font-semibold text-gray-900 dark:text-white">Cómo entrar al sistema</h3>
+                    <p>El acceso es con <strong>usuario y contraseña</strong>. Al entrar te llevan directo
+                    al listado de tickets.</p>
+                    <p>Si el usuario o la contraseña son incorrectos se muestra
+                    <strong>"Usuario o contraseña incorrectos"</strong>.</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4 text-sm text-gray-700 dark:text-gray-300 space-y-2">
+                    <h3 class="font-semibold text-gray-900 dark:text-white">Tema claro / oscuro</h3>
+                    <p>En la barra superior está el <strong>toggle sol / luna</strong> para cambiar el tema
+                    de toda la aplicación. La elección queda guardada para las próximas visitas.</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">El manual se adapta solo al tema activo:
+                    las mismas capturas sirven para ambos.</p>
+                </div>
+            </div>
+
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/01_login.png' %}" alt="Pantalla de login" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Pantalla de login.
+                </figcaption>
+            </figure>
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/14_dark_mode.png' %}" alt="Listado de tickets en tema oscuro" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    El listado de tickets en tema oscuro.
+                </figcaption>
+            </figure>
+
+            <div class="rounded-lg bg-gray-100 dark:bg-slate-700/60 p-4 text-xs text-gray-700 dark:text-gray-300 space-y-2.5">
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Opciones del menú de usuario (arriba a la derecha)</p>
+                <p class="flex items-start gap-2">
+                    <svg class="w-4 h-4 mt-0.5 text-gray-400 dark:text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    <span><strong>Administración</strong> (solo ciertos roles): permite acceder al panel de administración del sistema.</span>
+                </p>
+                <p class="flex items-start gap-2">
+                    <svg class="w-4 h-4 mt-0.5 text-gray-400 dark:text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                    </svg>
+                    <span><strong>Cambiar contraseña</strong>: te lleva a la pantalla para renovar tu clave, que pedirá la actual y la nueva (dos veces).</span>
+                </p>
+                <p class="flex items-start gap-2">
+                    <svg class="w-4 h-4 mt-0.5 text-gray-400 dark:text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                    </svg>
+                    <span><strong>Salir</strong>: cierra la sesión. Siempre cerrá sesión antes de dejar la computadora desatendida.</span>
+                </p>
+            </div>
+
+        </div>
+    </section>
+
+    {# ------------------------------------------------------------------ #}
+    {# Sección 3: Ciclo de vida del ticket                                #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-ciclo-vida" class="manual-seccion rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="false"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">3</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Ciclo de vida del ticket</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-5">
+
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Todo ticket pasa por <strong>estados</strong>. Un badge con color indica en qué estado está en cada momento.
+            </p>
+
+            <!-- Réplica: badges de estado -->
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="inline-block bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium px-2 py-0.5 rounded">Pendiente</span>
+                <span class="inline-block bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium px-2 py-0.5 rounded">En proceso</span>
+                <span class="inline-block bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium px-2 py-0.5 rounded">Reabierto</span>
+                <span class="inline-block bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-gray-300 text-xs font-medium px-2 py-0.5 rounded">Cerrado</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700 dark:text-gray-300">
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4 space-y-1.5">
+                    <p><strong>Pendiente</strong> — nace cuando se crea el ticket.</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Es el estado inicial. Queda a la espera de que un desarrollador lo tome.</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4 space-y-1.5">
+                    <p><strong>En proceso</strong> — está siendo trabajado.</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Se alcanza cuando un desarrollador toma el ticket (ver sección 12).</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4 space-y-1.5">
+                    <p><strong>Cerrado</strong> — se terminó la gestión.</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Puede cerrarlo el solicitante que lo creó, un desarrollador o el coordinador.</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4 space-y-1.5">
+                    <p><strong>Reabierto</strong> — se volvió a abrir un cerrado.</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Vuelve a estar activo para que se siga trabajando (ver sección 13).</p>
+                </div>
+            </div>
+
+            <div class="rounded-lg bg-gray-100 dark:bg-slate-700/60 p-4 text-xs text-gray-700 dark:text-gray-300">
+                <strong>Sobre los colores de "En proceso" y "Reabierto":</strong> para un desarrollador, el verde indica que el ticket lo
+                tiene tomado <em>él</em>, el azul que lo tiene tomado otro, y el rojo que quedó sin tomar. Son pistas visuales, no
+                cambian la lógica del ticket. Ver sección 16.
+            </div>
+
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/06_detalle_pendiente.png' %}" alt="Ticket pendiente" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Ticket recién creado, en estado Pendiente.
+                </figcaption>
+            </figure>
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/05_detalle_en_proceso.png' %}" alt="Ticket en proceso" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Ticket en proceso, ya tomado por un desarrollador.
+                </figcaption>
+            </figure>
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/07_detalle_cerrado_comentarios.png' %}" alt="Ticket cerrado" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Ticket cerrado: el badge pasa a gris y ya no se pueden agregar comentarios.
+                </figcaption>
+            </figure>
+
+        </div>
+    </section>
+
+    {# ------------------------------------------------------------------ #}
+    {# Sección 4: Listado de tickets                                      #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-listado" class="manual-seccion rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="false"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">4</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Listado de tickets</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-5">
+
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                El listado muestra todos los tickets que podés ver, ordenados del más nuevo al más viejo.
+                En pantallas grandes es una <strong>tabla</strong>; en el celular, <strong>tarjetas</strong>.
+            </p>
+
+            <div>
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Filtros rápidos</p>
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-3 flex flex-wrap items-center gap-2 bg-gray-50 dark:bg-slate-800">
+                    <input type="text" placeholder="Buscar por título..." disabled class="w-full sm:w-56 rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2.5 py-1.5 text-xs text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500">
+                    <select disabled class="rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200">
+                        <option selected>Sistema</option>
+                    </select>
+                    <select disabled class="rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200">
+                        <option selected>Estado</option>
+                    </select>
+                    <select disabled class="rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200">
+                        <option selected>Novedades</option>
+                    </select>
+                </div>
+                <ul class="mt-2 space-y-1 text-xs text-gray-500 dark:text-gray-400 list-disc list-inside">
+                    <li><strong>Buscar</strong>: filtra por texto en el título al instante.</li>
+                    <li><strong>Sistema / Estado</strong>: filtran por un valor puntual. Con "Limpiar" se vuelve a ver todo.</li>
+                    <li><strong>Novedades</strong>: el círculo del encabezado de la tabla filtra los tickets con actividad nueva desde tu última visita.</li>
+                    {% if user.rol == 'DESARROLLADOR' %}<li><strong>Colaborador</strong>: más abajo, el filtro "Tomados por mí / por otros / sin tomar" (sección 14).</li>{% endif %}
+                </ul>
+            </div>
+
+            <div class="rounded-lg bg-gray-100 dark:bg-slate-700/60 p-4 text-xs text-gray-700 dark:text-gray-300">
+                <strong>Ordenar por columna:</strong> en la tabla, hacé clic en los encabezados
+                (<em>#</em>, <em>Título</em>, <em>Sistema</em>, <em>Estado</em>, <em>Solicitante</em>, <em>Fecha</em>)
+                para ordenar ascendente o descendente. El orden se aplica a todo el conjunto, no solo a la página visible.
+            </div>
+
+            <!-- Réplica: paginador -->
+            <div class="flex flex-wrap items-center justify-between gap-2 text-sm text-gray-500 dark:text-gray-400">
+                <span>Mostrando 1–20 de 45 tickets</span>
+                <div class="flex items-center gap-2">
+                    <button disabled class="px-3 py-1.5 rounded border border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300 opacity-50 cursor-not-allowed">&larr; Anterior</button>
+                    <span class="px-2 py-1.5">Página 1 de 3</span>
+                    <button class="px-3 py-1.5 rounded border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">Siguiente &rarr;</button>
+                </div>
+            </div>
+
+            {% if user.rol == 'DESARROLLADOR' or user.rol == 'COORDINADOR' %}
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/02_listado_desktop.png' %}" alt="Listado de tickets desktop" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Listado en pantalla grande (visión de desarrollador).
+                </figcaption>
+            </figure>
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/02b_listado_filtros.png' %}" alt="Listado con filtros aplicados" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Filtros aplicados sobre el listado.
+                </figcaption>
+            </figure>
+            {% else %}
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/02_listado_desktop.png' %}" alt="Listado de tickets desktop" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Listado en pantalla grande.
+                </figcaption>
+            </figure>
+            {% endif %}
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden max-w-md mx-auto">
+                <img src="{% static 'core/img/manual/03_listado_movil.png' %}" alt="Listado en el celular" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    En el celular, el mismo listado se ve como tarjetas.
+                </figcaption>
+            </figure>
+
+            <div class="space-y-4">
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">El indicador de novedades</p>
+                <p class="text-sm text-gray-700 dark:text-gray-300">
+                    Un <strong>puntito azul</strong> al lado del título marca los tickets con actividad nueva
+                    (nuevo comentario, cambio de estado o edición) desde tu última visita. No marca tu propia actividad.
+                </p>
+                <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                    <img src="{% static 'core/img/manual/15_filtro_novedades_off.png' %}" alt="Toggle de novedades apagado" class="w-full h-auto">
+                    <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                        Toggle de novedades: semicírculo = viendo todos los tickets. Un clic pasa a "solo novedades".
+                    </figcaption>
+                </figure>
+                <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                    <img src="{% static 'core/img/manual/15_filtro_novedades_on.png' %}" alt="Toggle de novedades encendido" class="w-full h-auto">
+                    <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                        Círculo lleno = viendo solo los tickets con novedades.
+                    </figcaption>
+                </figure>
+            </div>
+
+        </div>
+    </section>
+
+    {# ------------------------------------------------------------------ #}
+    {# Sección 5: Crear un ticket                                         #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-crear-ticket" class="manual-seccion rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="false"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">5</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Crear un ticket</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-5">
+
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Desde el botón <strong>Crear ticket</strong> de la barra lateral se abre el formulario.
+                Cuanto más claro sea el reporte, más rápido se resuelve.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700 dark:text-gray-300">
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Campos del formulario</h3>
+                    <ul class="space-y-1.5 text-xs list-disc list-inside text-gray-600 dark:text-gray-300">
+                        <li><strong>Sistema</strong>: la aplicación afectada (Balances o Financiamiento).</li>
+                        <li><strong>Título</strong>: resumen corto y concreto del problema.</li>
+                        <li><strong>Descripción</strong>: editor de texto enriquecido (negrita, listas, etc.).</li>
+                        <li><strong>Adjuntos</strong> (opcional): capturas o archivos que ayuden a entenderlo.</li>
+                    </ul>
+                </div>
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Qué conviene incluir</h3>
+                    <ul class="space-y-1.5 text-xs list-disc list-inside text-gray-600 dark:text-gray-300">
+                        <li>Qué pantalla o sección se estaba usando.</li>
+                        <li>Los pasos exactos para reproducir el problema.</li>
+                        <li>El mensaje de error, si aparece.</li>
+                        <li>Si pasa siempre o a veces (frecuencia).</li>
+                        <li>Desde qué equipo o navegador.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/04_crear_ticket.png' %}" alt="Formulario de creación de ticket" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Formulario de creación de un ticket.
+                </figcaption>
+            </figure>
+
+            <div class="rounded-lg bg-gray-100 dark:bg-slate-700/60 p-4 text-xs text-gray-700 dark:text-gray-300">
+                <strong>Recordá:</strong> una vez creado, el ticket queda en estado <em>Pendiente</em> y pasa a disposición
+                de los desarrolladores del sistema elegido.
+            </div>
+
+        </div>
+    </section>
+
+    {# ------------------------------------------------------------------ #}
+    {# Sección 6: Detalle del ticket                                      #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-detalle" class="manual-seccion rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="false"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">6</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Detalle del ticket</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-5">
+
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Al hacer clic en el título de un ticket se abre su <strong>página de detalle</strong>, con toda la
+                información y las acciones disponibles según tu rol.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700 dark:text-gray-300">
+                <ul class="rounded-lg border border-gray-200 dark:border-slate-700 p-4 space-y-1.5 text-xs list-disc list-inside">
+                    <li><strong>Número y título</strong>, con el <strong>sistema</strong> al lado (badge azul oscuro).</li>
+                    <li><strong>Autor y fecha</strong> de creación, con el color según el rol del autor (azul solicitante, verde desarrollador).</li>
+                    <li><strong>Colaboradores</strong>: quiénes trabajan el ticket.</li>
+                    <li><strong>Descripción</strong> completa formateada.</li>
+                    <li><strong>Adjuntos</strong> del ticket, descargables.</li>
+                </ul>
+                <ul class="rounded-lg border border-gray-200 dark:border-slate-700 p-4 space-y-1.5 text-xs list-disc list-inside">
+                    <li><strong>Estado</strong> actual, arriba a la derecha.</li>
+                    <li><strong>Acciones</strong> según tu rol y el estado: Tomar, Cerrar, Liberar, Reabrir.</li>
+                    <li><strong>Comentarios</strong> y formulario para sumar uno nuevo.</li>
+                    {% if user.rol == 'DESARROLLADOR' or user.rol == 'COORDINADOR' %}<li><strong>Análisis IA</strong>: tarjeta colapsable con el análisis automático (sección 15).</li>{% endif %}
+                    {% if user.rol == 'SOLICITANTE' %}<li>Si sos el autor y el ticket no está cerrado, también podés <em>Editar</em> o <em>Eliminar</em>.</li>{% endif %}
+                </ul>
+            </div>
+
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/05_detalle_en_proceso.png' %}" alt="Detalle de ticket en proceso" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Detalle de un ticket: estado, acciones, descripción y colaboradores.
+                </figcaption>
+            </figure>
+
+        </div>
+    </section>
+
+    {# ------------------------------------------------------------------ #}
+    {# Sección 7: Comentarios                                             #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-comentarios" class="manual-seccion rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="false"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">7</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Comentarios</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-5">
+
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Los comentarios son el historial de la conversación del ticket. Pueden crear y responder:
+                el <strong>autor del ticket</strong> y los <strong>desarrolladores que participan</strong>.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700 dark:text-gray-300">
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Responder y citar</h3>
+                    <p class="text-xs">Con <strong>Responder</strong> se arma la respuesta citando el mensaje anterior.
+                    También podés <strong>seleccionar texto</strong> y citar solo esa parte.</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Editar y eliminar</h3>
+                    <p class="text-xs">El autor de un comentario puede <strong>editarlo</strong> (aparece "· editado") o
+                    <strong>eliminarlo</strong> con confirmación, mientras siga participando activamente del ticket.</p>
+                </div>
+            </div>
+
+            <!-- Réplica: un comentario con cita -->
+            <div class="space-y-3 max-w-2xl">
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-3">
+                    <div class="text-xs text-gray-500 dark:text-gray-400">El motivo es que el servicio quedó fuera de línea.</div>
+                    <div class="mt-1.5 rounded bg-gray-50 dark:bg-slate-700/60 px-3 py-2 text-xs text-gray-600 dark:text-gray-300 border-l-2 border-brand-600">
+                        <strong>Respondiendo a Dev Demo:</strong> gracias, reviso la conectividad.
+                    </div>
+                </div>
+            </div>
+
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/09_comentario_cita.png' %}" alt="Comentario con cita" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Comentario respondiendo a otro, con la cita incluida.
+                </figcaption>
+            </figure>
+
+        </div>
+    </section>
+
+    {# ------------------------------------------------------------------ #}
+    {# Sección 8: Editar o eliminar el propio ticket                      #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-editar-ticket" class="manual-seccion rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="false"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">8</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Editar o eliminar el propio ticket</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-5">
+
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                El <strong>autor</strong> de un ticket puede <strong>editarlo</strong> o <strong>eliminarlo</strong>
+                mientras no esté <em>Cerrado</em>. Va a ver los botones de lápiz y papelera junto al autor.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700 dark:text-gray-300">
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Editar</h3>
+                    <p class="text-xs">Permite corregir el <strong>título</strong> y la <strong>descripción</strong>,
+                    y también agregar o quitar adjuntos. El sistema queda igual — no cambia la visibilidad del ticket.</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Eliminar</h3>
+                    <p class="text-xs">Pide <strong>confirmación</strong> y borra el ticket con sus comentarios.
+                    No se puede deshacer desde la interfaz.</p>
+                </div>
+            </div>
+
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/10_editar_ticket.png' %}" alt="Edición de un ticket" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Edición del título y la descripción de un ticket.
+                </figcaption>
+            </figure>
+
+        </div>
+    </section>
+
+    {# ------------------------------------------------------------------ #}
+    {# Sección 9: Adjuntos                                                #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-adjuntos" class="manual-seccion rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="false"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">9</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Adjuntos</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-5">
+
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Los tickets y los comentarios pueden llevar <strong>archivos adjuntos</strong>: capturas de pantalla,
+                documentos, planillas o comprimidos. La mayoría de los reportes llega con imágenes.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700 dark:text-gray-300">
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Tipos permitidos</h3>
+                    <p class="text-xs">Imágenes (<span>png, jpg, gif, webp, bmp, heic</span>), documentos
+                    (<span>pdf, doc, docx, xls, xlsx, txt…</span>) y comprimidos (<span>zip, rar, 7z</span>).
+                    Se rechazan ejecutables y archivos con macros.</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Límites</h3>
+                    <p class="text-xs">Cada archivo de <strong>hasta 10 MB</strong>, varios por ticket/comentario.
+                    Podés quitar uno con la <strong>X</strong> antes de enviar.</p>
+                </div>
+            </div>
+
+            <!-- Réplica: pied de carga de archivos -->
+            <div class="max-w-md">
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Cómo se ve al adjuntar</p>
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-3 space-y-3 bg-gray-50 dark:bg-slate-800">
+                    <div>
+                        <p class="max-w-fit inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Adjuntar archivos
+                        </p>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Opcional. Podés elegir varios archivos de a uno.</p>
+                    </div>
+                    <ul class="space-y-1">
+                        <li class="flex items-center gap-2 text-xs bg-white dark:bg-slate-700 rounded px-2 py-1">
+                            <button class="text-red-500 hover:text-red-700 -ml-1 p-1" aria-label="Quitar">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                            <span class="truncate">reporte_balances.xlsx</span>
+                            <span class="ml-auto text-gray-400 shrink-0">2.1 MB</span>
+                        </li>
+                        <li class="flex items-center gap-2 text-xs bg-white dark:bg-slate-700 rounded px-2 py-1">
+                            <button class="text-red-500 hover:text-red-700 -ml-1 p-1" aria-label="Quitar">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                            <span class="truncate">error_pantalla.png</span>
+                            <span class="ml-auto text-gray-400 shrink-0">340 KB</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-4 text-xs text-amber-800 dark:text-amber-200">
+                <strong>Nota:</strong> en el entorno de demostración los archivos se guardan en un almacenamiento
+                permanente en la nube (Supabase Storage), de modo que sobreviven a los reinicios del servidor.
+            </div>
+
+        </div>
+    </section>
+
+    {# ------------------------------------------------------------------ #}
+    {# Sección 10: Preguntas frecuentes                                   #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-faq" class="manual-seccion rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="false"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">10</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Preguntas frecuentes</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-3">
+
+            <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">¿Cómo sé si mi ticket avanzó?</p>
+                <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">El <strong>puntito azul</strong> en el listado marca actividad nueva. También podés ver los comentarios y el estado en el detalle.</p>
+            </div>
+            <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">¿Puedo cerrar yo mismo un ticket?</p>
+                <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">Sí, si sos el autor. También lo cierran los desarrolladores y el coordinador. Al cerrar no se pueden agregar más comentarios.</p>
+            </div>
+            <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">Equivoqué el sistema al crear el ticket, ¿cómo lo cambio?</p>
+                <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">Solo podés <strong>editar el título y la descripción</strong>, no el sistema. Si el sistema es incorrecto, comentalo en el ticket o pedí que lo reasignen.</p>
+            </div>
+            <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">¿Qué archivos puedo adjuntar?</p>
+                <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">Capturas, documentos de oficina y comprimidos, hasta 10 MB por archivo. Los ejecutables y archivos con macros se rechazan por seguridad.</p>
+            </div>
+            <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">No me deja comentar mi ticket cerrado, ¿por qué?</p>
+                <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">Un ticket <strong>cerrado</strong> no admite más comentarios. Reabrilo (botón <em>Reabrir</em>) si necesitás continuar la conversación.</p>
+            </div>
+
+        </div>
+    </section>
+
+    {% if user.rol == 'DESARROLLADOR' or user.rol == 'COORDINADOR' %}
+    {# ------------------------------------------------------------------ #}
+    {# Sección 11: Tomar y liberar tickets                                #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-tomar-ticket" class="manual-seccion rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="false"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">11</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Tomar y liberar tickets</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-5">
+
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                <strong>Tomar un ticket</strong> (solo rol Desarrollador) te asigna como <strong>colaborador activo</strong>. Si el ticket estaba
+                <em>Pendiente</em>, pasa a <em>En proceso</em>; si estaba <em>Reabierto</em>, se queda reabierto (solo sumás tu colaboración).
+            </p>
+
+            <!-- Réplica: botones de acción -->
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600">Tomar ticket</span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium text-white bg-red-600">Cerrar</span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium text-white bg-gray-500">Liberar</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700 dark:text-gray-300">
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Liberar un ticket</h3>
+                    <p class="text-xs">Marcás que dejás de participar. Si eras el <strong>último colaborador</strong>:
+                    un <em>En proceso</em> vuelve a <em>Pendiente</em>; un <em>Reabierto</em> se queda reabierto (sin colaborador).</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Varios colaboradores</h3>
+                    <p class="text-xs">Un ticket puede tener más de un desarrollador trabajando a la vez.
+                    Cada uno agrega su nombre al listado de colaboradores del detalle.</p>
+                </div>
+            </div>
+
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/06_detalle_pendiente.png' %}" alt="Botón Tomar ticket" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Ticket pendiente: el desarrollador ve el botón "Tomar ticket".
+                </figcaption>
+            </figure>
+
+        </div>
+    </section>
+
+    {# ------------------------------------------------------------------ #}
+    {# Sección 12: Cerrar y reabrir                                       #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-cerrar-reabrir" class="manual-seccion rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="false"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">12</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Cerrar y reabrir tickets</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-5">
+
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                <strong>Cerrar</strong> lleva un ticket abierto (Pendiente, En proceso o Reabierto) a <em>Cerrado</em>.
+                <strong>Reabrir</strong> vuelve a abrir un cerrado. Lo pueden hacer el desarrollador, el coordinador y el autor.
+            </p>
+
+            <div class="rounded-lg bg-gray-100 dark:bg-slate-700/60 p-4 text-xs text-gray-700 dark:text-gray-300">
+                <strong>Detalle:</strong> si un desarrollador reabre un ticket en el que no colaboraba, queda como
+                colaborador activo de forma automática. El ticket reabierto no se fuerza a En proceso.
+            </div>
+
+            <!-- Réplica del botón Reabrir -->
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600">Reabrir</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">Se muestra cuando el ticket está Cerrado y tenés permiso.</span>
+            </div>
+
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/08_reabrir.png' %}" alt="Botón Reabrir ticket" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Ticket cerrado con el botón "Reabrir".
+                </figcaption>
+            </figure>
+
+        </div>
+    </section>
+
+    {# ------------------------------------------------------------------ #}
+    {# Sección 13: Filtro de colaborador en el listado                    #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-filtro-colaborador" class="manual-seccion rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="false"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">13</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Filtro de "Colaborador" en el listado</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-5">
+
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                En el listado, los <strong>desarrolladores</strong> tienen un filtro extra para enfocarse en
+                los tickets que están manejando.
+            </p>
+
+            <!-- Réplica del select -->
+            <div class="max-w-md">
+                <select disabled class="w-full rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-2.5 py-1.5 text-xs text-gray-700 dark:text-gray-200">
+                    <option selected>Colaborador</option>
+                </select>
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">Opciones: <em>Tomados por mí</em>,
+                <em>Tomados por otros</em>, <em>Sin tomar</em>, <em>Todos</em>. Solo lo ven los desarrolladores.</p>
+            </div>
+
+            <div class="rounded-lg bg-gray-100 dark:bg-slate-700/60 p-4 text-xs text-gray-700 dark:text-gray-300">
+                <strong>Definición de "tomado":</strong> un ticket tiene al menos un colaborador activo.
+                "Tomados por mí" filtra los que son tuyos; "tomados por otros" los que tiene otro; "sin tomar"
+                los que esperan colaborador.
+            </div>
+
+        </div>
+    </section>
+
+    {# ------------------------------------------------------------------ #}
+    {# Sección 14: Análisis IA                                            #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-analisis-ia" class="manual-seccion rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="false"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">14</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Análisis IA de tickets</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-5">
+
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Cada ticket tiene una tarjeta <strong>Análisis IA</strong> (fondo celeste, colapsable) con el
+                análisis automático del reporte. Es una <strong>orientación para el desarrollo</strong>, no un
+                diagnóstico definitivo.
+            </p>
+
+            <!-- Réplica: botón Analizar -->
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-white bg-brand-600">
+                    <span class="inline-flex" style="transform: scaleX(-1);">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </span>
+                    Analizar
+                </span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">Tras el primer análisis el botón pasa a <em>Reanalizar</em>.</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700 dark:text-gray-300">
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Qué devuelve</h3>
+                    <ul class="space-y-1 text-xs list-disc list-inside text-gray-600 dark:text-gray-300">
+                        <li>Resumen del problema reportado.</li>
+                        <li>Causa probable y pasos sugeridos.</li>
+                        <li>Información que haría falta para avanzar.</li>
+                        <li>Referencias a la documentación del sistema.</li>
+                    </ul>
+                </div>
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Cómo corre</h3>
+                    <ul class="space-y-1 text-xs list-disc list-inside text-gray-600 dark:text-gray-300">
+                        <li>Bajo demanda: vos pulsás <em>Analizar</em>.</li>
+                        <li>Puede tardar unos segundos; se muestran los reintentos.</li>
+                        <li>Usa modelos de proveedores en la nube (Groq, Gemini, etc.).</li>
+                        <li>Guarda el resultado en el ticket para quien lo abra después.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/11_analisis_ia.png' %}" alt="Análisis IA de un ticket" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Tarjeta de análisis IA con su resultado.
+                </figcaption>
+            </figure>
+
+        </div>
+    </section>
+
+    {# ------------------------------------------------------------------ #}
+    {# Sección 15: Colores según quién tomó el ticket                     #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-colores-tomado" class="manual-seccion rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="false"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">15</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Colores del badge según quién tomó</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-5">
+
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Para el <strong>desarrollador</strong> y el <strong>coordinador</strong>, el color de los estados
+                <em>En proceso</em> y <em>Reabierto</em> indica quién tiene tomado el ticket. Es una pista visual, no cambia la lógica.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="rounded-lg border border-emerald-100 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 p-4 text-sm">
+                    <span class="inline-block bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium px-2 py-0.5 rounded mb-2">En proceso</span>
+                    <p class="text-xs text-gray-600 dark:text-gray-300"><strong>Verde</strong>: lo tenés tomado vos.</p>
+                </div>
+                <div class="rounded-lg border border-brand-100 dark:border-brand-900 bg-brand-50 dark:bg-brand-950/40 p-4 text-sm">
+                    <span class="inline-block bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 text-xs font-medium px-2 py-0.5 rounded mb-2">En proceso</span>
+                    <p class="text-xs text-gray-600 dark:text-gray-300"><strong>Azul</strong>: lo tiene tomado otro desarrollador.</p>
+                </div>
+                <div class="rounded-lg border border-red-100 dark:border-red-900 bg-red-50 dark:bg-red-950/40 p-4 text-sm">
+                    <span class="inline-block bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium px-2 py-0.5 rounded mb-2">Reabierto</span>
+                    <p class="text-xs text-gray-600 dark:text-gray-300"><strong>Rojo</strong>: sin colaborador activo, esperando ser tomado.</p>
+                </div>
+            </div>
+
+            <div class="rounded-lg bg-gray-100 dark:bg-slate-700/60 p-4 text-xs text-gray-700 dark:text-gray-300">
+                En el listado, si un ticket En proceso o Reabierto tiene colaboradores, el badge además muestra el
+                <strong>nombre de quiénes lo tienen</strong> como tooltip al pasar el mouse.
+            </div>
+
+        </div>
+    </section>
+    {% endif %}
+
+    {% if user.is_staff %}
+    {# ------------------------------------------------------------------ #}
+    {# Sección 16: Administración - usuarios y accesos                    #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-admin-usuarios" class="manual-seccion rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="false"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">16</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Administración: usuarios y accesos</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-5">
+
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Desde el menú de usuario → <strong>Administración</strong> se accede al panel de Django.
+                Solo los usuarios con ese permiso (staff/superusuarios) ven esta sección.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700 dark:text-gray-300">
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Usuarios</h3>
+                    <p class="text-xs">Alta, baja y edición de usuarios con su <strong>rol</strong> (Solicitante/Desarrollador).
+                    Dentro de cada usuario se asignan los <strong>accesos a sistemas</strong> (Balances, Financiamiento…).</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Accesos a sistemas</h3>
+                    <p class="text-xs">Un desarrollador solo ve los tickets de los sistemas que le asignás.
+                    Los accesos se administran con el bloque <em>"Accesos a sistemas"</em> dentro de cada usuario.</p>
+                </div>
+            </div>
+
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/13_admin_general.png' %}" alt="Panel de administración" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Panel de administración (índice).
+                </figcaption>
+            </figure>
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/13b_admin_usuarios.png' %}" alt="Menú de creación/edición de usuarios" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Menú de creación/edición de usuarios.
+                </figcaption>
+            </figure>
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/13c_admin_sistemas.png' %}" alt="Catálogo de sistemas" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Catálogo de sistemas.
+                </figcaption>
+            </figure>
+
+            <div class="rounded-lg bg-brand-50 dark:bg-brand-950/40 border border-brand-100 dark:border-brand-900 p-4 text-xs text-gray-700 dark:text-gray-300">
+                <strong>Nota:</strong> las secciones relacionadas con la <strong>gestión de incidencias</strong> (tomar/liberar,
+                cerrar/reabrir, análisis IA y colores del estado) y las de <strong>administración del sistema</strong> solo
+                están disponibles en el manual para los usuarios con los permisos correspondientes (desarrollador o administrador).
+                Un solicitante no ve esas secciones ni en el índice ni en la página.
+            </div>
+
+        </div>
+    </section>
+
+    {# ------------------------------------------------------------------ #}
+    {# Sección 17: Administración - configuración IA                      #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-admin-ia" class="manual-seccion rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="false"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">17</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Administración: modelos IA y configuración</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-5">
+
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                El sistema guarda un <strong>catálogo de modelos de IA</strong> (por proveedor) y una
+                <strong>configuración</strong> que indica cuál es el modelo activo para los análisis.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700 dark:text-gray-300">
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Modelos IA</h3>
+                    <p class="text-xs">Cada proveedor (Groq, Gemini, OpenRouter, NVIDIA, Ollama) tiene sus modelos con
+                    sus claves API asociadas en el archivo de configuración del servidor.</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Configuración IA</h3>
+                    <p class="text-xs">Desde <em>Configuración de IA</em> se elige el <strong>modelo activo</strong>.
+                    El cambio se aplica a los siguientes análisis.</p>
+                </div>
+            </div>
+
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/13d_admin_modelos.png' %}" alt="Catálogo de modelos IA" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Catálogo de modelos de IA.
+                </figcaption>
+            </figure>
+            <figure class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <img src="{% static 'core/img/manual/13e_admin_config_ia.png' %}" alt="Configuración de IA" class="w-full h-auto">
+                <figcaption class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+                    Configuración de IA: selección del modelo activo.
+                </figcaption>
+            </figure>
+
+        </div>
+    </section>
+
+    {# ------------------------------------------------------------------ #}
+    {# Sección 18: Administración - nota técnica                          #}
+    {# ------------------------------------------------------------------ #}
+    <section id="seccion-admin-nota" class="manual-seccion rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <button type="button" aria-expanded="false"
+                class="manual-toggle w-full flex items-center justify-between gap-3 px-6 py-4 text-left">
+            <span class="flex items-center gap-2">
+                <span class="text-brand-600 dark:text-brand-400 font-bold">18</span>
+                <span class="font-semibold text-gray-900 dark:text-white">Administración: nota técnica</span>
+            </span>
+            <svg class="manual-chevron w-5 h-5 shrink-0 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div class="manual-cuerpo px-6 pb-6 border-t border-gray-100 dark:border-slate-700 pt-4 space-y-5">
+
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Notas para quien administra el sistema sobre informática y recuperación.
+            </p>
+
+            <div class="rounded-lg border border-gray-200 dark:border-slate-700 p-4 text-sm text-gray-700 dark:text-gray-300">
+                <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Borrado lógico de tickets y comentarios</h3>
+                <p class="text-xs">Los tickets y comentarios eliminados no se borran físicamente: se marcan como
+                eliminados y quedan ocultos de la interfaz. Preservar el registro histórico es intencional.</p>
+            </div>
+
+            <div class="rounded-lg bg-slate-900 dark:bg-slate-950 p-4 text-xs font-mono text-slate-100 overflow-x-auto">
+                # Recuperar un ticket eliminado (desde la consola del sistema)<br>
+                t = Ticket.all_objects.get(pk=123)<br>
+                t.restore()<br>
+                <br>
+                # Recuperar un comentario eliminado<br>
+                c = Comentario.all_objects.get(pk=456)<br>
+                c.restore()
+            </div>
+
+            <div class="rounded-lg bg-gray-100 dark:bg-slate-700/60 p-4 text-xs text-gray-700 dark:text-gray-300">
+                <strong>Lectura de tickets:</strong> el indicador de novedades se guarda por usuario y ticket.
+                No requiere mantenimiento; se actualiza solo al visitar cada ticket.
+            </div>
+
+        </div>
+    </section>
+    {% endif %}

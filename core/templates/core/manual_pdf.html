@@ -1,0 +1,94 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual de uso — Sistema de Reporte de Incidencias</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brand: {
+            50:  '#E8F5FE', 100: '#D3EBFD', 200: '#A6D6FA', 300: '#70BCF0',
+            400: '#3FA0E4', 500: '#1488D3', 600: '#007AC3', 700: '#00639E',
+            800: '#005080', 900: '#003E63', 950: '#00304F'
+          }
+        }
+      }
+    }
+  }
+</script>
+<style>
+  @media print {
+    html, body { margin: 0 !important; }
+    body { background: #f3f4f6 !important; }
+    main { padding-top: 20pt !important; box-decoration-break: clone; }
+    .page-break { page-break-before: always; }
+    img, figure, table { page-break-inside: avoid; }
+    /* El header de cada sección (número + título) no queda huérfano al pie */
+    .manual-toggle { page-break-after: avoid; }
+    /* Los subtítulos internos acompañan a su contenido (no quedan al pie) */
+    .manual-cuerpo h3 { page-break-after: avoid; }
+    /* Cards internas enteras: si no entran, pasan a la página siguiente */
+    .manual-cuerpo .rounded-lg { page-break-inside: avoid; }
+    .manual-cuerpo img {
+      max-width: 100%;
+      height: auto;
+      max-height: 560pt;
+      object-fit: contain;
+    }
+    /* Sin interacción: el toggle se ve como encabezado de sección */
+    .manual-toggle { cursor: default; }
+    .manual-chevron { display: none; }
+    /* Capturas móviles deben entrar en una página */
+    .max-w-md { max-width: 90% !important; }
+  }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900 antialiased print:bg-gray-100">
+
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+
+    <!-- ==================== PORTADA ==================== -->
+    <div class="rounded-xl border border-brand-200 bg-white p-8 sm:p-10">
+        <p class="text-sm font-semibold tracking-wide text-brand-700 uppercase">SISTEMA DE REPORTE DE INCIDENCIAS</p>
+        <h1 class="mt-2 text-3xl font-bold text-brand-700">Manual de uso</h1>
+        <p class="mt-2 text-sm text-gray-600">
+            Guía de referencia de la aplicación de gestión de incidencias para los sistemas
+            <strong>Balances</strong> y <strong>Financiamiento</strong>.
+        </p>
+    </div>
+
+    <!-- ==================== ÍNDICE ==================== -->
+    <div class="rounded-xl border border-gray-200 bg-white p-6">
+        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Índice</h2>
+        <div class="mt-3 lg:grid lg:grid-cols-2 lg:gap-x-10">
+            <ol class="space-y-1 text-sm text-gray-700">
+                {% for num, id, titulo in toc_general %}
+                <li><span class="text-brand-600 font-medium">{{ num }}.</span> {{ titulo }}</li>
+                {% endfor %}
+            </ol>
+
+            <ol class="mt-4 lg:mt-0 space-y-1 text-sm text-gray-700">
+                <li class="pt-2 lg:pt-0"><span class="text-xs font-semibold uppercase tracking-wide text-gray-400">Solo desarrolladores</span></li>
+                {% for num, id, titulo in toc_desarrollo %}
+                <li><span class="text-brand-600 font-medium">{{ num }}.</span> {{ titulo }}</li>
+                {% endfor %}
+                <li class="pt-2"><span class="text-xs font-semibold uppercase tracking-wide text-gray-400">Administración del sistema</span></li>
+                {% for num, id, titulo in toc_admin %}
+                <li><span class="text-brand-600 font-medium">{{ num }}.</span> {{ titulo }}</li>
+                {% endfor %}
+            </ol>
+        </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    {% include "core/partials/manual_secciones.html" %}
+
+</main>
+
+</body>
+</html>
