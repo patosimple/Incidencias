@@ -149,7 +149,7 @@ def main():
     _titulo(doc, "Links de acceso directo")
     _tabla(doc, ["Recurso", "URL"], [
         ["Repositorio GitHub", "https://github.com/patosimple/Incidencias"],
-        ["Aplicacion en produccion", "https://incidencias.onrender.com"],
+        ["Aplicacion en produccion", "https://incidencias-bs9f.onrender.com"],
         ["Video demo", "https://youtu.be/7AgJvyjOLZw"],
         ["Otros recursos publicados", "[COMPLETAR si aplica — p.ej. el manual de uso /admin de la app]"],
     ])

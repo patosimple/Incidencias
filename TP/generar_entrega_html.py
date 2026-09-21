@@ -265,11 +265,13 @@ def _parte1():
     ))
     out.append(_junta(
         _h3("Problema que resuelve"),
-        _p("Gestión interna de bugs y requerimientos sobre dos aplicaciones reales de negocio "
-           "(Balances y Financiamiento de partidos políticos). Centraliza el reporte, el seguimiento, "
-           "la toma colaborativa, el cambio de estado y el cierre de incidentes, e incorpora "
-           "una capa de análisis IA que asiste a los desarrolladores a entender "
-           "el problema reportado."),
+        _p("Es un sistema de gestión de incidencias para dos sistemas reales, que finalmente "
+           "queremos implementar en nuestro lugar de trabajo, reemplazando la gestión que hoy "
+           "se hace en un canal de Discord. Cuando los usuarios detecten un error o surja un "
+           "pedido, se reportará en un solo lugar y quedará registrado: el equipo lo tomará, "
+           "hará un seguimiento colaborativo y lo cerrará cuando esté resuelto. Además, incluye "
+           "un análisis con IA que descarta la información redundante o innecesaria y ayuda "
+           "a los desarrolladores a entender mejor cada problema reportado."),
     ))
     out.append(_junta(
         _h3("Público objetivo"),
@@ -646,7 +648,7 @@ def main():
         ["Recurso", "URL"],
         [
             ["Repositorio GitHub", "<a class='text-brand-700 underline' href='https://github.com/patosimple/Incidencias'>https://github.com/patosimple/Incidencias</a>"],
-            ["Aplicación en producción *", "<a class='text-brand-700 underline' href='https://incidencias.onrender.com'>https://incidencias.onrender.com</a>"],
+            ["Aplicación en producción *", "<a class='text-brand-700 underline' href='https://incidencias-bs9f.onrender.com'>https://incidencias-bs9f.onrender.com</a>"],
             ["Video demo", "<a class='text-brand-700 underline' href='https://youtu.be/7AgJvyjOLZw'>https://youtu.be/7AgJvyjOLZw</a>"],
         ],
     ) + "<p class='mt-3 text-xs text-gray-500'>*Nota: el servicio está alojado en el plan gratuito de "

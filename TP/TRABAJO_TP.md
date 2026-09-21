@@ -19,6 +19,12 @@
 - **Adjuntos**: almacenamiento **permanente en la nube** (Supabase Storage S3,
   configurado 16/09/2026) para el deploy de producción (Render). En DEBUG local
   siguen en disco (`media/`).
+- **Deploy en producción**: Render free + Neon + Supabase. **Ping keepalive con
+  UptimeRobot (21/09/2026)**: monitor HTTP a `https://incidencias-bs9f.onrender.com/login/`
+  cada 5 min para que la app **no duerma** durante la evaluación (sin cold start).
+  **POR DEFECTO: monitor PAUSADO** (estado actual al 21/09/2026; verificado que funciona: UP constante ~377 ms) →
+  **reanudarlo el día de la entrega** y **pausarlo al terminar** la evaluación
+  (Render free = 750 hs/mes; despierta 24/7 consume ~744). Detalle en `AGENTS.md`.
 - Detalle completo del estado en **`AGENTS.md`**.
 
 ---
